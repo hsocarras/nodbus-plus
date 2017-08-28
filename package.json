@@ -1,0 +1,26 @@
+{
+  "name": "nodbus",
+  "description": "A modbus library made in javascript",
+  "keywords": [
+    "node",
+    "modbus",
+    "library"
+  ],
+  "author": {
+    "name": "Héctor E. Socarrás Cabrera",
+    "email": "hsocarras1987@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hsocarras/nodbus"
+  },
+  "dependencies": {
+    "serialport": "^4.0.0"
+  },
+  "engines": {
+    "node": ">= 6.0.0"
+  },
+  "license": "MIT",
+  "main": "src/nodbus.js"
+
+}
