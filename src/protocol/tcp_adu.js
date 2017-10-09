@@ -10,6 +10,7 @@ const MBAP = require('./mbap');
 
 module.exports = class TcpADU extends ADU {
   constructor(aduRaw = Buffer.alloc(1)){
+    super(aduRaw);
     //propiedad mbap
     this.mbap = new MBAP();
   }
@@ -46,7 +47,7 @@ module.exports = class TcpADU extends ADU {
           this.pdu.ParseBuffer();
       }
       else {
-          throw Error('adu buffer not contain a valid frame');
+          throw 'adu buffer not contain a valid frame';
       }
 
   }

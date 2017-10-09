@@ -5,7 +5,7 @@
 *
 */
 
-const ModbusClient = require('../protocol/modbus_client');
+const ModbusClient = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
 const ADU = require('../protocol/tcp_adu');
 const MBAP = require('../protocol/mbap');
@@ -59,19 +59,19 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
         this.netClient.onTimeOut = EmitTimeOut.bind(this);
 
-        Object.defineProperty(modbusTcpClient,'slaveDevice',{
+        Object.defineProperty(self,'slaveDevice',{
             set: function(slave){
-                modbusTcpClient.netClient.slaveDevice.port = slave.port;
-                modbusTcpClient.netClient.slaveDevice.ip = slave.ip;
-                modbusTcpClient.netClient.slaveDevice.remoteAddress = slave.remoteAddress;
-                modbusTcpClient.netClient.slaveDevice.timeout = slave.timeout;
+                self.netClient.slaveDevice.port = slave.port;
+                self.netClient.slaveDevice.ip = slave.ip;
+                self.netClient.slaveDevice.remoteAddress = slave.remoteAddress;
+                self.netClient.slaveDevice.timeout = slave.timeout;
             },
             get: function(){
-                return modbusTcpClient.netClient.slaveDevice;
+                return self.netClient.slaveDevice;
             }
         });
 
-        Object.defineProperty(modbusTcpClient, 'transactionCounter', {
+        Object.defineProperty(self, 'transactionCounter', {
             get: function(){
                 return transactionCountValue;
             },
@@ -87,7 +87,7 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
             configurable: false
         } )
 
-        Object.defineProperty(modbusTcpClient.__proto__, 'CreateMBAP',{
+        Object.defineProperty(self.__proto__, 'CreateMBAP',{
             enumerable:false,
             writable:false,
             configurable:false
@@ -251,7 +251,7 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         byteTemp = WriteDigitalValue(byteTemp, offset, forceData[i]);
         valueBuffer[byteIndex] = byteTemp;
       }
-      console.log(valueBuffer)
+
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             var pdu = this.CreatePDU(15, startCoil, coilQuantity, valueBuffer);

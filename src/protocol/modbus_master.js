@@ -1,39 +1,42 @@
 /**
-*@author Hector E. Socarras Cabrera
-*@date 8/5/2015
-*@brief
-*Clase base de un cliente de modbus hereda de ModbusDevice.
-*
-*
-*
+** Modbus Master Base Class module.
+* @module protocol/modbus-master.
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 
-const ModbusDevice = require('./modbus-device');
+const ModbusDevice = require('./modbus_device');
 const PDU = require('./pdu');
 const ExtractDigitalValue = require('./functions/tools').ExtractDigitalValue;
 
-module.exports = class ModbusClient extends ModbusDevice {
-
+/**
+ * Class representing a modbus master.
+ * @extends ModbusDevice
+*/
+module.exports = class ModbusMaster extends ModbusDevice {
+  /**
+  * Create a Modbus Master.
+  */
     constructor(){
         super();
-        //estado conexion del cliente 1 == conectado, 0 desconectado
+
+        //conexion status 1 conected, 0 disconnected
         this.isConnected = false;
 
         //current modbus request
         this.currentModbusRequest = null;
     }
 
-
+    /**
+    * Build a request PDU
+    * @param {number} modbusFunction modbus function
+    * @param {startAddres} startAddres starting at 0 address
+    * @param {pointsQuantity} pointsQuantity
+    * @param {number|Buffer} values values to write
+    * @return {Object} PDU object
+    */
     CreatePDU(modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values) {
-
-      /*
-      *@param {number int} modbusFunction numero de la funcion modbus
-      *@param {number int} startAddres numero del registro o coil o input inicial a leer
-      *@param {number int} pointsQuantity cantidad de registros o coils o inputs a leer o escribir
-      *@param {object Buffer} values buffer con los valores a escribir
-      *@return {PDU Object}
-      */
 
         //chequeando el argumento values
         if(typeof(values) == 'number'){
@@ -139,12 +142,12 @@ module.exports = class ModbusClient extends ModbusDevice {
 
     ParseResponse(resp){};
 
+    /**
+    * extract data for a slave response
+    * @param {Buffer} responsePDU
+    * @return {Object} map Object whit register:value pairs
+    */
     ParseResponsePDU(responsePDU){
-      /*
-      *@Brief funcion que interpreta los datos de respuesta del servidor modbus
-      *@param {buffer object} responsePDUBuffer
-      *@return null en caso de error o {map object} con los pares registros:valor de los registros leidos o escribidos.
-      */
 
         var responsePDU =new PDU(responsePDU);
         responsePDU.ParseBuffer();
@@ -289,12 +292,19 @@ module.exports = class ModbusClient extends ModbusDevice {
         return data;
     }
 
+    /**
+    * extract data for a slave response
+    * @param {Buffer} resp
+    * @fires ModbusMaster#raw_data {buffer} response frame
+    * @fires ModbusMaster#data {object} map object whit pair register:values
+    */
     ProcessResponse(resp){
 
       if(this.currentModbusRequest){
         var respData = this.ParseResponse(resp);
         //elimino la queri activa.
         this.currentModbusRequest = null;
+        this.emit('raw_data',resp);
 
         if(respData){
           //Si todo ok emito data

@@ -1,18 +1,31 @@
 /**
-*@brief Archivo principal de un modbus device.
-*@author Hector E. Socarras.
-*
+** Modbus device module.
+* @module protocol/modbus-device.
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 const EventEmitter = require('events');
 
-module.exports = class ModbusDevice extends EventEmitter {
+/**
+ * Class representing a modbus device.
+ * @extends EventEmitter
+*/
+class ModbusDevice extends EventEmitter {
+	/**
+  * Create a Modbus Device.
+  */
 	constructor(){
         super();
     }
 
+		/**
+		* Get crc from a modbus rtu's frame.
+		* @param {Buffer} frame The complete modbus rtu frame.
+		* @return {number} The CRC.
+		*/
     CalcCRC(frame) {
-			
+
 			var crc_hi = 0xFF;
 			var crc_lo = 0xFF;
 			var index;
@@ -63,6 +76,11 @@ module.exports = class ModbusDevice extends EventEmitter {
 			return (crc_hi << 8 | crc_lo);
 		}
 
+		/**
+		* Get lrc from a modbus ascii's frame.
+		* @param {Buffer} frame The complete modbus ascii frame.
+		* @return {number} The lRC.
+		*/
     CalcLRC(frame){
 
 			var  byteLRC = new Buffer(1);
@@ -78,3 +96,5 @@ module.exports = class ModbusDevice extends EventEmitter {
 		}
 
 }
+
+module.exports = ModbusDevice;
