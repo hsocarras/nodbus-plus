@@ -1,24 +1,35 @@
 /**
-*@brief Clase de Aplication Data Unit sobre tcp
-*
-*@author Hector E. Socarras.
-*date 9/5/2016
+** Modbus TCP Aplication Data Unit base class.
+* @module protocol/tcp_adu
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 const ADU = require('./adu');
 const MBAP = require('./mbap');
 
-module.exports = class TcpADU extends ADU {
+/**
+ * Class representing a modbus tcp aplication data unit.
+ * @extends ADU
+*/
+class TcpADU extends ADU {
+  /**
+  * Create a ADU.
+  * @param {Buffer} aduRaw Frame modbus.
+  */
   constructor(aduRaw = Buffer.alloc(1)){
     super(aduRaw);
-    //propiedad mbap
+    /**
+    * Header of frame modbus tcp
+    * @type {object}
+    */
     this.mbap = new MBAP();
   }
 
+/**
+* function to make adu frame from  MBAP and PDU object
+*/
   MakeBuffer(){
-      /**
-      *@brief function para convertir el los campos en un buffer para enviarlo por un socket
-      */
 
       //creando el buffer de la pdu
       this.pdu.MakeBuffer();
@@ -34,17 +45,24 @@ module.exports = class TcpADU extends ADU {
       this.aduBuffer = buff;
   }
 
+  /**
+  *function to parse the adu buffer to make MBAP and PDU object
+  * @throws {string}
+  */
   ParseBuffer() {
-      /**
-      *@brief function que parsea un buffer y para obtiener los atributos de la adu
-      */
-      if(this.aduBuffer.length > 7) {
 
+      if(this.aduBuffer.length > 7) {
+        try {
           this.mbap.mbapBuffer = this.aduBuffer.slice(0,7);
           this.mbap.ParseBuffer();
 
           this.pdu.pduBuffer = this.aduBuffer.slice(7);
           this.pdu.ParseBuffer();
+        }
+        catch(err)
+        {
+          throw err;
+        }
       }
       else {
           throw 'adu buffer not contain a valid frame';
@@ -53,3 +71,5 @@ module.exports = class TcpADU extends ADU {
   }
 
 }
+
+module.exports = TcpADU;

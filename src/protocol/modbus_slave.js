@@ -1,6 +1,6 @@
 /**
 ** Modbus Slave Base Class module.
-* @module protocol/modbus-slave.
+* @module protocol/modbus-slave
 * @author Hector E. Socarras.
 * @version 0.4.0
 */
@@ -67,7 +67,7 @@ class ModbusSlave extends ModbusDevice {
         */
         this.inputRegisters = new Buffer.alloc(2048);
 
-        
+
     }
 
     Start(){
@@ -181,9 +181,9 @@ class ModbusSlave extends ModbusDevice {
     /**
     * Write Data on slave memory
     * @param {number} value value to be write
-    * @param {string} dataType value format. Suppoting format: bool, uint, uintLE, uint32, uint32LE, int, intLE, int32, int32LE, float, floatLE, double, doubleLE.
-    * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputRegisters, 3, inputs, 1, coils, 0;
+    * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
+    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32,  int,  int32,  float,  floatR.
     * @throws {String} description of error
     * @example
     * SetData(25.2, 'float', 'holding-register', 10)
@@ -191,7 +191,7 @@ class ModbusSlave extends ModbusDevice {
     * ModbusSlave.holding-registers.writeFloatBE(25.2,10);
     * @see {@link https://nodejs.org/api/buffer.html}
     */
-    SetData(value, dataType = 'uint16BE', area = 'holding-register', offset = 0){
+    SetData(value, area = 'holding-register', offset = 0, dataType = 'uint'){
 
       if(value == null || value == undefined){
         throw 'Error SetData value argument must be define'
@@ -213,7 +213,7 @@ class ModbusSlave extends ModbusDevice {
             dataType = 'uint8';
           }
           break;
-        case 3:
+        case 4:
           memoryArea = this.holdingRegisters;
           if(dataType == 'bool'){
             dataType = 'uint8';
@@ -225,7 +225,7 @@ class ModbusSlave extends ModbusDevice {
             dataType = 'uint8';
           }
           break;
-        case 4:
+        case 3:
           memoryArea = this.inputRegisters;
           if(dataType == 'bool'){
             dataType = 'uint8';
@@ -259,6 +259,9 @@ class ModbusSlave extends ModbusDevice {
             value > 0 ? value = true : value = false;
           }
           break;
+          default:
+            throw 'invalid address'
+            break;
       }
 
       if(typeof(value) == 'number'|| typeof(value) == 'boolean'){
@@ -269,39 +272,27 @@ class ModbusSlave extends ModbusDevice {
           case 'uint':
             memoryArea.writeUInt16BE(value,2*offset);
             break;
-          case 'uintLE':
-            memoryArea.writeUInt16LE(value,2*offset);
-            break;
           case 'uint32':
             memoryArea.writeUInt32BE(value,2*offset);
-            break;
-          case 'uint32LE':
-            memoryArea.writeUInt32LE(value,2*offset);
+            Tools.SwapRegister(memoryArea, offset);
             break;
           case 'int':
             memoryArea.writeInt16BE(value,2*offset);
             break;
-          case 'intLE':
-            memoryArea.writeUInt16LE(value,2*offset);
-            break;
           case 'int32':
             memoryArea.writeInt32BE(value,2*offset);
-            break;
-          case 'int32LE':
-            memoryArea.writeInt32LE(value,2*offset);
+            Tools.SwapRegister(memoryArea, offset);
             break;
           case 'float':
             memoryArea.writeFloatBE(value,2*offset);
+            Tools.SwapRegister(memoryArea, offset);
             break;
-          case 'floatLE':
-            memoryArea.writeFloatLE(value,2*offset);
+          case 'floatR':
+            memoryArea.writeFloatBE(value,2*offset);
             break;
-          case 'double':
-            memoryArea.writeDoubleBE(value,2*offset);
-            break;
-          case 'doubleLE':
-            memoryArea.writeDoubleLE(value,2*offset);
-            break;
+            default:
+              throw 'invalid dataType'+ dataType;
+              break
         }
       }
       else{
@@ -312,9 +303,9 @@ class ModbusSlave extends ModbusDevice {
 
     /**
     * Read Data on slave memory    *
-    * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputRegisters, 3, inputs, 1, coils, 0;
+    * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
-    * @param {string} dataType value format. Suppoting format: bool, uint, uintLE, uint32, uint32LE, int, intLE, int32, int32LE, float, floatLE, double, doubleLE.
+    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32,  int,  int32,  float,  double.
     * @example
     * //return 25.2
     * ReadData('4', 10, 'float');
@@ -322,13 +313,14 @@ class ModbusSlave extends ModbusDevice {
     * ModbusSlave.holding-registers.readFloatBE(10);
     * @see {@link https://nodejs.org/api/buffer.html}
     */
-    ReadData(area = 'holding-register', offset = 0, dataType = 'int'){
+    ReadData(area = 'holding-register', offset = 0, dataType = 'uint'){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
 
       let memoryArea = null;
       let value = null;
+      let tempBuffer = Buffer.alloc(4);
 
       switch(area){
         case 'holding-registers':
@@ -394,39 +386,31 @@ class ModbusSlave extends ModbusDevice {
           case 'uint':
             value = memoryArea.readUInt16BE(2*offset);
             break;
-          case 'uintLE':
-            value = memoryArea.readUInt16LE(2*offset);
-            break;
           case 'uint32':
-            value = memoryArea.readUInt32BE(2*offset);
-            break;
-          case 'uint32LE':
-            value = memoryArea.readUInt32LE(2*offset);
+            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
+            Tools.SwapRegister(tempBuffer);
+            value = tempBuffer.readUInt32BE();
             break;
           case 'int':
             value = memoryArea.readInt16BE(2*offset);
             break;
-          case 'intLE':
-            value = memoryArea.readUInt16LE(2*offset);
-            break;
           case 'int32':
-            value = memoryArea.readInt32BE(2*offset);
-            break;
-          case 'int32LE':
-            value = memoryArea.readInt32LE(2*offset);
+            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
+            Tools.SwapRegister(tempBuffer);
+            value = tempBuffer.readInt32BE();
             break;
           case 'float':
+            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
+            Tools.SwapRegister(tempBuffer);
+            value = tempBuffer.readFloatBE();
+            break;
+          case 'floatR':
             value = memoryArea.readFloatBE(2*offset);
             break;
-          case 'floatLE':
-            value = memoryArea.readFloatLE(2*offset);
-            break;
-          case 'double':
-            value = memoryArea.readDoubleBE(2*offset);
-            break;
-          case 'doubleLE':
-            value = memoryArea.readDoubleBE(2*offset);
-            break;
+          default:
+            throw 'invalid dataType'+ dataType;
+            break
+
         }
 
         return value;

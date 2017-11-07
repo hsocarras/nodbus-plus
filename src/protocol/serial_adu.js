@@ -1,7 +1,8 @@
 /**
-*
-*@author Hector E. Socarras.
-*date 19/5/2016
+** Modbus TCP Aplication Data Unit base class.
+* @module protocol/serial_adu
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 const ADU = require('./adu');

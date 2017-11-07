@@ -1,28 +1,25 @@
-/*
-*@author Hector E. Socarras
-*@brief
-*Se implementa funciones de utilidades para las modbus functions
+/**
+** Utilities functions.
+* @module protocol/functions/tools.js.
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
+/**
+* Shift left or right the bits inside a buffer. The new bits are set to 0
+* @param {buffer} target  buffer to shift bits
+* @param {number} totalBits total bits to shift.
+* @param w string indicating the shift direcction 'R'right or 'L' left
+* @return {buffer}
+*/
+function ShiftBufferBits (target, totalBits, w = 'r') {
 
-var ShiftBufferBits = function (buffer, num_of_bits, w) {
-  /*
-  *@author Hector E. Socarras
-  *@brief
-  *Desplaza a la isquierda o la derecha los bits dentro de un buffer.
-  *poniendo a 0 los nuevos bits introducidos.
-  *@param buffer objeto buffer sobre el q se efectua el corrimiento
-  *@param num_of_bits numero entero con la cantidad de bits a desplazar.
-  *@param w string con la direccion del desplazamiento 'R'right or 'L' left
-  */
-    //Inicializando el valor por defecto de la direccion a la derecha
-    w || (w = 'r');
 
-    var tempBuffer = new Buffer(buffer.length);
+    var tempBuffer = new Buffer(target.length);
     var workBuffer = new Buffer(2);
-    var resultBuffer = new Buffer(buffer.length);
+    var resultBuffer = new Buffer(target.length);
     //copiando el buffer original
-    buffer.copy(tempBuffer);
+    target.copy(tempBuffer);
 
     if (w === 'l' || w === 'L') {
         workBuffer[1] = 0x00;
@@ -32,12 +29,12 @@ var ShiftBufferBits = function (buffer, num_of_bits, w) {
             // buffer de ejemplo [01011110 11100111 10010011] desplazar 3
             //copiando el valor desplazado en 3 workBuffer[0] = 10011000
             //en la primera iteracion es igual al ultimo byte desplazado porque workBuffer[1] == 0
-            workBuffer[0] = tempBuffer[i] << num_of_bits | workBuffer[1] ;
+            workBuffer[0] = tempBuffer[i] << totalBits | workBuffer[1] ;
 
             //Guardando los bits desplazados en el byte procesado para la siguiente iteracion.
             //del byte procesado 10010011 se desplazan al byte de la izquierda los 3 primeros bits 100
             // workBuffer[1] = 10010011 >> 5 | 0x00 = 00000100
-            workBuffer[1] = tempBuffer[i] >> (8-num_of_bits) | 0x00 ;
+            workBuffer[1] = tempBuffer[i] >> (8-totalBits) | 0x00 ;
 
 
             resultBuffer[i]= workBuffer[0];
@@ -54,12 +51,12 @@ var ShiftBufferBits = function (buffer, num_of_bits, w) {
             // buffer de ejemplo [01011110 11100111 10010011] desplazar 3
             //copiando el valor desplazado en 3 workBuffer[0] = 00001011
             //en la primera iteracion es igual al primer byte desplazado porque workBuffer[1] == 0
-            workBuffer[0] = tempBuffer[i] >> num_of_bits | workBuffer[1];
+            workBuffer[0] = tempBuffer[i] >> totalBits | workBuffer[1];
 
             //Guardando los bits desplazados en el byte procesado para la siguiente iteracion.
             //del byte procesado 01011110 se desplazan al byte de la derecha los 3 ultimos bits 110
             // workBuffer[1] = 01011110 << 5 | 0x00 = 11000000
-            workBuffer[1] = tempBuffer[i] << (8-num_of_bits) | 0x00 ;
+            workBuffer[1] = tempBuffer[i] << (8-totalBits) | 0x00 ;
 
 
             resultBuffer[i]= workBuffer[0];
@@ -70,18 +67,17 @@ var ShiftBufferBits = function (buffer, num_of_bits, w) {
     else { throw 'error'};
 }
 
-var InvertBufferBytes = function(buffer){
-  /*
-  *@author Hector E. Socarras
-  *@brief
-  *Invierte el orden de los bytes de un buffer
-  *
-  *@param buffer objeto buffer sobre el q se invierte los bytes
-  */
-    var resultBuffer = new Buffer(buffer.length)
+/**
+*reverse the bytes arrangement inside a buffer
+*@param {buffer}  target  buffer reverse bytes
+*@return {buffer}
+*/
+function InvertBufferBytes(target){
 
-    for(var i = 0; i < buffer.length; i++ ){
-        resultBuffer[i] = buffer[buffer.length-1 -i];
+    var resultBuffer = new Buffer(target.length)
+
+    for(var i = 0; i < target.length; i++ ){
+        resultBuffer[i] = buffer[target.length-1 -i];
     }
     return resultBuffer;
 }
@@ -254,6 +250,25 @@ function WriteDigitalValue(Byte, offset, value){
   }
 }
 
+function SwapBytesRegister(target, register = 0){
+  let tempRegister = Buffer.alloc(2);
+  tempRegister[1] = target[register*2];
+  tempRegister[0] = target[register*2+1];
+  tempRegister.copy(target,register*2);
+
+}
+
+function SwapRegister(target, register = 0){
+  let tempRegister = Buffer.alloc(4);
+  tempRegister[0] = target[register*2 + 2];
+  tempRegister[1] = target[register*2+3];
+  tempRegister[2] = target[register*2];
+  tempRegister[3] = target[register*2+1];
+  tempRegister.copy(target,register*2);
+
+}
+
+
 exports.ShiftBufferBits = ShiftBufferBits;
 
 exports.InvertBufferBytes = InvertBufferBytes;
@@ -261,3 +276,7 @@ exports.InvertBufferBytes = InvertBufferBytes;
 exports.ExtractDigitalValue = ExtractDigitalValue;
 
 exports.WriteDigitalValue = WriteDigitalValue;
+
+exports.SwapBytesRegister = SwapBytesRegister
+
+exports.SwapRegister = SwapRegister

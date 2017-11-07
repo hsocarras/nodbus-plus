@@ -1,8 +1,18 @@
 /**
-*@brief Clase de MBAP Header
+** Modbus Protocol Data Unit base class.
+* @module protocol/mbap
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
-module.exports = class MBAP {
+/**
+ * Class representing a modbus tcp header.
+*/
+class MBAP {
+  /**
+  * Create MBAP.
+  * @param {Buffer} mbapRaw fragment off modbus tcp frame corresponding to header.
+  */
   constructor(mbapRaw = Buffer.alloc(7)){
 
     //buffer with raw header
@@ -14,10 +24,11 @@ module.exports = class MBAP {
     this.unitID = 0x0;
   }
 
+  /**
+  * function to make mbap frame from  function and data fields
+  */
   MakeBuffer(){
-      /**
-      *@brief function para convertir los atributos del mbap en un buffer para enviarlo por un socket
-      */
+
       var buff = Buffer.alloc(7);
       buff.writeUInt16BE(this.transactionID,0);
       buff.writeUInt16BE(this.protocolID,2);
@@ -28,16 +39,22 @@ module.exports = class MBAP {
 
   }
 
+  /**
+  *function to parse the mbap buffer to extract function and data fields
+  * @throws {string}
+  */
   ParseBuffer(){
-      /**
-      *@brief function que parsea un buffer y obtiene los atributos de la cabecera mbap
-      */
-
-      this.transactionID = this.mbapBuffer.readUInt16BE(0);
-      this.protocolID = this.mbapBuffer.readUInt16BE(2);
-      this.length = this.mbapBuffer.readUInt16BE(4);
-      this.unitID = this.mbapBuffer.readUInt8(6);
-
+      if(this.mbapBuffer.length == 7){
+        this.transactionID = this.mbapBuffer.readUInt16BE(0);
+        this.protocolID = this.mbapBuffer.readUInt16BE(2);
+        this.length = this.mbapBuffer.readUInt16BE(4);
+        this.unitID = this.mbapBuffer.readUInt8(6);
+      }
+      else{
+        throw 'wrong mbap buffer'
+      }
   }
 
 }
+
+module.exports = MBAP;

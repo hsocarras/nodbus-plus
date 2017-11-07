@@ -1,29 +1,57 @@
 /**
-*@author Hector E. Socarras Cabrera
-*@brief
-*Clase base de un servidor tcp.
-*
-*En este archivo se define el cliente tcp como la primera capa de la libreria
-*para modbus tcp.
-*Un cliente TCP solo tiene una conexion Activa.
+* Tcp Client  module.
+* @module net/tcpclient.
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 const net = require('net');
 
-module.exports = class TcpClient {
-    constructor(OnDataTask){
+/**
+ * Class representing a tcp client.
+*/
+class TcpClient {
+  /**
+  * Create a tcp client.
+  */
+    constructor(){
 
-        //objeto socket con la coneccion activa
+        /**
+        *net.socket Object
+        * @type {object}
+        */
         this.socket = null;
 
-        //dispositivo a conectarse {ip, port, remoteAddress, timeout}
-        this.slaveDevice = {};
+        /**
+        * slave ip address
+        * @type {string}
+        */
+        this.slaveIp = '';
+        /**
+        * slave port
+        * @type {number}
+        */
+        this.slavePort = 502;
+        /**
+        * slave modbus address
+        * @type {number}
+        */
+        this.slaveRemoteAddress = 1;
+        /**
+        * slave time to respond
+        * @type {number}
+        */
+        this.slaveTimeout = 50;
 
-        //mantener laconeccion activa una ves se cierre
+
+        /**
+        * prevent than server close de connection for idle time
+        * @type {bool}
+        */
         this.keepAliveConnection = false;
 
         //Funcion a ejecutar cuandose reciven datos
-        this.onData = OnDataTask || function(data){console.log(data)};
+        this.onData = function(data){console.log(data)};
 
         //Funcion a ejecutar cuando se establece la coneccion
         this.onConnect = function(){console.log('connection establish whit: ' + this.socket.remoteAddress)};
@@ -43,19 +71,34 @@ module.exports = class TcpClient {
             }
         }
 
-        this.onWrited = function(data){console.log(data)};
+        /**
+        *  function to executed when event write is emited
+        * @param {Buffer} buff
+        */
+        this.onWrite = null
 
+    }
+
+    get SlaveDevice(){
+      return {ip:this.slaveIp, port:this.slavePort, remoteAddress:this.slaveRemoteAddress, timeout:this.slaveTimeout};
+    }
+
+    set SlaveDevice(slave){
+      this.slaveIp = slave.ip;
+      this.slavePort = slave.port;
+      this.slaveRemoteAddress = slave.remoteAddress
+      this.slaveTimeout = slave.timeout;
     }
 
     Connect(){
         let self = this;
 
         try{
-          var conn = net.createConnection(this.slaveDevice.port,this.slaveDevice.ip);
+          var conn = net.createConnection(this.slavePort,this.slaveIp);
           //configurando el socket devuelto
           conn.on('connect',function(){
-			  self.socket = conn;
-              self.onConnect(conn);
+			         self.socket = conn;
+               self.onConnect(conn);
           });
 
           conn.on('data', function(data){
@@ -72,14 +115,17 @@ module.exports = class TcpClient {
               self.onTimeOut();
           })
 
-          conn.on('end', this.onEnd);
+          conn.on('end', function(){
+            conn.end();
+            self.onEnd();
+          });
 
-          conn.on('close',function(had_error){            
+          conn.on('close',function(had_error){
               self.socket = null;
               self.onClose(had_error);
           });
 
-          
+
         }
         catch(e){
           self.onError(e);
@@ -92,13 +138,19 @@ module.exports = class TcpClient {
     }
 
     Write(data){
-
+      let self = this;
         if(this.socket == null){
             return -1;
         }
         else{
-            this.socket.write(data);
-            this.socket.setTimeout(this.slaveDevice.timeout);
+            this.socket.write(data, 'utf8', function(){
+              if(self.onWrite){
+                self.onWrite(data);
+              }
+            });
+            this.socket.setTimeout(this.slaveTimeout);
         }
     }
 }
+
+module.exports = TcpClient

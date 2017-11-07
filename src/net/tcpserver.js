@@ -1,6 +1,6 @@
 /**
 **  Tcp server module.
-* @module net/tcp_server.
+* @module net/tcpserver.
 * @author Hector E. Socarras.
 * @version 0.4.0
 */
@@ -156,7 +156,7 @@ class TCPServer {
     *  function to executed when event write is emited
     * @param {Buffer} buff
     */
-    this.onWrite = function(){};;
+    this.onWrite = null
 
     this.tcpServer.on('error', function(err){
       self.onError(err);

@@ -1,19 +1,34 @@
 /**
-*@brief
-*
-*@author Hector E. Socarras.
-*date 9/5/2016
+** Modbus Aplication Data Unit base class.
+* @module protocol/adu.js.
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
 const PDU = require('./pdu');
 
-module.exports = class ADU {
+/**
+ * Class representing a modbus aplication data unit.
+*/
+ class ADU {
+   /**
+   * Create a ADU.
+   * @param {Buffer} aduRaw Frame modbus.
+   */
     constructor(aduRaw = Buffer.alloc(1)){
-      //frame completo del mensaje
+      /**
+      *Frame
+      *@type {Buffer}
+      */
       this.aduBuffer = aduRaw;
 
-      //toda adu contiene una pdu
+      /**
+      *Protocol data unit object
+      *@type {object}
+      */
       this.pdu = new PDU();
     }
 
 }
+
+module.exports = ADU;

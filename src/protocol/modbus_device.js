@@ -1,6 +1,6 @@
 /**
 ** Modbus device module.
-* @module protocol/modbus-device.
+* @module protocol/modbus-device
 * @author Hector E. Socarras.
 * @version 0.4.0
 */

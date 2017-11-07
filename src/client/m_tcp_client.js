@@ -1,19 +1,24 @@
 /**
-*@author Hector E. Socarras Cabrera
-*@brief
-*Clase de un cliente de modbus tcp.
-*
+** Modbus Tcp Client  module.
+* @module client/modbus_tcp_client
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
-const ModbusClient = require('../protocol/modbus_master');
+const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
 const ADU = require('../protocol/tcp_adu');
 const MBAP = require('../protocol/mbap');
-const WriteDigitalValue = require('../protocol/functions/tools').WriteDigitalValue;
+const Tools = require('../protocol/functions/tools');
 
-
-module.exports = class ModbusTCPClient extends  ModbusClient {
-
+/**
+ * Class representing a modbus tcp client.
+ * @extends ModbusMaster
+*/
+class ModbusTCPClient extends  ModbusMaster {
+  /**
+  * Create a Modbus Tcp Client.
+  */
     constructor(){
         super();
 
@@ -21,56 +26,109 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
 
         var transactionCountValue = 1;
 
-        // Capa de manejo de red
+        /**
+        * tcp layer
+        * @type {object}
+        */
         this.netClient = new TcpClient();
 
         //asociando el evento data del netClient con la funcion ProcessResponse
         this.netClient.onData = this.ProcessResponse.bind(this);
 
-        //Emitir el evento connect
-        function EmitConnect (target){
-            /*
-            *@param {object} target es un socket object en caso de tcp o un serialport object en caso serial
-            */
+        /**
+        * Emit connect and ready events
+        * @param {object} target Socket object
+        * @fires ModbusTCPClient#connect {object}
+        * @fires ModbusTCPClient#ready
+        */
+        this.netClient.onConnect = function EmitConnect (target){
             this.isConnected = true;
-            this.emit('connect',target);
-            this.emit('ready');
-        }
-        this.netClient.onConnect = EmitConnect.bind(this);
 
-        //Se emite el evento disconnected
+            /**
+           * connect event.
+           * @event ModbusTCPClient#connect
+           * @type {object}
+           */
+            this.emit('connect',target);
+
+            /**
+           * ready event.
+           * @event ModbusTCPClient#ready
+           */
+            this.emit('ready');
+        }.bind(this);
+
+
+        /**
+        *Emit disconnect event
+        * @param {object} had_error
+        * @fires ModbusTCPClient#disconnect {object}
+        */
         function EmitDisconnect(had_error){
             this.isConnected = false;
+
+            /**
+           * disconnect event.
+           * @event ModbusTCPClient#disconnect
+           */
             this.emit('disconnect', had_error);
         }
         this.netClient.onClose = EmitDisconnect.bind(this);
 
-        //Se emite el evento network error
-        function EmitTcpError (err){
+        /**
+        *Emit error event
+        * @param {object} error
+        * @fires ModbusTCPClient#error {object}
+        */
+        function EmitError (err){
+
+          /**
+         * error event.
+         * @event ModbusTCPClient#error
+         * @type {object}
+         */
             this.emit('error',err);
         }
-        this.netClient.onError = EmitTcpError.bind(this);
+        this.netClient.onError = EmitError.bind(this);
 
-        //Se emite el evento Timeout
+        /**
+        * Emit timeout event        *
+        * @fires ModbusTCPClient#timeout
+        */
         function EmitTimeOut (){
-          //elimino la query activa
+
           this.currentModbusRequest = null
+          /**
+         * timeout event.
+         * @event ModbusTCPClient#timeout
+         */
           this.emit('timeout');
         }
         this.netClient.onTimeOut = EmitTimeOut.bind(this);
 
+        function EmitIndication(data){
+          this.emit('indication', data);
+        }
+        this.netClient.onWrite = EmitIndication.bind(this);
+
+        /**
+        * Slave modbus Device {ip, port, remoteAddress, timeout}
+        * @type {object}
+        */
         Object.defineProperty(self,'slaveDevice',{
             set: function(slave){
-                self.netClient.slaveDevice.port = slave.port;
-                self.netClient.slaveDevice.ip = slave.ip;
-                self.netClient.slaveDevice.remoteAddress = slave.remoteAddress;
-                self.netClient.slaveDevice.timeout = slave.timeout;
+                self.netClient.SlaveDevice = slave;
+
             },
             get: function(){
-                return self.netClient.slaveDevice;
+                return self.netClient.SlaveDevice;
             }
         });
 
+        /**
+        * number of transaction
+        * @type {number}
+        */
         Object.defineProperty(self, 'transactionCounter', {
             get: function(){
                 return transactionCountValue;
@@ -94,14 +152,12 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         })
     }
 
-    Connect(){
-        this.netClient.Connect();
-    }
 
-    Disconnect(){
-        this.netClient.Disconnet();
-    }
-
+    /**
+    * function that make the header for modbus indication
+    * @param {object} pdu Indication PDU object
+    * @return {object} mbap header
+    */
     CreateMBAP(pdu){
 
         pdu.MakeBuffer();
@@ -110,12 +166,17 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         mbap.transactionID = this.transactionCounter;
         mbap.protocolID = 0;
         mbap.length = pdu.pduBuffer.length+1;
-        mbap.unitID = this.slaveDevice.remoteAddres;
+        mbap.unitID = this.slaveDevice.remoteAddress;
 
         return mbap;
     }
 
-    ReadCoilStatus(startCoil, coilQuantity){
+    /**
+    * function 01 of modbus protocol
+    * @param {number} startcoil first coil to read, start at 0 coil
+    * @param {number} coilQuantity number of coils to read
+    */
+    ReadCoilStatus(startCoil, coilQuantity = 1){
        if(this.isConnected && this.currentModbusRequest == null ){
             //si estoy conectado y no hay query activa
             var pdu = this.CreatePDU(1, startCoil, coilQuantity);
@@ -133,7 +194,12 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     };
 
-    ReadInputStatus(startInput, inputQuantity){
+    /**
+    * function 02 of modbus protocol
+    * @param {number} startInput first Input to read, start at 0 coil
+    * @param {number} InputQuantity number of Inputs to read
+    */
+    ReadInputStatus(startInput, inputQuantity = 1){
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             var pdu = this.CreatePDU(2, startInput, inputQuantity);
@@ -151,7 +217,12 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     }
 
-    ReadHoldingRegisters(startRegister, registerQuantity){
+    /**
+    * function 03 of modbus protocol
+    * @param {number} startRegister first holding register to read, start at 0 coil
+    * @param {number} registerQuantity number of holding register to read
+    */
+    ReadHoldingRegisters(startRegister, registerQuantity = 1){
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             var pdu = this.CreatePDU(3, startRegister, registerQuantity);
@@ -169,7 +240,12 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     }
 
-    ReadInputRegisters(startRegister, registerQuantity){
+    /**
+    * function 04 of modbus protocol
+    * @param {number} startRegister first input register to read, start at 0 coil
+    * @param {number} registerQuantity number of input register to read
+    */
+    ReadInputRegisters(startRegister, registerQuantity = 1){
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             var pdu = this.CreatePDU(4, startRegister, registerQuantity);
@@ -187,11 +263,12 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     }
 
-    ForceSingleCoil(startCoil, value){
-      /*
-      *@param startCoil {integer}
-      *@param value {bool}
-      */
+    /**
+    * function 05 of modbus protocol
+    * @param {number} startcoil first coil to write, start at 0 coil
+    * @param {bool} value value to force
+    */
+    ForceSingleCoil(value, startCoil = 0){
       let bufferValue = Buffer.alloc(2);
       if(value){
         bufferValue[0] = 0xFF;
@@ -212,31 +289,44 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     }
 
-    PresetSingleRegister(startRegister, value){
-         if(this.isConnected && this.currentModbusRequest == null){
-            //si estoy conectado
-            var pdu = this.CreatePDU(6, startRegister, 1, value);
-            var mbap = this.CreateMBAP(pdu);
-            var adu = new ADU();
-            adu.pdu = pdu;
-            adu.mbap = mbap;
-            adu.MakeBuffer();
-            this.currentModbusRequest = adu;
+    /**
+    * function 06 of modbus protocol
+    * @param {number} startRegister register to write.
+    * @param {number} value value to force
+    */
+    PresetSingleRegister(value, startRegister = 0){
+      let val = Buffer.alloc(2)
+      if(value >= 0){
+        val.writeUInt16LE(value);
+      }
+      else{
+        val.writeInt16LE(value);
+      }
+      if(this.isConnected && this.currentModbusRequest == null){
+          //si estoy conectado
+          var pdu = this.CreatePDU(6, startRegister, 1, val);
+          var mbap = this.CreateMBAP(pdu);
+          var adu = new ADU();
+          adu.pdu = pdu;
+          adu.mbap = mbap;
+          adu.MakeBuffer();
+          this.currentModbusRequest = adu;
 
-            this.netClient.Write(adu.aduBuffer);
-        }
-        else{
-            return;
-        }
+          this.netClient.Write(adu.aduBuffer);
+      }
+      else{
+          return;
+      }
     }
 
-    ForceMultipleCoils(startCoil, coilQuantity, forceData){
-      /*
-      *@param startCoil {integer}
-      *@param coilQuantity {integer}
-      *@param forceData {Array bool} empesando por la coil inicial
-      *ejem Array[0]-startCoil, array[1] - startCoil+1 etc
-      */
+    /**
+    * function 15 of modbus protocol
+    * @param {bool[]} forceData array of values to write.
+    * @param {number} startCoil first coil to write, start at 0 coil.
+    */
+    ForceMultipleCoils(forceData, startCoil = 0){
+
+      let coilQuantity = forceData.length;
       let valueBuffer = Buffer.alloc(Math.floor((coilQuantity+1)/8)+1);
       let byteTemp = 0x00;
       let byteIndex = 0;
@@ -248,7 +338,7 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         if(offset == 0){
           byteTemp = 0x00;
         }
-        byteTemp = WriteDigitalValue(byteTemp, offset, forceData[i]);
+        byteTemp = Tools.WriteDigitalValue(byteTemp, offset, forceData[i]);
         valueBuffer[byteIndex] = byteTemp;
       }
 
@@ -269,100 +359,114 @@ module.exports = class ModbusTCPClient extends  ModbusClient {
         }
     }
 
-    PresetMultipleRegisters(startRegister, registerQuantity, data){
-         if(this.isConnected && this.currentModbusReques == null){
-            //si estoy conectado
-            var pdu = this.CreatePDU(16, startRegister, registerQuantity, data);
-            var mbap = this.CreateMBAP(pdu);
-            var adu = new ADU();
-            adu.pdu = pdu;
-            adu.mbap = mbap;
-            adu.MakeBuffer();
-            this.currentModbusRequest = adu;
+    /**
+    * function 16 of modbus protocol
+    * @param {number[]} values array whit the values to write
+    * @param {number} startRegister register to write.
+    */
+    PresetMultipleRegisters(data, startRegister = 0){
+      let valueBuffer = Buffer.alloc(0);
 
-            this.netClient.Write(adu.aduBuffer);
+
+      values.forEach(function(value){
+        let tempBufer = null;
+        if(Number.isInteger(value)){
+          if(value >= 0 && value <= 65535){
+            tempBufer = Buffer.alloc(2);
+            tempBufer.writeUInt16BE(value);
+            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 2)
+          }
+          else if (value > 65535) {
+            tempBufer = Buffer.alloc(4);
+            tempBufer.writeUInt32BE(value);
+            Tools.SwapRegister(tempBufer);
+            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4)
+          }
+          else if (value < 0 && value > -32767) {
+            tempBufer = Buffer.alloc(2);
+            tempBufer.writeInt16BE(value);
+            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 2)
+          }
+          else{
+            tempBufer = Buffer.alloc(4);
+            tempBufer.writeInt32BE(value);
+            Tools.SwapRegister(tempBufer);
+            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4)
+          }
         }
         else{
-            return;
+          tempBufer = Buffer.alloc(4);
+          tempBufer.writeFloatBE(value);
+          Tools.SwapRegister(tempBufer);
+          valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4);
         }
-    }
 
-    //Parsing Response Function
-    ParseResponse(aduBuffer) {
+      })
 
-        if(aduBuffer.length > 7){
+      let registerQuantity = valueBuffer.length/2;
 
-                //extrayendo el MBAP
-                var respMBAP = new MBAP(aduBuffer.slice(0,7));
-                respMBAP.ParseBuffer();
+       if(this.isConnected && this.currentModbusReques == null){
+          //si estoy conectado
+          var pdu = this.CreatePDU(16, startRegister, registerQuantity, valueBuffer);
+          var mbap = this.CreateMBAP(pdu);
+          var adu = new ADU();
+          adu.pdu = pdu;
+          adu.mbap = mbap;
+          adu.MakeBuffer();
+          this.currentModbusRequest = adu;
 
-                //chekeo el transactionID
-                if(respMBAP.transactionID != this.transactionCounter){
-                  this.emit('modbus_exception', "Wrong Transaction ID");
-                    return null;
-                }
-                //chekeo el byte count
-                else if((aduBuffer.length - 6) != respMBAP.length) {
-                    this.emit('modbus_exception', "Header ByteCount Mismatch");
-                    return null;
-                }
-                else {
-                    return this.ParseResponsePDU(aduBuffer.slice(7));
-                }
-            }
-            else{
-                //error
-                his.emit('modbus_exception', "Wrong Adu");
-                return null;
-            }
-    }
-
-    //funcion poll
-    Poll(query){
-      /*
-      *@brief funcion que genera un modbus indication a partir de un objeto queryObject
-      *@param queryObject objeto {}
-      *
-      */
-
-      switch (query.ModbusFunction) {
-        case 1:
-          this.ReadCoilStatus(query.startItem, query.numberItems);
-          break;
-        case 2:
-          this.ReadInputStatus(query.startItem, query.numberItems);
-          break;
-        case 3:
-          this.ReadHoldingRegisters(query.startItem, query.numberItems);
-          break;
-        case 4:
-          this.ReadInputRegisters(query.startItem, query.numberItems);
-          break;
-        case 5:
-          this.ForceSingleCoil(query.startItem, query.itemsValues);
-          break;
-        case 6:
-          this.PresetSingleRegister(query.startItem, query.itemsValues);
-          break;
-        case 15:
-          this.ForceMultipleCoils(query.startItem, query.numberItems, query.itemsValues);
-          break;
-        case 16:
-          this.PresetMultipleRegisters(query.startItem, query.numberItems, query.itemsValues);
-          break;
-        default:
-          this.emit('modbus-exception' , 'Bad query');
-          break;
-
+          this.netClient.Write(adu.aduBuffer);
+      }
+      else{
+          return;
       }
     }
 
-	//compatibilidad con el reco
-	  Start(){
-		  this.Connect();
-	  }
+    /**
+    * function to pasrse server response
+    * @param {Buffer} aduBuffer frame of response
+    * @return {object} map Object whit register:value pairs
+    * @fires ModbusTCPClient#modbus_exception {object}
+    * @fires ModbusTCPClient#error {object}
+    */
+    ParseResponse(aduBuffer) {
 
+      let resp = new ADU(aduBuffer);
+      try{
+        resp.ParseBuffer();
+        //chekeo el transactionID
+        if(resp.mbap.transactionID != this.transactionCounter){
+          this.emit('modbus_exception', "Wrong Transaction ID");
+            return;
+        }
+        else if((aduBuffer.length - 6) != resp.mbap.length) {
+            this.emit('modbus_exception', "Header ByteCount Mismatch");
+            return ;
+        }
+        else {
+            return this.ParseResponsePDU(resp.pdu);
+        }
+      }
+      catch(err){
+        this.emit('error', err);
+      }
+
+    }
+
+
+
+	  /**
+    *Stablish connection to server
+    */
+	  Start(){
+		  this.netClient.Connect();
+	  }
+    /**
+    *disconnect from server
+    */
 	  Stop(){
-		  this.Disconnect();
+		  this.netClient.Disconnet();
 	  }
 }
+
+module.exports = ModbusTCPClient;

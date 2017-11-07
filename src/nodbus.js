@@ -1,6 +1,6 @@
 /**
  * Nodbus module.
- * @module nodbus *
+ * @module nodbus 
  * @author Hector E. Socarras Cabrera
  * @version 0.4.0
 */

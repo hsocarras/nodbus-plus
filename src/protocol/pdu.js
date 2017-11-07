@@ -1,28 +1,44 @@
 /**
-*@brief Clase de Protocol Data Unit
-*Objeto recibido por la funcion BuildResponse del modbus server
-*@author Hector E. Socarras.
-*date 9/4/2016
+** Modbus Protocol Data Unit base class.
+* @module protocol/pdu
+* @author Hector E. Socarras.
+* @version 0.4.0
 */
 
-module.exports = class PDU {
+/**
+ * Class representing a modbus protocol data unit.
+*/
+class PDU {
+  /**
+  * Create a PDU.
+  * @param {Buffer} pduRaw fragment off modbus frame corresponding to pdu.
+  */
   constructor(pduRaw = Buffer.alloc(1)){
 
-    //buffer con la pdu en bruto
+    /**
+    *Frame
+    *@type {Buffer}
+    */
     this.pduBuffer = pduRaw;
 
-    //number funcion modbus
+    /**
+    *modbus function
+    *@type {number}
+    */
     this.modbus_function = 0;
 
-    //buffer con el cuerpo de la pdu
+    /**
+    *Frame data segment
+    *@type {Buffer}
+    */
     this.modbus_data = Buffer.alloc(1);
 
   }
 
+  /**
+  * function to make pdu frame from  function and data fields
+  */
   MakeBuffer(){
-      /**
-      *@brief function para convertir el los campos function y data en un buffer para enviarlo por un socket
-      */
 
       var buff = Buffer.alloc(this.modbus_data.length + 1);
       buff[0] = this.modbus_function;
@@ -31,16 +47,24 @@ module.exports = class PDU {
 
   }
 
+  /**
+  *function to parse the pdu buffer to extract function and data fields
+  * @throws {string}
+  */
   ParseBuffer(){
-      /**
-      *@brief function que parsea el buffer raw y obtiene los atributos function y data
-      */
+      if(this.pduBuffer.length >= 2){
 
-      this.modbus_function = this.pduBuffer[0];
+        this.modbus_function = this.pduBuffer[0];
 
-      //creando el buffer de datos
-      this.modbus_data = Buffer.alloc(this.pduBuffer.length-1);
-      this.pduBuffer.copy(this.modbus_data,0,1);
+        //creando el buffer de datos
+        this.modbus_data = Buffer.alloc(this.pduBuffer.length-1);
+        this.pduBuffer.copy(this.modbus_data,0,1);
+      }
+      else{
+        throw 'wrong pdu buffer'
+      }
   }
 
 }
+
+module.exports = PDU

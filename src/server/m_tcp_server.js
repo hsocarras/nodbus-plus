@@ -1,5 +1,5 @@
 /**
-** Modbus Tcp server module.
+* Modbus Tcp server module.
 * @module server/m_tcp_server.
 * @author Hector E. Socarras.
 * @version 0.4.0
@@ -17,8 +17,9 @@ const MBAP = require('../protocol/mbap');
 class ModbusTCPServer extends ModbusSlave {
   /**
   * Create a Modbus Tcp Server.
+  * @param {number} p Port to listen.
   */
-    constructor(){
+    constructor(p=502){
       super();
 
       var self = this;
@@ -34,14 +35,19 @@ class ModbusTCPServer extends ModbusSlave {
       this.tcpServer.onData = this.ProcessModbusIndication.bind(this);
 
       /**
-      * Event connection
-      * Emited when new connecton is sablished
-      * @see https://nodejs.org/api/net.html
       * @fires ModbusTCPServer#connection
       */
-      this.tcpServer.onConnection = function EmitConnection (socket) {
-        this.emit('connection',socket);
+       this.tcpServer.onConnection = function EmitConnection (socket) {
+          /**
+         * connection event.
+         * Emited when new connecton is sablished
+         * @event ModbusTCPServer#connection
+         * @type {object}
+         * @see https://nodejs.org/api/net.html
+         */
+          this.emit('connection',socket);
       }.bind(this);
+
 
       /**
       * Event connection closed
@@ -50,6 +56,11 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#connection-closed
       */
       this.tcpServer.onConnectionClose = function EmitConnectionClosed(socket){
+        /**
+       * connection-closed event.
+       * @event ModbusTCPServer#connection-closed
+       * @type {object}
+       */
           this.emit('connection-closed', socket)
       }.bind(this);
 
@@ -59,6 +70,11 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#access-denied
       */
       this.tcpServer.onAccessDenied = function EmitAccesDenied(socket){
+        /**
+       * access-denied event.
+       * @event ModbusTCPServer#access-denied
+       * @type {object}
+       */
         this.emit('access-denied', socket);
       }.bind(this);
 
@@ -69,6 +85,11 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#listening
       */
       this.tcpServer.onListening  = function EmitListening(port){
+        /**
+       * listening event.
+       * @event ModbusTCPServer#listening
+       * @type {number}
+       */
         this.emit('listening',self.port);
       }.bind(this);
 
@@ -79,6 +100,10 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#closed
       */
       this.tcpServer.onServerClose = function EmitClosed(){
+        /**
+       * closed event.
+       * @event ModbusTCPServer#closed
+       */
         this.emit('closed');
       }.bind(this);
 
@@ -88,6 +113,10 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#error
       */
       this.tcpServer.onError = function EmitError(err){
+        /**
+       * error event.
+       * @event ModbusTCPServer#error
+       */
         this.emit('error', err);
       }.bind(this);
 
@@ -97,6 +126,10 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#response
       */
       this.tcpServer.onWrite = function EmitResponse(resp){
+        /**
+       * response event.
+       * @event ModbusTCPServer#response
+       */
         this.emit('response', resp);
       }.bind(this);
 
@@ -106,6 +139,10 @@ class ModbusTCPServer extends ModbusSlave {
       * @fires ModbusTCPServer#client-disconnect
       */
       this.tcpServer.onClientEnd = function EmitClientDisconnect(socket){
+        /**
+       * client-disconnect event.
+       * @event ModbusTCPServer#client-disconnect
+       */
         this.emit('client-disconnect',socket);
       }
 
@@ -122,6 +159,7 @@ class ModbusTCPServer extends ModbusSlave {
           self.tcpServer.port = p;
         }
       })
+      this.port = p;
 
       /**
       * listening status
@@ -198,7 +236,10 @@ class ModbusTCPServer extends ModbusSlave {
     */
     ProcessModbusIndication(aduBuffer){
 
-      //emitiendo un evento de recivo de indicacion
+      /**
+     * indication event.
+     * @event ModbusTCPServer#indication
+     */
       this.emit('indication', aduBuffer);
 
       var indicationADU = new ADU(aduBuffer);
@@ -249,6 +290,7 @@ class ModbusTCPServer extends ModbusSlave {
     * Make the response modbus tcp header
     * @param {buffer} adu frame off modbus indication
     * @return {number} error code. 1- error, 0-no errror
+    * @fires ModbusTCPServer#error {object}
     */
     AnalizeADU(adu){
       try{
@@ -269,10 +311,10 @@ class ModbusTCPServer extends ModbusSlave {
         }
       }
       catch(e){
-        this.emit('modbus_exeption','Bytes error on Modbus Indication');
+        this.emit('error', e);
         return 1;
       }
     }
 }
 
-module.exports = ModbusTCPServer
+module.exports = ModbusTCPServer;

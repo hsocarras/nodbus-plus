@@ -1,6 +1,6 @@
 /**
 ** Modbus Master Base Class module.
-* @module protocol/modbus-master.
+* @module protocol/modbus-master
 * @author Hector E. Socarras.
 * @version 0.4.0
 */
@@ -14,14 +14,17 @@ const ExtractDigitalValue = require('./functions/tools').ExtractDigitalValue;
  * Class representing a modbus master.
  * @extends ModbusDevice
 */
-module.exports = class ModbusMaster extends ModbusDevice {
+class ModbusMaster extends ModbusDevice {
   /**
   * Create a Modbus Master.
   */
     constructor(){
         super();
 
-        //conexion status 1 conected, 0 disconnected
+        /**
+        * conexion status 1 conected, 0 disconnected
+        * @type {bool}
+        */
         this.isConnected = false;
 
         //current modbus request
@@ -108,7 +111,6 @@ module.exports = class ModbusMaster extends ModbusDevice {
               request.modbus_function = 0x06;
               request.modbus_data = new Buffer(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
-              //request.modbus_data.writeUInt16BE(values,2);
               values.copy(request.modbus_data,2);
               request.MakeBuffer();
               return request;
@@ -144,13 +146,11 @@ module.exports = class ModbusMaster extends ModbusDevice {
 
     /**
     * extract data for a slave response
-    * @param {Buffer} responsePDU
+    * @param {object} responsePDU
     * @return {Object} map Object whit register:value pairs
+    * @fires ModbusMaster#modbus_exception {object}
     */
     ParseResponsePDU(responsePDU){
-
-        var responsePDU =new PDU(responsePDU);
-        responsePDU.ParseBuffer();
 
         let data = new Map();
         let byteCount = 0;
@@ -160,7 +160,6 @@ module.exports = class ModbusMaster extends ModbusDevice {
         let numberItems = this.currentModbusRequest.pdu.modbus_data.readUInt16BE(2);
         let key = '';
         let value;
-        let quality;
         let timestamp;
 
         switch(responsePDU.modbus_function){
@@ -169,10 +168,9 @@ module.exports = class ModbusMaster extends ModbusDevice {
                   index = Math.floor(i/8) + 1;
                   offset = i % 8;
                   value = ExtractDigitalValue(responsePDU.modbus_data[index], offset);
-                  quality = 'good';
                   timestamp = Date.now();
                   key = '0x'.concat((startItem + i).toString());
-                  data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                  data.set(key, {value:value,  timestamp:timestamp});
                 }
                 break;
             case 0x02:
@@ -180,10 +178,9 @@ module.exports = class ModbusMaster extends ModbusDevice {
                 index = Math.floor(i/8) + 1;
                 offset = i % 8;
                 value = ExtractDigitalValue(responsePDU.modbus_data[index], offset);
-                quality = 'good';
                 timestamp = Date.now();
                 key = '1x'.concat((startItem + i).toString());
-                data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                data.set(key, {value:value, timestamp:timestamp});
               }
               break;
             case 0x03:
@@ -191,21 +188,20 @@ module.exports = class ModbusMaster extends ModbusDevice {
                 value = Buffer.alloc(2);
                 value[0] = responsePDU.modbus_data[2*i+1];
                 value[1] = responsePDU.modbus_data[2*i+2];
-                quality = 'good';
+
                 timestamp = Date.now();
                 key = '4x'.concat((startItem + i).toString());
-                data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                data.set(key, {value:value, timestamp:timestamp});
               }
               break;
             case 0x04:
-              for(let i = 0; i < numberItems; i++){
-                value = Buffer.alloc(2);
+              for(let i = 0; i < numberItems; i++){                value = Buffer.alloc(2);
                 value[0] = responsePDU.modbus_data[2*i+1];
                 value[1] = responsePDU.modbus_data[2*i+2];
-                quality = 'good';
+
                 timestamp = Date.now();
                 key = '3x'.concat((startItem + i).toString());
-                data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                data.set(key, {value:value, timestamp:timestamp});
               }
               break;
             case 0x05:
@@ -218,9 +214,8 @@ module.exports = class ModbusMaster extends ModbusDevice {
                 else{
                   value = false;
                 }
-                quality = 'good';
                 timestamp = Date.now();
-                data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                data.set(key, {value:value, timestamp:timestamp});
                 break;
             case 0x06:
               startItem = responsePDU.modbus_data.readUInt16BE(0);
@@ -228,9 +223,8 @@ module.exports = class ModbusMaster extends ModbusDevice {
               value = Buffer.alloc(2);
               value[0] = responsePDU.modbus_data[2];
               value[1] = responsePDU.modbus_data[3];
-              quality = 'good';
               timestamp = Date.now();
-              data.set(key, {value:value, quality:quality, timestamp:timestamp});
+              data.set(key, {value:value, timestamp:timestamp});
               break;
             case 0x0f:
               startItem = responsePDU.modbus_data.readUInt16BE(0);
@@ -239,10 +233,9 @@ module.exports = class ModbusMaster extends ModbusDevice {
                 index = Math.floor(i/8);
                 offset = i % 8;
                 value = ExtractDigitalValue(this.currentModbusRequest.pdu.modbus_data[index + 5], offset);
-                quality = 'good';
                 timestamp = Date.now();
                 key = '0x'.concat((startItem + i).toString());
-                data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                data.set(key, {value:value, timestamp:timestamp});
               }
               break;
             case 0x10:
@@ -252,10 +245,9 @@ module.exports = class ModbusMaster extends ModbusDevice {
                   value = Buffer.alloc(2);
                   value[0] = this.currentModbusRequest.pdu.modbus_data[2*i+5];
                   value[1] = this.currentModbusRequest.pdu.modbus_data[2*i+6];
-                  quality = 'good';
                   timestamp = Date.now();
                   key = '4x'.concat((startItem + i).toString());
-                  data.set(key, {value:value, quality:quality, timestamp:timestamp});
+                  data.set(key, {value:value, timestamp:timestamp});
                 }
                 break;
             default:
@@ -297,20 +289,164 @@ module.exports = class ModbusMaster extends ModbusDevice {
     * @param {Buffer} resp
     * @fires ModbusMaster#raw_data {buffer} response frame
     * @fires ModbusMaster#data {object} map object whit pair register:values
+    * @fires ModbusMaster#error {object}
     */
     ProcessResponse(resp){
 
-      if(this.currentModbusRequest){
-        var respData = this.ParseResponse(resp);
-        //elimino la queri activa.
-        this.currentModbusRequest = null;
-        this.emit('raw_data',resp);
+      /**
+     * raw_data event.
+     * @event ModbusMaster#raw_data
+     * @type {object}
+     */
+      this.emit('raw_data',resp);
 
-        if(respData){
-          //Si todo ok emito data
-           this.emit('data',respData);
+      if(this.currentModbusRequest){
+
+        try{
+          var respData = this.ParseResponse(resp);
+
+          //elimino la query activa.
+          this.currentModbusRequest = null;
+
+          if(respData){
+            /**
+           * data event.
+           * @event ModbusMaster#data
+           * @type {object}
+           */
+            this.emit('data',respData);
+          }
+
+
+        }
+        catch (err){
+           this.emit('error', err);
         }
       }
     }
 
+    /**
+    * Make a modbus indication from query object
+    *@param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;.
+    *@param {number} startItem firs address to read or write
+    *@param {number} numberItems number of registers to read or write.
+    *@param {array|number} itemsValues any of suported force data
+    *@fires ModbusTCPClient#modbus_exception
+    */
+    Poll(area = 4, startItem = 0, numberItems = 1, itemsValues = null){
+      let ModbusFunction = 3;
+
+      switch(area){
+        case 'holding-registers':
+          if(itemsValues == null){
+              ModbusFunction = 3;
+          }
+          else{
+            if(numberItems == 1){
+              ModbusFunction = 6;
+            }
+            else{
+              ModbusFunction = 16;
+            }
+          }
+          break;
+        case 'holding':
+          if(itemsValues == null){
+              ModbusFunction = 3;
+          }
+          else{
+            if(numberItems == 1){
+              ModbusFunction = 6;
+            }
+            else{
+              ModbusFunction = 16;
+            }
+          }
+          break;
+        case 4:
+          if(itemsValues == null){
+              ModbusFunction = 3;
+          }
+          else{
+            if(numberItems == 1){
+              ModbusFunction = 6;
+            }
+            else{
+              ModbusFunction = 16;
+            }
+          }
+          break;
+        case 'inputs-registers':
+            ModbusFunction = 3;
+          break;
+        case 3:
+            ModbusFunction = 3;
+          break;
+        case 'inputs':
+          ModbusFunction = 2;
+          break;
+        case 1:
+          ModbusFunction = 2;
+          break;
+        case 'coils':
+          if(itemsValues == null){
+              ModbusFunction = 1;
+          }
+          else{
+            if(numberItems == 1){
+              ModbusFunction = 5;
+            }
+            else{
+              ModbusFunction = 15;
+            }
+          }
+          break;
+        case 0:
+          if(itemsValues == null){
+              ModbusFunction = 1;
+          }
+          else{
+            if(numberItems == 1){
+              ModbusFunction = 5;
+            }
+            else{
+              ModbusFunction = 15;
+            }
+          }
+          break;
+      }
+
+      switch (ModbusFunction) {
+        case 1:
+          this.ReadCoilStatus(startItem, numberItems);
+          break;
+        case 2:
+          this.ReadInputStatus(startItem, numberItems);
+          break;
+        case 3:
+          this.ReadHoldingRegisters(startItem, numberItems);
+          break;
+        case 4:
+          this.ReadInputRegisters(startItem, numberItems);
+          break;
+        case 5:
+          this.ForceSingleCoil(startItem, itemsValues);
+          break;
+        case 6:
+          this.PresetSingleRegister(startItem, itemsValues);
+          break;
+        case 15:
+          this.ForceMultipleCoils(startItem, numberItems, itemsValues);
+          break;
+        case 16:
+          this.PresetMultipleRegisters(startItem, numberItems, itemsValues);
+          break;
+        default:
+          this.emit('modbus-exception' , 'Bad query');
+          break;
+
+      }
+    }
 }
+
+module.exports = ModbusMaster;
