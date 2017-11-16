@@ -8,7 +8,9 @@
 
 const ModbusDevice = require('./modbus_device');
 const PDU = require('./pdu');
-const Tools = require('./functions/tools');
+const BooleanRegister = require('./boolean_register');
+const WordRegister = require('./word_register');
+
 
 /**
  * Class representing a modbus slave.
@@ -37,35 +39,34 @@ class ModbusSlave extends ModbusDevice {
         });
 
         /**
-        * Registro inputs. En el primer byte se encuentran 0-7 en el segundo 8-14 etc;
-        * denttro del mismo byte el bit menos significatico es 0 y el mas significativo es el 7
-        * @type {Buffer}
+        * Inputs. Reference 1x;
+        * @type {Object}
         * @public
         */
-        this.inputs =  Buffer.alloc(128);
+        this.inputs =  new BooleanRegister();
 
         /**
         * Registro coils. En el primer byte se encuentran 0-7 en el segundo 8-14 etc;
         * denttro del mismo byte el bit menos significatico es 0 y el mas significativo es el 7
-        * @type {Buffer}
+        * @type {Object}
         * @public
         */
-        this.coils = Buffer.alloc(128);
+        this.coils = new BooleanRegister();
 
 
         /**
-        * Registro holdings. Ocupan 2 Bytes. Se transmiten B y B+1 en ese orden
-        * @type {Buffer}
+        * Registro holdings.
+        * @type {Object}
         * @public
         */
-        this.holdingRegisters =  new Buffer.alloc(2048);
+        this.holdingRegisters =  new WordRegister();
 
         /**
         * Registro inputs. Ocupan 2 Bytes. Se transmiten B y B+1 en ese orden
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = new Buffer.alloc(2048);
+        this.inputRegisters = new WordRegister();
 
 
     }
@@ -183,15 +184,12 @@ class ModbusSlave extends ModbusDevice {
     * @param {number} value value to be write
     * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
-    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32,  int,  int32,  float,  floatR.
+    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
     * @throws {String} description of error
     * @example
-    * SetData(25.2, 'float', 'holding-register', 10)
-    * // Is the same to use Buffer.writeFloatBE(25.2,10)
-    * ModbusSlave.holding-registers.writeFloatBE(25.2,10);
-    * @see {@link https://nodejs.org/api/buffer.html}
+    * SetData(25.2, 'float', 'holding-register', 10);
     */
-    SetData(value, area = 'holding-register', offset = 0, dataType = 'uint'){
+    SetData(value, area = 'holding-register', dataAddress = 0, dataType = 'uint'){
 
       if(value == null || value == undefined){
         throw 'Error SetData value argument must be define'
@@ -199,6 +197,9 @@ class ModbusSlave extends ModbusDevice {
       }
 
       let memoryArea = null;
+
+      let buff32 = Buffer.alloc(4);
+      let buff64 = Buffer.alloc(8);
 
       switch(area){
         case 'holding-registers':
@@ -267,28 +268,35 @@ class ModbusSlave extends ModbusDevice {
       if(typeof(value) == 'number'|| typeof(value) == 'boolean'){
         switch(dataType){
           case 'bool':
-            memoryArea[Math.floor(offset/8)] =Tools.WriteDigitalValue(memoryArea[Math.floor(offset/8)], offset%8, value);
+            memoryArea.WriteData(value, dataAddress);
             break;
           case 'uint':
-            memoryArea.writeUInt16BE(value,2*offset);
+            memoryArea.WriteData(value, dataAddress);
             break;
           case 'uint32':
-            memoryArea.writeUInt32BE(value,2*offset);
-            Tools.SwapRegister(memoryArea, offset);
+            buff32.writeUInt32LE(value);
+            memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
+            memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
             break;
           case 'int':
-            memoryArea.writeInt16BE(value,2*offset);
+            memoryArea.WriteData(value, dataAddress);
             break;
           case 'int32':
-            memoryArea.writeInt32BE(value,2*offset);
-            Tools.SwapRegister(memoryArea, offset);
+          buff32.writeInt32LE(value);
+          memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
+          memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
             break;
           case 'float':
-            memoryArea.writeFloatBE(value,2*offset);
-            Tools.SwapRegister(memoryArea, offset);
+          buff32.writeFloatLE(value);
+          memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
+          memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
             break;
-          case 'floatR':
-            memoryArea.writeFloatBE(value,2*offset);
+          case 'double':
+          buff64.writeDoubleLE(value);
+          memoryArea.SetRegister(buff64.slice(0,2), dataAddress);
+          memoryArea.SetRegister(buff64.slice(2, 4), dataAddress + 1);
+          memoryArea.SetRegister(buff64.slice(4, 6), dataAddress + 2);
+          memoryArea.SetRegister(buff64.slice(6), dataAddress + 3);
             break;
             default:
               throw 'invalid dataType'+ dataType;
@@ -305,22 +313,21 @@ class ModbusSlave extends ModbusDevice {
     * Read Data on slave memory    *
     * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
-    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32,  int,  int32,  float,  double.
+    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
     * @example
     * //return 25.2
     * ReadData('4', 10, 'float');
-    * // Is the same to use Buffer.readloatBE(10)
-    * ModbusSlave.holding-registers.readFloatBE(10);
-    * @see {@link https://nodejs.org/api/buffer.html}
     */
-    ReadData(area = 'holding-register', offset = 0, dataType = 'uint'){
+    ReadData(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
 
       let memoryArea = null;
       let value = null;
-      let tempBuffer = Buffer.alloc(4);
+
+      let buff32 = Buffer.alloc(4);
+      let buff64 = Buffer.alloc(8);
 
       switch(area){
         case 'holding-registers':
@@ -381,31 +388,35 @@ class ModbusSlave extends ModbusDevice {
 
       switch(dataType){
           case 'bool':
-            value = Tools.ExtractDigitalValue(memoryArea[Math.floor(offset/8)], offset%8);
+            value = memoryArea.ReadData(dataAddress);
             break;
           case 'uint':
-            value = memoryArea.readUInt16BE(2*offset);
+            value = memoryArea.GetRegister(dataAddress).readUInt16LE();
             break;
           case 'uint32':
-            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
-            Tools.SwapRegister(tempBuffer);
-            value = tempBuffer.readUInt32BE();
+            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
+            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
+            value = buff32.readUInt32LE();
             break;
           case 'int':
-            value = memoryArea.readInt16BE(2*offset);
+            value = memoryArea.ReadData(dataAddress);
             break;
           case 'int32':
-            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
-            Tools.SwapRegister(tempBuffer);
-            value = tempBuffer.readInt32BE();
+            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
+            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
+            value = buff32.readInt32LE();
             break;
           case 'float':
-            memoryArea.copy(tempBuffer, 0, 2*offset, 2*offset + 4);
-            Tools.SwapRegister(tempBuffer);
-            value = tempBuffer.readFloatBE();
+            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
+            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
+            value = buff32.readFloatLE();
             break;
-          case 'floatR':
-            value = memoryArea.readFloatBE(2*offset);
+          case 'double':
+            memoryArea.GetRegister(dataAddress).copy(buff64, 0);
+            memoryArea.GetRegister(dataAddress + 1).copy(buff64, 2);
+            memoryArea.GetRegister(dataAddress + 2).copy(buff64, 4);
+            memoryArea.GetRegister(dataAddress + 3).copy(buff64, 6);            
+            value = buff64.readDoubleLE();
             break;
           default:
             throw 'invalid dataType'+ dataType;

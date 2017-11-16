@@ -9,7 +9,7 @@ const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
 const ADU = require('../protocol/tcp_adu');
 const MBAP = require('../protocol/mbap');
-const Tools = require('../protocol/functions/tools');
+
 
 /**
  * Class representing a modbus tcp client.
@@ -297,10 +297,10 @@ class ModbusTCPClient extends  ModbusMaster {
     PresetSingleRegister(value, startRegister = 0){
       let val = Buffer.alloc(2)
       if(value >= 0){
-        val.writeUInt16LE(value);
+        val.writeUInt16BE(value);
       }
       else{
-        val.writeInt16LE(value);
+        val.writeInt16BE(value);
       }
       if(this.isConnected && this.currentModbusRequest == null){
           //si estoy conectado
@@ -327,19 +327,18 @@ class ModbusTCPClient extends  ModbusMaster {
     ForceMultipleCoils(forceData, startCoil = 0){
 
       let coilQuantity = forceData.length;
-      let valueBuffer = Buffer.alloc(Math.floor((coilQuantity+1)/8)+1);
+      let valueBuffer = Buffer.alloc(Math.floor((coilQuantity - 1)/8)+1);
       let byteTemp = 0x00;
-      let byteIndex = 0;
       let offset = 0;
+      let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
 
       for(let i =0; i < coilQuantity; i++){
-        byteIndex = Math.floor(i/8);
-        offset = i%8;
-        if(offset == 0){
-          byteTemp = 0x00;
+        if(forceData[i] == true){
+          valueBuffer[Math.floor(i/8)] = valueBuffer[Math.floor(i/8)] | masks[i%8];
         }
-        byteTemp = Tools.WriteDigitalValue(byteTemp, offset, forceData[i]);
-        valueBuffer[byteIndex] = byteTemp;
+        else {
+          valueBuffer[Math.floor(i/8)] = valueBuffer[Math.floor(i/8)] & (~masks[i%8]);
+        }
       }
 
          if(this.isConnected && this.currentModbusRequest == null){
@@ -361,26 +360,20 @@ class ModbusTCPClient extends  ModbusMaster {
 
     /**
     * function 16 of modbus protocol
-    * @param {number[]} values array whit the values to write
+    * @param {number[]} forceData array whit the values to write
     * @param {number} startRegister register to write.
     */
-    PresetMultipleRegisters(data, startRegister = 0){
+    PresetMultipleRegisters(forceData, startRegister = 0){
       let valueBuffer = Buffer.alloc(0);
 
 
-      values.forEach(function(value){
+      forceData.forEach(function(value){
         let tempBufer = null;
         if(Number.isInteger(value)){
           if(value >= 0 && value <= 65535){
             tempBufer = Buffer.alloc(2);
             tempBufer.writeUInt16BE(value);
             valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 2)
-          }
-          else if (value > 65535) {
-            tempBufer = Buffer.alloc(4);
-            tempBufer.writeUInt32BE(value);
-            Tools.SwapRegister(tempBufer);
-            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4)
           }
           else if (value < 0 && value > -32767) {
             tempBufer = Buffer.alloc(2);
@@ -389,16 +382,14 @@ class ModbusTCPClient extends  ModbusMaster {
           }
           else{
             tempBufer = Buffer.alloc(4);
-            tempBufer.writeInt32BE(value);
-            Tools.SwapRegister(tempBufer);
-            valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4)
+            tempBufer.writeInt32LE(value);
+            valueBuffer = Buffer.concat([valueBuffer, tempBufer.swap16()], valueBuffer.length + 4)
           }
         }
         else{
           tempBufer = Buffer.alloc(4);
-          tempBufer.writeFloatBE(value);
-          Tools.SwapRegister(tempBufer);
-          valueBuffer = Buffer.concat([valueBuffer, tempBufer], valueBuffer.length + 4);
+          tempBufer.writeFloatLE(value);
+          valueBuffer = Buffer.concat([valueBuffer, tempBufer.swap16()], valueBuffer.length + 4);
         }
 
       })

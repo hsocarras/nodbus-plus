@@ -8,7 +8,6 @@
 
 const ModbusDevice = require('./modbus_device');
 const PDU = require('./pdu');
-const ExtractDigitalValue = require('./functions/tools').ExtractDigitalValue;
 
 /**
  * Class representing a modbus master.
@@ -155,7 +154,8 @@ class ModbusMaster extends ModbusDevice {
         let data = new Map();
         let byteCount = 0;
         let index = 0;
-        let offset = 0
+        let offset = 0;
+        let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
         let startItem = this.currentModbusRequest.pdu.modbus_data.readUInt16BE(0);
         let numberItems = this.currentModbusRequest.pdu.modbus_data.readUInt16BE(2);
         let key = '';
@@ -167,20 +167,18 @@ class ModbusMaster extends ModbusDevice {
                 for(let i = 0; i < numberItems; i++){
                   index = Math.floor(i/8) + 1;
                   offset = i % 8;
-                  value = ExtractDigitalValue(responsePDU.modbus_data[index], offset);
-                  timestamp = Date.now();
+                  value = (responsePDU.modbus_data[index] & masks[offset]) ? true : false;
                   key = '0x'.concat((startItem + i).toString());
-                  data.set(key, {value:value,  timestamp:timestamp});
+                  data.set(key, value);
                 }
                 break;
             case 0x02:
               for(let i = 0; i < numberItems; i++){
                 index = Math.floor(i/8) + 1;
                 offset = i % 8;
-                value = ExtractDigitalValue(responsePDU.modbus_data[index], offset);
-                timestamp = Date.now();
+                value = (responsePDU.modbus_data[index] & masks[offset]) ? true : false;
                 key = '1x'.concat((startItem + i).toString());
-                data.set(key, {value:value, timestamp:timestamp});
+                data.set(key, value);
               }
               break;
             case 0x03:
@@ -188,20 +186,17 @@ class ModbusMaster extends ModbusDevice {
                 value = Buffer.alloc(2);
                 value[0] = responsePDU.modbus_data[2*i+1];
                 value[1] = responsePDU.modbus_data[2*i+2];
-
-                timestamp = Date.now();
                 key = '4x'.concat((startItem + i).toString());
-                data.set(key, {value:value, timestamp:timestamp});
+                data.set(key, value);
               }
               break;
             case 0x04:
-              for(let i = 0; i < numberItems; i++){                value = Buffer.alloc(2);
+              for(let i = 0; i < numberItems; i++){
+                value = Buffer.alloc(2);
                 value[0] = responsePDU.modbus_data[2*i+1];
                 value[1] = responsePDU.modbus_data[2*i+2];
-
-                timestamp = Date.now();
                 key = '3x'.concat((startItem + i).toString());
-                data.set(key, {value:value, timestamp:timestamp});
+                data.set(key, value);
               }
               break;
             case 0x05:
@@ -214,8 +209,7 @@ class ModbusMaster extends ModbusDevice {
                 else{
                   value = false;
                 }
-                timestamp = Date.now();
-                data.set(key, {value:value, timestamp:timestamp});
+                data.set(key, value);
                 break;
             case 0x06:
               startItem = responsePDU.modbus_data.readUInt16BE(0);
@@ -223,8 +217,7 @@ class ModbusMaster extends ModbusDevice {
               value = Buffer.alloc(2);
               value[0] = responsePDU.modbus_data[2];
               value[1] = responsePDU.modbus_data[3];
-              timestamp = Date.now();
-              data.set(key, {value:value, timestamp:timestamp});
+              data.set(key, value);
               break;
             case 0x0f:
               startItem = responsePDU.modbus_data.readUInt16BE(0);
@@ -232,10 +225,9 @@ class ModbusMaster extends ModbusDevice {
               for(let i = 0; i < numberItems; i++){
                 index = Math.floor(i/8);
                 offset = i % 8;
-                value = ExtractDigitalValue(this.currentModbusRequest.pdu.modbus_data[index + 5], offset);
-                timestamp = Date.now();
+                value = (this.currentModbusRequest.pdu.modbus_data[index + 5] & masks[offset]) ? true : false;
                 key = '0x'.concat((startItem + i).toString());
-                data.set(key, {value:value, timestamp:timestamp});
+                data.set(key, value);
               }
               break;
             case 0x10:
@@ -245,9 +237,8 @@ class ModbusMaster extends ModbusDevice {
                   value = Buffer.alloc(2);
                   value[0] = this.currentModbusRequest.pdu.modbus_data[2*i+5];
                   value[1] = this.currentModbusRequest.pdu.modbus_data[2*i+6];
-                  timestamp = Date.now();
                   key = '4x'.concat((startItem + i).toString());
-                  data.set(key, {value:value, timestamp:timestamp});
+                  data.set(key, value);
                 }
                 break;
             default:

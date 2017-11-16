@@ -8,7 +8,7 @@
 */
 
 var PDU = require('../pdu');
-var tools = require('./tools');
+
 
 var ReadHoldingRegister = function (pdu) {
 
@@ -18,7 +18,7 @@ var ReadHoldingRegister = function (pdu) {
     var initRegister = pdu.modbus_data.readUInt16BE(0);
 
     //Verificando q el registro solicitado exista
-    if(initRegister >= this.holdingRegisters.length/2){
+    if(initRegister >= this.holdingRegisters.size){
         //Creando exception 0x02
         respPDU.modbus_function = pdu.modbus_function | 0x80;
         respPDU.modbus_data[0] = 0x02;
@@ -31,14 +31,16 @@ var ReadHoldingRegister = function (pdu) {
 
         ////Calculando cantidad de bytes de la respuesta
         var byte_count=2*numberOfRegisters;
-        respPDU.modbus_data = new Buffer(byte_count+1);
 
-        respPDU.modbus_data = new Buffer(byte_count+1);
+
+        respPDU.modbus_data = Buffer.alloc(byte_count+1);
         respPDU.modbus_function = 0x03;
         respPDU.modbus_data[0]=byte_count;
 
+        for(var i = 0; i < numberOfRegisters; i++){
+          this.holdingRegisters.EncodeRegister(initRegister + i).copy(respPDU.modbus_data, 1 + 2*i)
+        }
 
-        this.holdingRegisters.copy(respPDU.modbus_data,1,2*initRegister,(2*initRegister + byte_count));
 
     }
 
