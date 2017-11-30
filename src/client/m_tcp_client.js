@@ -106,7 +106,15 @@ class ModbusTCPClient extends  ModbusMaster {
         }
         this.netClient.onTimeOut = EmitTimeOut.bind(this);
 
+        /**
+        * Emit Indication event        *
+        * @fires ModbusTCPClient#indication
+        */
         function EmitIndication(data){
+          /**
+         * indication event.
+         * @event ModbusTCPClient#indication
+         */
           this.emit('indication', data);
         }
         this.netClient.onWrite = EmitIndication.bind(this);

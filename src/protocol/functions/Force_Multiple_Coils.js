@@ -55,14 +55,19 @@ var ForceMultipleCoils = function (pdu){
 
         }
         else{
+          let values = new Map();
           for(var i = 0; i < number_points; i++){
-            this.coils.WriteData(forceData[Math.floor(i/8)] & masks[i%8], startCoil + i)
+            let offset = startCoil + i;
+            let val = forceData[Math.floor(i/8)] & masks[i%8]
+            this.coils.WriteData(val, offset);
+            values.set(offset, val > 0);
           }
 
           respPDU.modbus_function = 0x0F;
           respPDU.modbus_data = Buffer.alloc(4);
           pdu.modbus_data.copy(respPDU.modbus_data,0,0,4);
 
+          this.emit('values', '0x', values);
           return respPDU;
         }
     }

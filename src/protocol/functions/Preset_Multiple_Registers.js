@@ -24,6 +24,7 @@ var PresetMultipleRegister = function (pdu) {
         this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
     }
     else {
+        let values = new Map();
         var startAddress = pdu.modbus_data.readUInt16BE(0);
 
         //cantidad de registros a escribir
@@ -33,13 +34,17 @@ var PresetMultipleRegister = function (pdu) {
         var forceDataCount = pdu.modbus_data.readUInt8(4);
 
         for(var i= 0; i < numberOfRegisters; i++){
+          let offset = startAddress+i;
+          let val = pdu.modbus_data.slice(5+2*i, 7+2*i).readUInt16BE();
           this.holdingRegisters.DecodeRegister(pdu.modbus_data.slice(5+2*i, 7+2*i), startAddress+i);
+          values.set(offset, val);
         }
 
         //creando la respuesta
         respPDU.modbus_function = 0x10;
         respPDU.modbus_data = new Buffer(4);
-        pdu.modbus_data.copy(respPDU.modbus_data,0,0,4)
+        pdu.modbus_data.copy(respPDU.modbus_data,0,0,4);
+        this.emit('values', '4x', values);
 
     }
     return respPDU;

@@ -24,13 +24,13 @@ var PresetSingleRegister = function (pdu){
         this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
     }
     else {
-
+        let values = new Map();
         this.holdingRegisters.DecodeRegister(pdu.modbus_data.slice(2), targetRegister);
 
-
+        values.set(targetRegister, pdu.modbus_data.slice(2).readUInt16BE());
         //Devolviendo un eco de la pdu.
         respPDU = pdu
-
+        this.emit('values', '4x', values);
         return respPDU;
 
     }

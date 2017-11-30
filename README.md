@@ -4,7 +4,7 @@ A nodejs modbus library fully writed in javascript.
 
 ## Getting Started
 * ### Install
-#### installing nodbus as a node package
+#### installing nodbus-plus as a node package
     $ npm install nodbus-plus
 #### installing nodbus from source
 
@@ -15,6 +15,21 @@ Create a modbus tcp server.
       var ModbusTcpServer = require('nodbus-plus').ModbusTcpServer;
       var Slave = new ModbusTcpServer(502);
       Slave.Start();
+or use function CreateSlave:
+
+      var nodbus = require('nodbus-plus');
+      var ModbusTcpServer = nodbus.CreateSlave(502);
+
+  Create a modbus serial slave over tcp.
+
+        var ModbusSTcpServer = require('nodbus-plus').ModbusSTcpServer;
+        var Slave = new ModbusSTcpServer(502, 1);
+        Slave.Start();
+
+  or use function CreateSlave:
+
+        var nodbus = require('nodbus-plus');
+        var ModbusSTcpServer = nodbus.CreateSlave(502, 1);
 
 Create a modbus tcp client.
 

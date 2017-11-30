@@ -15,73 +15,26 @@ module.exports = class AsciiADU extends SerialADU {
   }
 
   MakeBuffer(){
-      /**
-      *@brief function para convertir el los campos en un buffer para enviarlo por un socket
-      */
 
-      //buffer temporal para el calculo de los caracteres
-      var charBuffer = Buffer.alloc(2);
+    /**
+    *function to convert a value in 2 chars lenght buffer
+    *@param byte  number;
+    *@return {Buffer}
+    */
+    function Byte2Chars (byte){
 
-      //size of aduBuffer = 1 start char + 2 address char + 2*pduBuffer + 2 char lrc + 2 char end
-      this.aduBuffer = this.CalcPreBuffer();
+        var temp = Buffer.alloc(2);
 
-      var size = this.aduBuffer.length;
+        if(byte > 0x0F){
+            //convierto el numero en su sttring equivalente en hexadecimal y lo escrbo en el buffer temp
+            temp.write(byte.toString(16).toUpperCase());
+        }
+        else {
+            temp.write(byte.toString(16).toUpperCase(),1);
+        }
 
-      //valores de chekeo de errores
-      this.aduBuffer[size-4] = this.errorCheck[0];
-      this.aduBuffer[size-3] = this.errorCheck[1];
-
-      //caracter ascii de fin 'CRLF'
-      this.aduBuffer[size-2] = 0x0D;
-      this.aduBuffer[size-1] = 0x0A;
-
-  }
-
-  ParseBuffer() {
-      /**
-      *@brief function que parsea un buffer y para obtiener los atributos de la adu
-      */
-
-      var l= this.aduBuffer.length;
-
-      this.address = Number('0x'+this.aduBuffer.toString('ascii',1,3));
-
-      //pdu normal en rtu entendible por el serial server
-      this.pdu.pduBuffer = Buffer.alloc((this.aduBuffer.length - 7)/2);
-      for(var i = 0;i < this.pdu.pduBuffer.length;i++){
-          this.pdu.pduBuffer[i]=Number('0x'+this.aduBuffer.toString('ascii',2*i+3,2*i+5));
-      }
-      this.pdu.ParseBuffer();
-
-
-      this.errorCheck = Number('0x'+this.aduBuffer.toString('ascii',l-4,l-2));
-
-  }
-
-  CalcPreBuffer(){
-       /**
-      *@brief function q calcula  un buffer con el campo de error check no valido
-      */
-
-      function Byte2Chars (byte){
-          /*
-          *@brief function to convert un valor contenido en en buffer(1) en su string eqivalente
-          *@param byte  number;
-          *@param return Buffer(2)
-          */
-
-          var temp = Buffer.alloc('00','ascii');
-
-          if(byte > 0x0F){
-              //convierto el numero en su sttring equivalente en hexadecimal y lo escrbo en el buffer temp
-              temp.write(byte.toString(16).toUpperCase(),0,2,'ascii');
-          }
-          else {
-              temp.write(byte.toString(16).toUpperCase(),1,2,'ascii');
-          }
-
-          return temp;
-      }
+        return temp;
+    }
 
       //buffer temporal para el calculo de los caracteres
       var charBuffer = Buffer.alloc(2);
@@ -91,25 +44,94 @@ module.exports = class AsciiADU extends SerialADU {
 
       //size of aduBuffer = 1 start char + 2 address char + 2*pduBuffer + 2 char lrc + 2 char end
       var tempBuffer = Buffer.alloc(2*this.pdu.pduBuffer.length + 7);
+      var l = tempBuffer.length;
+
+      let rtuBuffer = Buffer.alloc(this.pdu.pduBuffer.length + 1)
+      rtuBuffer.writeUInt8(this.address);
+      this.pdu.pduBuffer.copy(rtuBuffer, 1);
 
       //caracter ascii de inicio ':'
       tempBuffer[0] = 0x3A;
 
-       if(this.address <= 247){
-           charBuffer = Byte2Chars(this.address);
-           charBuffer.copy(tempBuffer,1)
+      if(this.address <= 247){
+          charBuffer = Byte2Chars(this.address);
+          charBuffer.copy(tempBuffer,1)
       }
       else{
-          throw Error('address error');
-          return;
+         throw Error('address error');
+         return;
       }
 
       for(var i = 0;i < this.pdu.pduBuffer.length;i++){
-          charBuffer = Byte2Chars(this.pdu.pduBuffer[i])
-          charBuffer.copy(tempBuffer,2*i+3)
+         charBuffer = Byte2Chars(this.pdu.pduBuffer[i])
+         charBuffer.copy(tempBuffer,2*i+3)
       }
 
-      return tempBuffer;
+      this.errorCheck = this.GetLRC(rtuBuffer);
+
+      console.log(this.pdu.pduBuffer)
+      console.log(this.errorCheck)
+
+      tempBuffer.write(this.errorCheck.toString(16).toUpperCase(), l-4, 2,'ascii');
+
+      //caracter ascii de fin 'CRLF'
+      tempBuffer[l-2] = 0x0D;
+      tempBuffer[l-1] = 0x0A;
+
+      this.aduBuffer = tempBuffer;
+
+  }
+
+  ParseBuffer() {
+      /**
+      *@brief function que parsea un buffer y para obtiener los atributos de la adu
+      */
+
+      var l= this.aduBuffer.length;
+      var rtuBuffer;
+
+      this.address = Number('0x'+this.aduBuffer.toString('ascii',1,3));
+
+      //pdu normal en rtu entendible por el serial server
+      this.pdu.pduBuffer = Buffer.alloc(Math.floor((l - 7)/2));
+
+      for(var i = 0; i < this.pdu.pduBuffer.length; i++){
+          this.pdu.pduBuffer[i]=Number('0x'+this.aduBuffer.toString('ascii',2*i+3 ,2*i+5));
+      }
+
+      rtuBuffer = Buffer.alloc(this.pdu.pduBuffer.length + 1)
+      rtuBuffer.writeUInt8(this.address);
+      this.pdu.pduBuffer.copy(rtuBuffer, 1);
+
+      this.errorCheck = Number('0x'+this.aduBuffer.toString('ascii',l-4,l-2));
+
+
+      if(this.errorCheck == this.GetLRC(rtuBuffer)){
+        try{
+          this.pdu.ParseBuffer();
+        }
+        catch(e){
+          throw err;
+        }
+      }
+      else{
+        throw 'checksum error';
+      }
+  }
+
+
+  GetLRC(frame){
+    var  byteLRC = Buffer.alloc(1);
+
+    for(var i = 0; i < frame.length;i++){
+      byteLRC[0] = byteLRC[0] + frame[i];
+    }
+
+    var lrc_temp = Buffer.alloc(1);
+    lrc_temp[0] = -byteLRC[0];
+    var lrc = lrc_temp.readUInt8(0)
+    return lrc;
+
   }
 
 }

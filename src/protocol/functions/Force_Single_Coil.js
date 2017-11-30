@@ -40,10 +40,12 @@ var ForceSingleCoil = function (pdu){
         return respPDU;
     }
     else {
-
+        let values = new Map();
         this.coils.WriteData(value, targetCoil);
+        values.set(targetCoil, value);
         //creando una copia del request
         respPDU = pdu;
+        this.emit('values', '0x', values);
 
         return respPDU;
     }
