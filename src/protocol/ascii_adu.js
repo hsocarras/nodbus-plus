@@ -27,9 +27,12 @@ module.exports = class AsciiADU extends SerialADU {
 
         if(byte > 0x0F){
             //convierto el numero en su sttring equivalente en hexadecimal y lo escrbo en el buffer temp
-            temp.write(byte.toString(16).toUpperCase());
+            temp.write((byte & 0x0F).toString(16).toUpperCase(), 1);
+            temp.write((byte >> 4).toString(16).toUpperCase());
         }
         else {
+
+            temp.write(0x00.toString(16).toUpperCase());
             temp.write(byte.toString(16).toUpperCase(),1);
         }
 
@@ -69,8 +72,6 @@ module.exports = class AsciiADU extends SerialADU {
 
       this.errorCheck = this.GetLRC(rtuBuffer);
 
-      console.log(this.pdu.pduBuffer)
-      console.log(this.errorCheck)
 
       tempBuffer.write(this.errorCheck.toString(16).toUpperCase(), l-4, 2,'ascii');
 
@@ -115,12 +116,14 @@ module.exports = class AsciiADU extends SerialADU {
         }
       }
       else{
+
         throw 'checksum error';
       }
   }
 
 
   GetLRC(frame){
+
     var  byteLRC = Buffer.alloc(1);
 
     for(var i = 0; i < frame.length;i++){

@@ -8,7 +8,7 @@
 const ModbusSlave = require('../protocol/modbus_slave');
 const TcpServer = require('../net/tcpserver');
 const ADU = require('../protocol/tcp_adu');
-const MBAP = require('../protocol/mbap');
+
 
 /**
  * Class representing a modbus tcp server.
@@ -199,13 +199,6 @@ class ModbusTCPServer extends ModbusSlave {
         writable : false
       })
 
-      //Sellando la propiedad BuildMBAP
-      Object.defineProperty(self.__proto__, 'BuildMBAP', {
-        enumerable : false,
-        configurable : false,
-        writable : false
-      })
-
       //Sellando la propiedad AnalizeADU
       Object.defineProperty(self.__proto__, 'AnalizeADU', {
         enumerable : false,
@@ -254,37 +247,25 @@ class ModbusTCPServer extends ModbusSlave {
             indicationADU.ParseBuffer();
             //creando la respuesta
             var responsePDU = this.BuildResponse(indicationADU.pdu);
-            var responseMBAP = this.BuildMBAP(indicationADU.mbap,responsePDU);
 
-            //response
-            var modbusResponse = new ADU();
-            modbusResponse.mbap = responseMBAP;
-            modbusResponse.pdu = responsePDU;
-            modbusResponse.MakeBuffer();
+            if(indicationADU.address == 0){
+              //broadcast no response
+              return Buffer.alloc(0);
+            }
+            else{
+              //response
+              var modbusResponse = new ADU();
+              modbusResponse.address = indicationADU.mbap.unitID;
+              modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
+              modbusResponse.pdu = responsePDU;
+              modbusResponse.MakeBuffer();
 
-            return modbusResponse.aduBuffer;
+              return modbusResponse.aduBuffer;
+            }
         }
     }
 
-    /**
-    * Make the response modbus tcp header
-    * @param {Object} indicationMBAP header of indication
-    * @param {Object} responsePDU The response PDU object
-    * @return {Object}
-    */
-    BuildMBAP(indicationMBAP,responsePDU){
 
-
-      //Creando la cabecera de la respuesta a partir de la cabecera de la indication
-      var responseMBAP = new MBAP (indicationMBAP.mbapBuffer);
-      responseMBAP.ParseBuffer();
-
-      //modificando el campo length
-      responseMBAP.length = responsePDU.pduBuffer.length + 1;
-      responseMBAP.MakeBuffer();
-
-      return responseMBAP;
-    }
 
     /**
     * Make the response modbus tcp header

@@ -23,6 +23,12 @@ const PDU = require('./pdu');
       this.aduBuffer = aduRaw;
 
       /**
+      *modbus address
+      *@type {number}
+      */
+      this.address = 1;
+
+      /**
       *Protocol data unit object
       *@type {object}
       */

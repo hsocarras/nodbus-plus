@@ -46,7 +46,8 @@ If you have a suggestion or found a issue, let us known and [create an issue](ht
 
 If you like the project, please support the development.
 
- bitcoins: 3E5Ro3eUc4Q9gAE2QCgyyCSda3R7jnQmBC
+ * bitcoins: 3E5Ro3eUc4Q9gAE2QCgyyCSda3R7jnQmBC
+ * ether: 0xe9577b2109eAAD37A0CF6AB9A549DE00E8dBA9fD
 
 ## License
 

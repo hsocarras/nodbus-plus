@@ -42,7 +42,7 @@ var ForceSingleCoil = function (pdu){
     else {
         let values = new Map();
         this.coils.WriteData(value, targetCoil);
-        values.set(targetCoil, value);
+        values.set(targetCoil, (value > 0));
         //creando una copia del request
         respPDU = pdu;
         this.emit('values', '0x', values);

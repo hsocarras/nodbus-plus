@@ -167,7 +167,7 @@ class ModbusSTCPServer extends ModbusSlave {
       * @type {number}
       */
       this.modbusAddress = modbusAddress;
-      
+
       /**
       * mode
       * @type {string}
@@ -304,7 +304,7 @@ class ModbusSTCPServer extends ModbusSlave {
       try{
         adu.ParseBuffer();
 
-        if (adu.address != this.modbusAddress & adu.address != 0){
+        if ((adu.address != this.modbusAddress & adu.address != 0) | adu.address > 247){
             //ignore the frame if address missmatch
             return 1;
         }

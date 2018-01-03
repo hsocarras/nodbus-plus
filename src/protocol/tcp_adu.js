@@ -19,6 +19,9 @@ class TcpADU extends ADU {
   */
   constructor(aduRaw = Buffer.alloc(1)){
     super(aduRaw);
+
+    this.transactionCounter = 0
+
     /**
     * Header of frame modbus tcp
     * @type {object}
@@ -35,6 +38,10 @@ class TcpADU extends ADU {
       this.pdu.MakeBuffer();
 
       //creando en buffer del mbap
+      this.mbap.transactionID = this.transactionCounter;
+      this.mbap.protocolID = 0;
+      this.mbap.length = this.pdu.pduBuffer.length+1;
+      this.mbap.unitID = this.address;
       this.mbap.MakeBuffer();
 
       var buff = Buffer.alloc(this.pdu.pduBuffer.length+this.mbap.mbapBuffer.length);
@@ -56,6 +63,8 @@ class TcpADU extends ADU {
           this.mbap.mbapBuffer = this.aduBuffer.slice(0,7);
           this.mbap.ParseBuffer();
 
+          this.address = this.mbap.unitID;
+
           this.pdu.pduBuffer = this.aduBuffer.slice(7);
           this.pdu.ParseBuffer();
         }
@@ -69,6 +78,7 @@ class TcpADU extends ADU {
       }
 
   }
+
 
 }
 

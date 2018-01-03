@@ -1,30 +1,30 @@
 /**
-** Modbus Tcp Client  module.
-* @module client/modbus_tcp_client
+** Modbus Serial over Tcp Client  module.
+* @module client/modbus_stcp_client
 * @author Hector E. Socarras.
-* @version 0.4.0
+* @version 0.6.0
 */
 
 const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
-const ADU = require('../protocol/tcp_adu');
-
-
+const RTU_ADU = require('../protocol/rtu_adu');
+const ASCII_ADU = require('../protocol/ascii_adu');
+var ADU ;
 
 /**
- * Class representing a modbus tcp client.
+ * Class representing a modbus master over tcp.
  * @extends ModbusMaster
 */
 class ModbusTCPClient extends  ModbusMaster {
   /**
-  * Create a Modbus Tcp Client.
+  * Create a Modbus Serial over Tcp Client.
   */
-    constructor(){
+    constructor(mode = 'rtu'){
         super();
 
         var self = this;
 
-        var transactionCountValue = 1;
+        var serialMode = mode;
 
         /**
         * tcp layer
@@ -43,7 +43,6 @@ class ModbusTCPClient extends  ModbusMaster {
         */
         this.netClient.onConnect = function EmitConnect (target){
             
-
             /**
            * connect event.
            * @event ModbusTCPClient#connect
@@ -120,7 +119,7 @@ class ModbusTCPClient extends  ModbusMaster {
         this.netClient.onWrite = EmitIndication.bind(this);
 
         /**
-        * Slave modbus Device {ip, port, timeout}
+        * Modbus Slave Device {ip, port, timeout}
         * @type {object}
         */
         Object.defineProperty(self,'slaveDevice',{
@@ -140,25 +139,19 @@ class ModbusTCPClient extends  ModbusMaster {
         });
 
         /**
-        * number of transaction
-        * @type {number}
+        * Serial mode 'rtu' or ascii
+        * @type {object}
         */
-        Object.defineProperty(self, 'transactionCounter', {
+        Object.defineProperty(self,'mode',{
+            set: function(mode){
+                serialMode = mode;
+                (mode == 'ascii') ? ADU = ASCII_ADU : ADU = RTU_ADU ;
+            },
             get: function(){
-                return transactionCountValue;
-            },
-            set: function(value){
-                if(value <= 0xFFF0){
-                    transactionCountValue = value;
-                }
-                else{
-                    transactionCountValue = 1;
-                }
-            },
-            enumerable: false,
-            configurable: false
-        } )
-
+                return serialMode;
+            }
+        });
+        this.mode = mode;
     }
 
     /**
@@ -175,9 +168,10 @@ class ModbusTCPClient extends  ModbusMaster {
             var pdu = this.CreatePDU(1, startCoil, coilQuantity);
 
             var adu = new ADU();
+
             adu.pdu = pdu;
             adu.address = address;
-            adu.transactionCounter = this.transactionCounter++
+
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
 
@@ -202,7 +196,7 @@ class ModbusTCPClient extends  ModbusMaster {
             var adu = new ADU();
             adu.pdu = pdu;
             adu.address = address;
-            adu.transactionCounter = this.transactionCounter++
+
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
 
@@ -228,7 +222,7 @@ class ModbusTCPClient extends  ModbusMaster {
             var adu = new ADU();
             adu.pdu = pdu;
             adu.address = address;
-            adu.transactionCounter = this.transactionCounter++;
+
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
 
@@ -254,7 +248,7 @@ class ModbusTCPClient extends  ModbusMaster {
             var adu = new ADU();
             adu.pdu = pdu;
             adu.address = address;
-            adu.transactionCounter = this.transactionCounter++
+
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
 
@@ -284,7 +278,7 @@ class ModbusTCPClient extends  ModbusMaster {
             var adu = new ADU();
             adu.pdu = pdu;
             adu.address = address;
-            adu.transactionCounter = this.transactionCounter++
+
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
             this.netClient.Write(adu.aduBuffer);
@@ -314,7 +308,7 @@ class ModbusTCPClient extends  ModbusMaster {
 
           var adu = new ADU();
           adu.pdu = pdu;
-          adu.transactionCounter = this.transactionCounter++;
+          adu.address = address;
 
           adu.MakeBuffer();
           this.currentModbusRequest = adu;
@@ -355,7 +349,7 @@ class ModbusTCPClient extends  ModbusMaster {
 
             var adu = new ADU();
             adu.pdu = pdu;
-            adu.transactionCounter = this.transactionCounter++
+            adu.address = address;
 
             adu.MakeBuffer();
             this.currentModbusRequest = adu;
@@ -412,7 +406,7 @@ class ModbusTCPClient extends  ModbusMaster {
 
           var adu = new ADU();
           adu.pdu = pdu;
-          adu.transactionCounter = this.transactionCounter++
+          adu.address = address;
 
           adu.MakeBuffer();
           this.currentModbusRequest = adu;
@@ -423,6 +417,7 @@ class ModbusTCPClient extends  ModbusMaster {
           return;
       }
     }
+
 
 
 
@@ -438,24 +433,17 @@ class ModbusTCPClient extends  ModbusMaster {
       let resp = new ADU(aduBuffer);
       try{
         resp.ParseBuffer();
-        //chekeo el transactionID
-        if(resp.mbap.transactionID != this.currentModbusRequest.mbap.transactionID){
-          this.emit('modbus_exception', "Wrong Transaction ID");
-            return;
-        }
-        else if((aduBuffer.length - 6) != resp.mbap.length) {
-            this.emit('modbus_exception', "Header ByteCount Mismatch");
-            return ;
-        }
-        else {
-            return this.ParseResponsePDU(resp.pdu);
-        }
+
+
+        return this.ParseResponsePDU(resp.pdu);
       }
       catch(err){
         this.emit('error', err);
       }
 
     }
+
+
 
 	  /**
     *Stablish connection to server
@@ -469,6 +457,7 @@ class ModbusTCPClient extends  ModbusMaster {
 	  Stop(){
 		  this.netClient.Disconnet();
 	  }
+
 }
 
 module.exports = ModbusTCPClient;

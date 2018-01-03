@@ -9,6 +9,7 @@
 const ModbusDevice = require('./modbus_device');
 const PDU = require('./pdu');
 
+
 /**
  * Class representing a modbus master.
  * @extends ModbusDevice
@@ -25,6 +26,12 @@ class ModbusMaster extends ModbusDevice {
         * @type {bool}
         */
         this.isConnected = false;
+
+        /**
+        * array with slave's modbus address
+        * @type {number[]}
+        */
+        this.slaveList = [];
 
         //current modbus request
         this.currentModbusRequest = null;
@@ -202,7 +209,7 @@ class ModbusMaster extends ModbusDevice {
             case 0x05:
               startItem = responsePDU.modbus_data.readUInt16BE(0);
               key = '0x'.concat(startItem.toString());
-              console.log(responsePDU.modbus_data)
+              
                 if(responsePDU.modbus_data[2] == 0xff){
                   value = true;
                 }
@@ -324,7 +331,7 @@ class ModbusMaster extends ModbusDevice {
     *@param {array|number} itemsValues any of suported force data
     *@fires ModbusTCPClient#modbus_exception
     */
-    Poll(area = 4, startItem = 0, numberItems = 1, itemsValues = null){
+    Poll(address = 1, area = 4, startItem = 0, numberItems = 1, itemsValues = null){
       let ModbusFunction = 3;
 
       switch(area){
@@ -409,28 +416,28 @@ class ModbusMaster extends ModbusDevice {
 
       switch (ModbusFunction) {
         case 1:
-          this.ReadCoilStatus(startItem, numberItems);
+          this.ReadCoilStatus(address, startItem, numberItems);
           break;
         case 2:
-          this.ReadInputStatus(startItem, numberItems);
+          this.ReadInputStatus(address, startItem, numberItems);
           break;
         case 3:
-          this.ReadHoldingRegisters(startItem, numberItems);
+          this.ReadHoldingRegisters(address, startItem, numberItems);
           break;
         case 4:
-          this.ReadInputRegisters(startItem, numberItems);
+          this.ReadInputRegisters(address, startItem, numberItems);
           break;
         case 5:
-          this.ForceSingleCoil(startItem, itemsValues);
+          this.ForceSingleCoil(itemsValues, address, tartItem);
           break;
         case 6:
-          this.PresetSingleRegister(startItem, itemsValues);
+          this.PresetSingleRegister(itemsValues, address, tartItem);
           break;
         case 15:
-          this.ForceMultipleCoils(startItem, numberItems, itemsValues);
+          this.ForceMultipleCoils(itemsValues, address, startItem);
           break;
         case 16:
-          this.PresetMultipleRegisters(startItem, numberItems, itemsValues);
+          this.PresetMultipleRegisters(itemsValues, address, startItem);
           break;
         default:
           this.emit('modbus-exception' , 'Bad query');
@@ -438,6 +445,8 @@ class ModbusMaster extends ModbusDevice {
 
       }
     }
+
+
 }
 
 module.exports = ModbusMaster;

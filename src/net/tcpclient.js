@@ -32,11 +32,7 @@ class TcpClient {
         * @type {number}
         */
         this.slavePort = 502;
-        /**
-        * slave modbus address
-        * @type {number}
-        */
-        this.slaveRemoteAddress = 1;
+
         /**
         * slave time to respond
         * @type {number}
@@ -80,14 +76,20 @@ class TcpClient {
     }
 
     get SlaveDevice(){
-      return {ip:this.slaveIp, port:this.slavePort, remoteAddress:this.slaveRemoteAddress, timeout:this.slaveTimeout};
+      return {ip:this.slaveIp, port:this.slavePort, timeout:this.slaveTimeout};
     }
 
     set SlaveDevice(slave){
       this.slaveIp = slave.ip;
       this.slavePort = slave.port;
-      this.slaveRemoteAddress = slave.remoteAddress
       this.slaveTimeout = slave.timeout;
+    }
+
+    get isConnected(){
+      if(this.socket == null){
+        return false
+      }
+      else return true;
     }
 
     Connect(){
