@@ -142,15 +142,19 @@ class TcpClient {
     Write(data){
       let self = this;
         if(this.socket == null){
-            return -1;
+            return false;
         }
         else{
-            this.socket.write(data, 'utf8', function(){
+          let isSuccesfull;
+            isSuccesfull = this.socket.write(data, 'utf8', function(){
               if(self.onWrite){
                 self.onWrite(data);
               }
             });
-            this.socket.setTimeout(this.slaveTimeout);
+            if(isSuccesfull){
+              this.socket.setTimeout(this.slaveTimeout);
+            }
+            else return success;
         }
     }
 }

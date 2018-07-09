@@ -116,8 +116,7 @@ module.exports = class AsciiADU extends SerialADU {
         }
       }
       else{
-
-        throw 'checksum error';
+        throw new Error('checksum error');
       }
   }
 

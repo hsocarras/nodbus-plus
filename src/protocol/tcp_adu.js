@@ -20,7 +20,7 @@ class TcpADU extends ADU {
   constructor(aduRaw = Buffer.alloc(1)){
     super(aduRaw);
 
-    this.transactionCounter = 0
+    this.transactionCounter = 0;
 
     /**
     * Header of frame modbus tcp
@@ -74,7 +74,7 @@ class TcpADU extends ADU {
         }
       }
       else {
-          throw 'adu buffer not contain a valid frame';
+          throw new Error('adu buffer not contain a valid frame');
       }
 
   }

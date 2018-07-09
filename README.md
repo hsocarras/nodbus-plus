@@ -8,7 +8,7 @@ A nodejs modbus library fully writed in javascript.
     $ npm install nodbus-plus
 #### installing nodbus from source
 
-* ### Usage:
+* ### Basic Usage:
 
 Create a modbus tcp server.
 
@@ -42,12 +42,6 @@ See: https://github.com/hsocarras/nodbus-plus/wiki
 
 If you have a suggestion or found a issue, let us known and [create an issue](https://github.com/hsocarras/nodbus-plus/issues)
 
-## Supporting the project
-
-If you like the project, please support the development.
-
- * bitcoins: 3E5Ro3eUc4Q9gAE2QCgyyCSda3R7jnQmBC
- * ether: 0xe9577b2109eAAD37A0CF6AB9A549DE00E8dBA9fD
 
 ## License
 

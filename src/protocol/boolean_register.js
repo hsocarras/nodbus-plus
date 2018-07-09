@@ -40,7 +40,7 @@ class BoleanRegister {
 
     }
     else{
-      throw 'invalid address';
+      return undefined;
     }
   }
 
@@ -58,10 +58,10 @@ class BoleanRegister {
       }
 
       this.registerBuffer[Math.floor(dataAddress/8)] = newByte;
-
+      return true;
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 

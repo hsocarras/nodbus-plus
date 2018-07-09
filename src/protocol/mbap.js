@@ -51,7 +51,7 @@ class MBAP {
         this.unitID = this.mbapBuffer.readUInt8(6);
       }
       else{
-        throw 'wrong mbap buffer'
+        throw new Error('wrong mbap buffer');
       }
   }
 

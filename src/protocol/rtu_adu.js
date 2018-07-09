@@ -56,7 +56,7 @@ module.exports = class RtuADU  extends SerialADU {
         }
       }
       else{
-        throw 'checksum error';
+        throw new Error('checksum error');
       }
 
   }

@@ -42,6 +42,11 @@ modbusSTCPClient.on('disconnect', function(err){
 modbusSTCPClient.on('raw_data', function(data){
 	console.log(data);
 })
+
+modbusSTCPClient.on('idle', function(){
+	console.log('ready to go');
+})
+
 function Test(){
   console.log('starting test')
   //provando evento modbus exeption

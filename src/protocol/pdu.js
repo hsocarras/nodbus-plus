@@ -49,7 +49,7 @@ class PDU {
 
   /**
   *function to parse the pdu buffer to extract function and data fields
-  * @throws {string}
+  * @throws {Error}
   */
   ParseBuffer(){
       if(this.pduBuffer.length >= 2){
@@ -61,7 +61,7 @@ class PDU {
         this.pduBuffer.copy(this.modbus_data,0,1);
       }
       else{
-        throw 'wrong pdu buffer'
+        throw new Error('wrong pdu buffer');
       }
   }
 

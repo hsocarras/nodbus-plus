@@ -58,6 +58,11 @@ modbusTCPClient.on('disconnect', function(err){
 modbusTCPClient.on('raw_data', function(data){
 	console.log(data);
 })
+
+modbusTCPClient.on('idle', function(){
+	console.log('ready to go');
+})
+
 function Test(){
   console.log('starting test')
   //provando evento modbus exeption

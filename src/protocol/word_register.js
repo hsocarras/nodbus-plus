@@ -36,7 +36,7 @@ class WordRegister {
       return this.registerBuffer.readInt16LE(offset);
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 
@@ -45,19 +45,21 @@ class WordRegister {
       let offset = dataAddress * 2;
       if (typeof value == 'number') {
         this.registerBuffer.writeInt16LE(value, offset);
+        return true
       }
       else{
-        throw 'Invalid argument. Value must be a number'
+        throw new typeError('Value must be a number');
+        return false;
       }
-
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 
 /**
 *function to encode a register to send through a stream.
+  * protocol send in BE register are store in LE
 *@param {number} dataAddress address of register
 *@return {buffer}
 */
@@ -71,12 +73,13 @@ class WordRegister {
       return buffRegister;
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 
   /**
   *function to decode a register receive through a stream.
+  * protocol send in BE register are store in LE
   *@param {buffer} value
   *@param {number} dataAddress address of register
   */
@@ -86,11 +89,11 @@ class WordRegister {
 
         this.registerBuffer[offset] = value[1];
         this.registerBuffer[offset + 1] = value[0];
-
+        return true;
 
       }
       else{
-        throw 'invalid address';
+        return false;
       }
     }
 
@@ -99,14 +102,15 @@ class WordRegister {
       let offset = dataAddress * 2;
       if (value instanceof Buffer && value.length == 2) {
         value.copy(this.registerBuffer, offset)
+        return true;
       }
       else{
-        throw 'Invalid argument. Value must be a size 2 Buffer'
+        throw new typeError('Value must be a size 2 Buffer');
       }
 
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 
@@ -117,7 +121,7 @@ class WordRegister {
       return this.registerBuffer.slice(offset, offset + 2);
     }
     else{
-      throw 'invalid address';
+      return false;
     }
   }
 }
