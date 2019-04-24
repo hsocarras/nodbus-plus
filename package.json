@@ -1,6 +1,6 @@
 {
   "name": "nodbus-plus",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "description": "A nodejs modbus library made in javascript",
   "keywords": [
     "node",

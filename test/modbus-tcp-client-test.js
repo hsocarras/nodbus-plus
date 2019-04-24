@@ -75,7 +75,6 @@ function Test(){
   }, 100);
 
 
-
   //provando funcion 2
   setTimeout(function(){
     console.log('leyendo inputs de la 3 a la 8');

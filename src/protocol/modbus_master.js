@@ -98,7 +98,7 @@ class ModbusMaster extends ModbusDevice {
           case 1:
               //funcion 01 read coils status
               request.modbus_function = 0x01;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.MakeBuffer();
@@ -107,7 +107,7 @@ class ModbusMaster extends ModbusDevice {
           case 2:
               //funcion 02 read inputs status
               request.modbus_function = 0x02;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.MakeBuffer();
@@ -116,7 +116,7 @@ class ModbusMaster extends ModbusDevice {
           case 3:
               //funcion 0x03 leer holdings registers
               request.modbus_function = 0x03;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.MakeBuffer();
@@ -125,7 +125,7 @@ class ModbusMaster extends ModbusDevice {
           case 4:
                //funcion 0x04 read input registers
               request.modbus_function = 0x04;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.MakeBuffer();
@@ -134,7 +134,7 @@ class ModbusMaster extends ModbusDevice {
           case 5:
                //funcion 05 write single coil
               request.modbus_function = 0x05;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               if (values.readUInt16BE(0) == 0xFF00 || values.readUInt16BE(0) == 0x00 ) {
                 values.copy(request.modbus_data,2);
@@ -150,7 +150,7 @@ class ModbusMaster extends ModbusDevice {
               var request = new PDU();
               //funcion 06 PresetSingleRegister
               request.modbus_function = 0x06;
-              request.modbus_data = new Buffer(4);
+              request.modbus_data = Buffer.alloc(4);
               request.modbus_data.writeUInt16BE(startAddres,0);
               values.copy(request.modbus_data,2);
               request.MakeBuffer();
@@ -160,7 +160,7 @@ class ModbusMaster extends ModbusDevice {
               //function 15 force multiples coils
               request.modbus_function = 0x0F;
               //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
-              request.modbus_data = new Buffer(5 + values.length);
+              request.modbus_data = Buffer.alloc(5 + values.length);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.modbus_data[4]= values.length;
@@ -172,7 +172,7 @@ class ModbusMaster extends ModbusDevice {
               //function 16 write multiples coils
               request.modbus_function = 0x10;
               //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
-              request.modbus_data = new Buffer(5 + pointsQuantity*2);
+              request.modbus_data = Buffer.alloc(5 + pointsQuantity*2);
               request.modbus_data.writeUInt16BE(startAddres,0);
               request.modbus_data.writeUInt16BE(pointsQuantity,2);
               request.modbus_data[4]= values.length;

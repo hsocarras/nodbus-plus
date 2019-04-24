@@ -21,7 +21,7 @@ class ModbusSTCPServer extends ModbusSlave {
   * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'aut' (default) both mode
   */
     constructor(p = 502, modbusAddress = 1, mode = 'aut'){
-      super();
+      super(modbusAddress = 1);
 
       var self = this;
 
@@ -162,17 +162,13 @@ class ModbusSTCPServer extends ModbusSlave {
       })
       this.port = p;
 
-      /**
-      * modbus address
-      * @type {number}
-      */
-      this.modbusAddress = modbusAddress;
+
 
       /**
       * mode
       * @type {string}
       */
-      this.mode = (modbusAddress == 58) ? 'rtu' : mode;
+      this.mode = mode;
 
       /**
       * listening status

@@ -20,7 +20,7 @@ class ModbusSlave extends ModbusDevice {
   /**
   * Create a Modbus Slave.
   */
-    constructor(){
+    constructor(modbusAddress = 1){
         super();
 
         var self = this;
@@ -37,6 +37,26 @@ class ModbusSlave extends ModbusDevice {
           writable:false,
           configurable:false
         });
+
+        /**
+        * modbus address. Value between 1 and 247
+        * @type {number}
+        ** @throws {RangeError}
+        */
+        this.mAddress = modbusAddress;
+        Object.defineProperty(self, 'modbusAddress',{
+          get: function(){
+            return self.mAddress;
+          },
+          set: function(address){
+            if(address >= 1 && address <= 247){
+              self.mAddress = address
+            }
+            else{
+              throw new RangeError('Address must be a value fron 1 to 247', 'modbus_slave.js', '55');
+            }
+          }
+        })
 
         /**
         * Inputs. Reference 1x;
@@ -415,7 +435,7 @@ class ModbusSlave extends ModbusDevice {
             memoryArea.GetRegister(dataAddress).copy(buff64, 0);
             memoryArea.GetRegister(dataAddress + 1).copy(buff64, 2);
             memoryArea.GetRegister(dataAddress + 2).copy(buff64, 4);
-            memoryArea.GetRegister(dataAddress + 3).copy(buff64, 6);            
+            memoryArea.GetRegister(dataAddress + 3).copy(buff64, 6);
             value = buff64.readDoubleLE();
             break;
           default:
