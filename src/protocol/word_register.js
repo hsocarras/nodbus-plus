@@ -59,7 +59,7 @@ class WordRegister {
 
 /**
 *function to encode a register to send through a stream.
-  * protocol send in BE register are store in LE
+* protocol send in BE; register are store in LE
 *@param {number} dataAddress address of register
 *@return {buffer}
 */
@@ -79,7 +79,7 @@ class WordRegister {
 
   /**
   *function to decode a register receive through a stream.
-  * protocol send in BE register are store in LE
+  * protocol send in BE; register are store in LE
   *@param {buffer} value
   *@param {number} dataAddress address of register
   */

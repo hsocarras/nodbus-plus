@@ -29,7 +29,7 @@ class ModbusSlave extends ModbusDevice {
         *Suported functions
         * @type {number[]}
         */
-        this.supportedModbusFunctions = [0x01,0x02,0x03,0x04,0x05,0x06,0x0F,0x10];
+        this.supportedModbusFunctions = [0x01,0x02,0x03,0x04,0x05,0x06,0x0F,0x10, 0x16];
 
         //Sellando esta propiedad
         Object.defineProperty(self, 'supportedModbusFunctions',{
@@ -135,6 +135,8 @@ class ModbusSlave extends ModbusDevice {
                 break;
                 case 0x10:
                     respPDU = this.PresetMultipleRegisters(pdu);
+                case 0x16:
+                    respPDU = this.MaskHoldingRegister(pdu);
                 break;
             }
 
@@ -496,6 +498,12 @@ ModbusSlave.prototype.ForceMultipleCoils = require('./functions/Force_Multiple_C
 * @private
 */
 ModbusSlave.prototype.PresetMultipleRegisters = require('./functions/Preset_Multiple_Registers');
+
+/**
+* Procesesing modbus function 22 indication.
+* @private
+*/
+ModbusSlave.prototype.MaskHoldingRegister = require('./functions/Mask_Holding_Register');
 
 
 module.exports = ModbusSlave;

@@ -54,6 +54,7 @@ modbusTCPServer.SetData(1, 'coils', 15);
 modbusTCPServer.SetData(59, 'holding', 0, 'uint');
 modbusTCPServer.SetData(-358, 'holding', 2, 'int');
 modbusTCPServer.SetData(3.14, 'holding', 3, 'float');
+modbusTCPServer.SetData(0x12, 'holding', 5);
 modbusTCPServer.SetData(3598.59, 'holding', 9, 'double');
 
 modbusTCPServer.SetData(-27, 'inputs-registers', 1, 'int');
