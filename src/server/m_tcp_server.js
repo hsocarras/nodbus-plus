@@ -234,9 +234,9 @@ class ModbusTCPServer extends ModbusSlave {
      * @event ModbusTCPServer#indication
      */
       this.emit('indication', aduBuffer);
-
+      
       var indicationADU = new ADU(aduBuffer);
-
+      
         //checking header
         if (this.AnalizeADU(indicationADU)){
             //Si retorna 1
@@ -254,13 +254,19 @@ class ModbusTCPServer extends ModbusSlave {
             }
             else{
               //response
-              var modbusResponse = new ADU();
-              modbusResponse.address = indicationADU.mbap.unitID;
-              modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
-              modbusResponse.pdu = responsePDU;
-              modbusResponse.MakeBuffer();
+              if(responsePDU != null){
+                var modbusResponse = new ADU();
+                modbusResponse.address = indicationADU.mbap.unitID;
+                modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
+                modbusResponse.pdu = responsePDU;
+                modbusResponse.MakeBuffer();
 
               return modbusResponse.aduBuffer;
+              }
+              else{
+                return Buffer.alloc(0);
+              }
+              
             }
         }
     }
@@ -276,7 +282,7 @@ class ModbusTCPServer extends ModbusSlave {
     AnalizeADU(adu){
       try{
         adu.ParseBuffer();
-
+        
         if (adu.mbap.protocolID != 0){
             //si el protocolo no es modbus standard
             this.emit('modbus_exeption','Protocol not Suported');
@@ -291,7 +297,7 @@ class ModbusTCPServer extends ModbusSlave {
           return 0;
         }
       }
-      catch(e){
+      catch(e){        
         this.emit('error', e);
         return 1;
       }

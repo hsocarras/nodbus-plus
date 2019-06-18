@@ -129,12 +129,19 @@ function Test(){
   //provando funcion 16
 
   setTimeout(function(){
-    console.log('forzando los registros 8 al 10 a [0xf154 0x58d2 0x25a6]');
+    console.log('forzando los registros 16 al 21 a [0xf154 0x58d2 0x25a6]');
 
     values = [3.14, -54, 0, 7852689];
     modbusTCPClient.PresetMultipleRegisters(values , 56, 16);
     //modbusTCPClient.Poll({ModbusFunction:16, startItem:8, numberItems:3,itemsValues:value});
   }, 450)
+
+  //provando funcion 22
+  setTimeout(function(){
+    console.log('mask registro 5');
+    values = [1, 0, 0, 1, -1, 0, 1, -1, -1, -1, 0, 0, 1, 1, -1, 0];
+    modbusTCPClient.MaskHoldingRegister(values , 1, 6);    
+  }, 500)
 
 }
 

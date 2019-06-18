@@ -180,6 +180,15 @@ class ModbusMaster extends ModbusDevice {
               request.MakeBuffer();
               return request;
               break;
+          case 22:
+              //function 22 mask holding register
+              request.modbus_function = 0x16;              
+              request.modbus_data = Buffer.alloc(6);
+              request.modbus_data.writeUInt16BE(startAddres,0);              
+              values.copy(request.modbus_data,2);
+              request.MakeBuffer();
+              return request;
+              break;
         }
     }
 
@@ -747,6 +756,64 @@ class ModbusMaster extends ModbusDevice {
           return false;
       }
     }
+
+    /**
+    * function 22 of modbus protocol
+    * @param {number} startRegister register to write.
+    * @param {number} address modbus address of device.
+    * @param {int [16]} value : array with 1 in position that want to be true, 0 on position that
+    * want to be false and -1 in position that not to be modified.
+    * example register value is [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
+    *         desired value is  [1 0 0 1  -1 0 1 -1  -1 -1 0 0  1 1 -1 0]
+    *         result            [1 0 0 1   1 0 1 0    0 1 0 0   1 1 0 0] 0x3259
+    * @return {boolean} true if succes, false if not connected, or waiting for response
+    */
+   MaskHoldingRegister(value, address = 1, startRegister = 0){
+    let val = Buffer.alloc(4)
+    
+    let AND_Mask = 0x00;
+    let OR_Mask = 0xFFFF;
+
+    let tempMask = 1;
+
+    for (let i = 0; i <value.length; i++){
+      
+      if(value[i] == 1){
+        //AND_MASK = 0;
+        //OR_Mask = 1;        
+      }
+      else if(value[i] == 0){ 
+        //AND_MASK = 0;       
+        OR_Mask = OR_Mask  & (~tempMask); //OR_MASK = 0
+      }
+      else{
+        AND_Mask = AND_Mask | tempMask;
+      }
+      
+      tempMask = tempMask << 1; 
+    } 
+    
+    
+    console.log(OR_Mask)
+    val.writeUInt16BE(AND_Mask);
+    val.writeUInt16BE(OR_Mask, 2);
+    
+
+    if(this.isConnected && this.currentModbusRequest == null){
+        //si estoy conectado
+        let isSuccesfull;
+        var pdu = this.CreatePDU(22, startRegister, 1, val);
+        var adu = this.CreateADU(address, pdu);
+        this.currentModbusRequest = adu;
+
+        isSuccesfull = this.netClient.Write(adu.aduBuffer);
+        this._idleStatus = false;
+        return isSuccesfull;
+    }
+    else{
+        return false;
+    }
+  }
 
 
 }

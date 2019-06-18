@@ -29,33 +29,7 @@ class WordRegister {
 
   }
 
-  ReadData(dataAddress = 0){
-    if(dataAddress <= this.size){
-      let offset = dataAddress * 2;
-
-      return this.registerBuffer.readInt16LE(offset);
-    }
-    else{
-      return false;
-    }
-  }
-
-  WriteData(value, dataAddress = 0){
-    if(dataAddress <= this.size){
-      let offset = dataAddress * 2;
-      if (typeof value == 'number') {
-        this.registerBuffer.writeInt16LE(value, offset);
-        return true
-      }
-      else{
-        throw new typeError('Value must be a number');
-        return false;
-      }
-    }
-    else{
-      return false;
-    }
-  }
+  
 
 /**
 *function to encode a register to send through a stream.
@@ -97,6 +71,12 @@ class WordRegister {
       }
     }
 
+/**
+* function to set the register
+* @param {Buffer} value a Buffer with value encode  in litleendian
+* @param {number} dataAddress address of register
+* @return {boolean} true if success
+*/
   SetRegister(value, dataAddress = 0){
     if(dataAddress <= this.size){
       let offset = dataAddress * 2;
@@ -114,6 +94,11 @@ class WordRegister {
     }
   }
 
+/**
+* function to get the register
+* @param {number} dataAddress address of register
+* @return {buffer}
+*/
   GetRegister(dataAddress = 0){
     if(dataAddress <= this.size){
       let offset = dataAddress * 2;

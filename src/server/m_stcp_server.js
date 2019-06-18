@@ -278,12 +278,18 @@ class ModbusSTCPServer extends ModbusSlave {
             }
             else{
               //response
-              var modbusResponse = new ADU();
-              modbusResponse.address = this.modbusAddress;
-              modbusResponse.pdu = responsePDU;
-              modbusResponse.MakeBuffer();
+              if(responsePDU != null){
+                var modbusResponse = new ADU();
+                modbusResponse.address = indicationADU.mbap.unitID;
+                modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
+                modbusResponse.pdu = responsePDU;
+                modbusResponse.MakeBuffer();
 
               return modbusResponse.aduBuffer;
+              }
+              else{
+                return Buffer.alloc(0);
+              }
             }
 
         }

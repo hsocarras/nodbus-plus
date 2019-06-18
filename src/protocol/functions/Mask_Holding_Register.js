@@ -30,12 +30,14 @@ var MaskHoldingRegister = function (pdu){
         let OR_MASK = pdu.modbus_data.readUInt16BE(4);
 
         //calculating value
-        let mask_value = (this.holdingRegisters.ReadData(targetRegister) & AND_MASK) | (OR_MASK & ~AND_MASK );
-        this.holdingRegisters.WriteData(mask_value, targetRegister);
+        let mask_value = (this.holdingRegisters.GetRegister(targetRegister).readUInt16LE() & AND_MASK) | (OR_MASK & ~AND_MASK );
+        let val = Buffer.alloc(2);
+        val.writeUInt16LE(mask_value);        
+        this.holdingRegisters.SetRegister(val, targetRegister);
 
         //Devolviendo un eco de la pdu.
         respPDU = pdu
-        values.set(targetRegister, this.holdingRegisters.ReadData(targetRegister));
+        values.set(targetRegister, this.holdingRegisters.GetRegister(targetRegister).readUInt16LE());
         this.emit('values', '4x', values);
         return respPDU;
 

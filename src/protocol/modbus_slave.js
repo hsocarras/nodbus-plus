@@ -105,12 +105,12 @@ class ModbusSlave extends ModbusDevice {
     * @return {Object} PDU protocol data unit
     */
     BuildResponse(pdu) {
-
+      
         let respPDU = new PDU();
 
         /** Valid PDU*/
         if(this.AnalizePDU(pdu) == 0){
-
+          
             switch( pdu.modbus_function ){
                 case 0x01:
                     respPDU = this.ReadCoilStatus(pdu);
@@ -145,6 +145,7 @@ class ModbusSlave extends ModbusDevice {
         }
         /** Exception */
         else if(this.AnalizePDU(pdu) == 1){
+          
             respPDU.modbus_function = pdu.modbus_function | 0x80;
             respPDU.modbus_data[0] = 0x01;
 
@@ -180,7 +181,6 @@ class ModbusSlave extends ModbusDevice {
             return 1;
         }
         else {
-
             if(pdu.modbus_data.length < 4){
               return 2;
             }
@@ -212,7 +212,7 @@ class ModbusSlave extends ModbusDevice {
     * SetData(25.2, 'float', 'holding-register', 10);
     */
     SetData(value, area = 'holding-register', dataAddress = 0, dataType = 'uint'){
-
+      
       if(value == null || value == undefined){
         throw 'Error SetData value argument must be define'
         return
@@ -288,20 +288,29 @@ class ModbusSlave extends ModbusDevice {
       }
 
       if(typeof(value) == 'number'|| typeof(value) == 'boolean'){
+        let val = Buffer.alloc(2);
         switch(dataType){
-          case 'bool':
-            memoryArea.WriteData(value, dataAddress);
+          case 'bool':            
+            val[0] = value ? 1 : 0;
+            if(memoryArea. WriteData != 'undefined'){
+              memoryArea. WriteData(value, dataAddress);
+            }
+            else{
+              memoryArea.SetRegister(val, dataAddress);
+            }            
             break;
-          case 'uint':
-            memoryArea.WriteData(value, dataAddress);
+          case 'uint':                   
+            val.writeUInt16LE(value)
+            memoryArea.SetRegister(val, dataAddress);
             break;
           case 'uint32':
             buff32.writeUInt32LE(value);
             memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
             memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
             break;
-          case 'int':
-            memoryArea.WriteData(value, dataAddress);
+          case 'int':            
+            val.writeInt16LE(value)
+            memoryArea.SetRegister(val, dataAddress);
             break;
           case 'int32':
           buff32.writeInt32LE(value);
@@ -338,9 +347,9 @@ class ModbusSlave extends ModbusDevice {
     * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
     * @example
     * //return 25.2
-    * ReadData('4', 10, 'float');
+    * GetData('4', 10, 'float');
     */
-    ReadData(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
+    GetData(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
@@ -410,7 +419,12 @@ class ModbusSlave extends ModbusDevice {
 
       switch(dataType){
           case 'bool':
-            value = memoryArea.ReadData(dataAddress);
+            if(memoryArea.ReadData != 'undefined'){
+              value = memoryArea.ReadData(dataAddress)
+            }
+            else{
+              value = memoryArea.GetRegister(dataAddress).readUInt16LE > 0 ? true : false;
+            }            
             break;
           case 'uint':
             value = memoryArea.GetRegister(dataAddress).readUInt16LE();
@@ -421,7 +435,7 @@ class ModbusSlave extends ModbusDevice {
             value = buff32.readUInt32LE();
             break;
           case 'int':
-            value = memoryArea.ReadData(dataAddress);
+            value = memoryArea.GetRegister(dataAddress).readInt16LE();;
             break;
           case 'int32':
             memoryArea.GetRegister(dataAddress).copy(buff32, 0);

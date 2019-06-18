@@ -42,7 +42,7 @@ var PresetMultipleRegister = function (pdu) {
 
         //creando la respuesta
         respPDU.modbus_function = 0x10;
-        respPDU.modbus_data = new Buffer(4);
+        respPDU.modbus_data = Buffer.alloc(4);
         pdu.modbus_data.copy(respPDU.modbus_data,0,0,4);
         this.emit('values', '4x', values);
 
