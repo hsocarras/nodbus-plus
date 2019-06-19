@@ -109,6 +109,14 @@ class WordRegister {
       return false;
     }
   }
+
+  /**
+   * function to rezise the buffer of register
+   * @param {number} newSise
+   */
+  ReSize(newSize){
+    this.registerBuffer = Buffer.alloc(newSize * 2);
+  }
 }
 
 module.exports = WordRegister;

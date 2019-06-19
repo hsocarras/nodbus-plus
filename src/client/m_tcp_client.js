@@ -50,8 +50,7 @@ class ModbusTCPClient extends  ModbusMaster {
         * @fires ModbusTCPClient#disconnect {object}
         */
         function EmitDisconnect(had_error){
-            this.isConnected = false;
-
+            
             /**
            * disconnect event.
            * @event ModbusTCPClient#disconnect

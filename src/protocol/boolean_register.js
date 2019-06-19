@@ -65,6 +65,14 @@ class BoleanRegister {
     }
   }
 
+  /**
+   * function to rezise the buffer of register
+   * @param {number} newSise
+   */
+  ReSize(newSize){
+    this.registerBuffer = Buffer.alloc((newSize > 8) ? newSize/8 : 1);
+  }
+
 }
 
 module.exports = BoleanRegister;
