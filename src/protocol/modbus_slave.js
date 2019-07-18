@@ -7,7 +7,6 @@
 
 
 const ModbusDevice = require('./modbus_device');
-const PDU = require('./pdu');
 const BooleanRegister = require('./boolean_register');
 const WordRegister = require('./word_register');
 
@@ -106,7 +105,7 @@ class ModbusSlave extends ModbusDevice {
     */
     BuildResponse(pdu) {
       
-        let respPDU = new PDU();
+        let respPDU = this.CreatePDU();
 
         /** Valid PDU*/
         if(this.AnalizePDU(pdu) == 0){
@@ -167,7 +166,7 @@ class ModbusSlave extends ModbusDevice {
     */
     AnalizePDU(pdu){
 
-        var tempPDU = new PDU();
+        var tempPDU = this.CreatePDU();
 
         /**Checks for supported functions*/
         if(this.supportedModbusFunctions.indexOf(pdu.modbus_function) == -1){

@@ -6,6 +6,7 @@
 */
 
 const EventEmitter = require('events');
+const PDU = require('./pdu');
 
 /**
  * Class representing a modbus device.
@@ -17,7 +18,17 @@ class ModbusDevice extends EventEmitter {
   */
 	constructor(){
         super();
+      
+            
     }
+
+  /**
+   * Function to create a new protocol data unit
+   * @return {object} PDU
+   */
+  CreatePDU() {
+    return new PDU();
+  }  
 
 }
 

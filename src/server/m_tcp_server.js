@@ -192,19 +192,7 @@ class ModbusTCPServer extends ModbusSlave {
         writable:false,
         configurable:false
       })
-      //Sellando la propiedad ProcessModbusIndication
-      Object.defineProperty(self.__proto__, 'ProcessModbusIndication', {
-        enumerable : true,
-        configurable : false,
-        writable : false
-      })
-
-      //Sellando la propiedad AnalizeADU
-      Object.defineProperty(self.__proto__, 'AnalizeADU', {
-        enumerable : false,
-        configurable : false,
-        writable : false
-      })
+      
     }
 
     /**

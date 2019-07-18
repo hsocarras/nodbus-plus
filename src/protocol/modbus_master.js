@@ -7,7 +7,6 @@
 
 
 const ModbusDevice = require('./modbus_device');
-const PDU = require('./pdu');
 
 
 /**
@@ -80,7 +79,9 @@ class ModbusMaster extends ModbusDevice {
     * @param {number|Buffer} values values to write
     * @return {Object} PDU object
     */
-    CreatePDU(modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values) {
+    CreateRequestPDU(modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values) {
+        
+        var self = this;
 
         //chequeando el argumento values
         if(typeof(values) == 'number'){
@@ -92,7 +93,7 @@ class ModbusMaster extends ModbusDevice {
         }
 
         //creando la pdu del request
-        var request = new PDU();
+        var request = self.CreatePDU();
 
         switch(modbusFunction){
           case 1:
@@ -147,7 +148,7 @@ class ModbusMaster extends ModbusDevice {
               break;
           case 6:
               //creando la pdu del request
-              var request = new PDU();
+              var request = this.CreatePDU();
               //funcion 06 PresetSingleRegister
               request.modbus_function = 0x06;
               request.modbus_data = Buffer.alloc(4);
@@ -190,6 +191,11 @@ class ModbusMaster extends ModbusDevice {
               return request;
               break;
         }
+    }
+
+    CreateADU(address, pdu){
+      //function to be redefined in tcp or serial client
+      return pdu
     }
 
     ParseResponse(resp){};
@@ -514,7 +520,7 @@ class ModbusMaster extends ModbusDevice {
        if(this.isConnected && this.currentModbusRequest == null ){
             //si estoy conectado y no hay query activa
             let isSuccesfull
-            var pdu = this.CreatePDU(1, startCoil, coilQuantity);
+            var pdu = this.CreateRequestPDU(1, startCoil, coilQuantity);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -538,7 +544,7 @@ class ModbusMaster extends ModbusDevice {
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             let isSuccesfull;
-            var pdu = this.CreatePDU(2, startInput, inputQuantity);
+            var pdu = this.CreateRequestPDU(2, startInput, inputQuantity);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -563,7 +569,7 @@ class ModbusMaster extends ModbusDevice {
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             let isSuccesfull;
-            var pdu = this.CreatePDU(3, startRegister, registerQuantity);
+            var pdu = this.CreateRequestPDU(3, startRegister, registerQuantity);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -588,7 +594,7 @@ class ModbusMaster extends ModbusDevice {
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             let isSuccesfull;
-            var pdu = this.CreatePDU(4, startRegister, registerQuantity);
+            var pdu = this.CreateRequestPDU(4, startRegister, registerQuantity);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -617,7 +623,7 @@ class ModbusMaster extends ModbusDevice {
         if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             let isSuccesfull;
-            var pdu = this.CreatePDU(5, startCoil, 1, bufferValue);
+            var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -648,7 +654,7 @@ class ModbusMaster extends ModbusDevice {
       if(this.isConnected && this.currentModbusRequest == null){
           //si estoy conectado
           let isSuccesfull;
-          var pdu = this.CreatePDU(6, startRegister, 1, val);
+          var pdu = this.CreateRequestPDU(6, startRegister, 1, val);
           var adu = this.CreateADU(address, pdu);
           this.currentModbusRequest = adu;
 
@@ -688,7 +694,7 @@ class ModbusMaster extends ModbusDevice {
          if(this.isConnected && this.currentModbusRequest == null){
             //si estoy conectado
             let isSuccesfull
-            var pdu = this.CreatePDU(15, startCoil, coilQuantity, valueBuffer);
+            var pdu = this.CreateRequestPDU(15, startCoil, coilQuantity, valueBuffer);
             var adu = this.CreateADU(address, pdu);
             this.currentModbusRequest = adu;
 
@@ -744,7 +750,7 @@ class ModbusMaster extends ModbusDevice {
        if(this.isConnected && this.currentModbusReques == null){
           //si estoy conectado
           let isSuccesfull;
-          var pdu = this.CreatePDU(16, startRegister, registerQuantity, valueBuffer);
+          var pdu = this.CreateRequestPDU(16, startRegister, registerQuantity, valueBuffer);
           var adu = this.CreateADU(address, pdu);
           this.currentModbusRequest = adu;
 
@@ -802,7 +808,7 @@ class ModbusMaster extends ModbusDevice {
     if(this.isConnected && this.currentModbusRequest == null){
         //si estoy conectado
         let isSuccesfull;
-        var pdu = this.CreatePDU(22, startRegister, 1, val);
+        var pdu = this.CreateRequestPDU(22, startRegister, 1, val);
         var adu = this.CreateADU(address, pdu);
         this.currentModbusRequest = adu;
 

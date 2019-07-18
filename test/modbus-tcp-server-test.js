@@ -40,6 +40,7 @@ modbusTCPServer.on('response', function(resp){
     console.log(resp);
 });
 
+
 modbusTCPServer.SetData(1, 'inputs', 2);
 modbusTCPServer.SetData(1, 'inputs', 3);
 modbusTCPServer.SetData(1, 'inputs', 7);

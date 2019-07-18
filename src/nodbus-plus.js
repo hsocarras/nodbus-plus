@@ -2,7 +2,7 @@
  * Nodbus module.
  * @module nodbus
  * @author Hector E. Socarras Cabrera
- * @version 0.7.0
+ * @version 0.7.2
 */
 
 
@@ -12,7 +12,7 @@ const ModbusSTcpServer = require('./server/m_stcp_server');
 const ModbusSTcpClient = require('./client/m_stcp_client');
 const ModbusMaster = require('./protocol/modbus_master');
 const ModbusSlave = require('./protocol/modbus_slave');
-const ModbusPDU = require('./protocol/pdu');
+
 
 /**
  * ModbusTcpServer.
@@ -51,15 +51,10 @@ module.exports.ModbusSTcpClient = ModbusSTcpClient;
 
 /**
  * ModbusMaster.
- * @module nodbus/ModbusSlave
+ * @module nodbus/ModbusMaster
  */
 /** Constructor for ModbusSTcpServer Class. */
 module.exports.ModbusMaster = ModbusMaster;
-
-/**
- * Protocol data unit
- */
-module.exports.ModbusPDU = ModbusPDU;
 
 /**
 * Create a Slave instance

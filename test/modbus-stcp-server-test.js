@@ -60,13 +60,13 @@ modbusSTCPServer.SetData(-27, 'inputs-registers', 1, 'int');
 modbusSTCPServer.SetData(-34752648, 'inputs-registers', 2, 'int32');
 modbusSTCPServer.SetData(123456789, 'inputs-registers', 5, 'uint32');
 
-console.log(modbusSTCPServer.ReadData('holding',0,'uint'));
-console.log(modbusSTCPServer.ReadData('holding',2,'int'));
-console.log(modbusSTCPServer.ReadData('holding',3,'float'));
-console.log(modbusSTCPServer.ReadData('holding',9,'double'));
-console.log(modbusSTCPServer.ReadData(3,2,'int32'));
-console.log(modbusSTCPServer.ReadData(3,5,'uint32'));
-console.log(modbusSTCPServer.ReadData(1,7));
+console.log(modbusSTCPServer.GetData('holding',0,'uint'));
+console.log(modbusSTCPServer.GetData('holding',2,'int'));
+console.log(modbusSTCPServer.GetData('holding',3,'float'));
+console.log(modbusSTCPServer.GetData('holding',9,'double'));
+console.log(modbusSTCPServer.GetData(3,2,'int32'));
+console.log(modbusSTCPServer.GetData(3,5,'uint32'));
+console.log(modbusSTCPServer.GetData(1,7));
 
 
 modbusSTCPServer.Start();
