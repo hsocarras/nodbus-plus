@@ -11,4 +11,10 @@ Se agrega la propiedad isIdle
 
 Se implementa la propiedad modbusAddress en modbus_slave con chequeo de rango.
 
-* ### Server
+
+## Verion 0.7.2
+* ### Nodbus
+
+Se agrega el modbus slave a lo objetos exportados por nodbus.
+
+
