@@ -21,7 +21,7 @@ class ModbusSTCPServer extends ModbusSlave {
   * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'aut' (default) both mode
   */
     constructor(p = 502, modbusAddress = 1, mode = 'aut'){
-      super(modbusAddress = 1);
+      super(modbusAddress);
 
       var self = this;
 
@@ -250,11 +250,10 @@ class ModbusSTCPServer extends ModbusSlave {
 
 
         //checking adu
-        if (this.AnalizeADU(indicationADU)){
-            //Si retorna 1
+        if (this.AnalizeADU(indicationADU)){            
             return Buffer.alloc(0);
         }
-        else{
+        else{          
             //adu ok
             indicationADU.ParseBuffer();
             //creando la respuesta

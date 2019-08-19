@@ -2,7 +2,7 @@
 * Tcp Client  module.
 * @module net/tcpclient.
 * @author Hector E. Socarras.
-* @version 0.4.0
+* @version 0.8.0
 */
 
 const net = require('net');
@@ -20,25 +20,7 @@ class TcpClient {
         *net.socket Object
         * @type {object}
         */
-        this.socket = null;
-
-        /**
-        * slave ip address
-        * @type {string}
-        */
-        this.slaveIp = '';
-        /**
-        * slave port
-        * @type {number}
-        */
-        this.slavePort = 502;
-
-        /**
-        * slave time to respond
-        * @type {number}
-        */
-        this.slaveTimeout = 50;
-
+        this.sockets = new Map();
 
         /**
         * prevent than server close de connection for idle time
@@ -75,86 +57,114 @@ class TcpClient {
 
     }
 
-    get SlaveDevice(){
-      return {ip:this.slaveIp, port:this.slavePort, timeout:this.slaveTimeout};
+    isConnected(id){
+      return this.sockets.has(id);
     }
 
-    set SlaveDevice(slave){
-      this.slaveIp = slave.ip;
-      this.slavePort = slave.port;
-      this.slaveTimeout = slave.timeout;
-    }
-
-    get isConnected(){
-      if(this.socket == null){
-        return false
-      }
-      else return true;
-    }
-
-    Connect(){
+    Connect(Slave){      
         let self = this;
+        let promise = new Promise(function(resolve, reject){
+          try{
+            var conn = net.createConnection(Slave.port,Slave.ipAddress);
+  
+            //add Slave id to socket object
+            conn.slaveID = Slave.id;
+            Object.defineProperty(conn, 'slaveID', {
+              writable: false,
+              enumerable: false,
+              configurable: false
+          } )
+            //add Slave timeout to socket
+            conn.slaveTimeout = Slave.timeout;
+  
+            //configurando el socket devuelto
+            conn.once('connect',function(){              
+              resolve(conn.slaveID)
+            })
 
-        try{
-          var conn = net.createConnection(this.slavePort,this.slaveIp);
-          //configurando el socket devuelto
-          conn.on('connect',function(){
-			         self.socket = conn;
-               self.onConnect(conn);
-          });
+            conn.on('connect',function(){
+                 self.sockets.set(Slave.id, conn);
+                 self.onConnect(conn.slaveID);
+            });
+           
+  
+            conn.on('data', function(data){
+                conn.setTimeout(0);
+                self.onData(conn.slaveID, data);
+            });
+  
+            conn.on('error', function(err){
+              self.onError(conn.slaveID, err)
+            })
 
-          conn.on('data', function(data){
-              conn.setTimeout(0);
-              self.onData(data);
-          });
+            conn.once('error', function(err){
+              if(self.sockets.has(conn.slaveID)){
+                return
+              }
+              else{
+                reject(conn.slaveID);
+              }              
+            })
+  
+            conn.on('timeout', function(){
+                conn.setTimeout(0);
+                self.onTimeOut(conn.slaveID);
+            })
+  
+            conn.on('end', function(){
+              conn.end();
+              self.onEnd(conn.slaveID);
+            });
+  
+            conn.on('close',function(had_error){
+              let key = conn.slaveID;
+                self.sockets.delete(key);
+                self.onClose(conn.slaveID, had_error);
+            });            
+            
+          }
+          catch(e){
+            self.onError(e);
+            reject(conn.slaveID);
+          }
+        })
 
-          conn.on('error', function(err){
-            self.onError(err)
-          })
-
-          conn.on('timeout', function(){
-              conn.setTimeout(0);
-              self.onTimeOut();
-          })
-
-          conn.on('end', function(){
-            conn.end();
-            self.onEnd();
-          });
-
-          conn.on('close',function(had_error){
-              self.socket = null;
-              self.onClose(had_error);
-          });
-
-
-        }
-        catch(e){
-          self.onError(e);
-        }
+        return promise;
     }
 
-    Disconnet(){
-        //mando el paquete finn
-        this.socket.end();
-    }
-
-    Write(data){
+    Disconnet(id){
       let self = this;
-        if(this.socket == null){
+      if(this.sockets.has(id) == false){
+        return Promise.resolve(id);
+      }
+      else{
+        let promise = new Promise(function(resolve, reject){
+          let socket = this.sockets.get(id);
+          socket.destroy();
+          self.sockets.delete(Slave.id);
+          resolve(id)
+        })
+      }        
+    }
+
+    Write(id, data){
+      let self = this;
+        if(this.sockets.has(id) == false){
             return false;
         }
         else{
-          let isSuccesfull;
-            isSuccesfull = this.socket.write(data, 'utf8', function(){
+          let isSuccesfull
+          let socket = this.sockets.get(id);
+            isSuccesfull = socket.write(data, 'utf8', function(){
               if(self.onWrite){
-                self.onWrite(data);
+                self.onWrite(id, data);
               }
             });
             if(isSuccesfull){
-              this.socket.setTimeout(this.slaveTimeout);
+              socket.setTimeout(socket.slaveTimeout);
             }
-            else return success;
+
+            return isSuccesfull;
         }
     }
 }

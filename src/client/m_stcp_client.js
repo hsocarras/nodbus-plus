@@ -49,14 +49,16 @@ class ModbusTCPClient extends  ModbusMaster {
         * @param {object} had_error
         * @fires ModbusTCPClient#disconnect {object}
         */
-        function EmitDisconnect(had_error){
-            this.isConnected = false;
+        function EmitDisconnect(id, had_error){
+          let slave = this.slaveList.get(id);
 
             /**
            * disconnect event.
            * @event ModbusTCPClient#disconnect
            */
-            this.emit('disconnect', had_error);
+          this.emit('disconnect',id, had_error);
+          slave.isReady = false;
+
         }
         this.netClient.onClose = EmitDisconnect.bind(this);
 
@@ -65,14 +67,14 @@ class ModbusTCPClient extends  ModbusMaster {
         * @param {object} error
         * @fires ModbusTCPClient#error {object}
         */
-        function EmitError (err){
+        function EmitError (id, err){
 
           /**
          * error event.
          * @event ModbusTCPClient#error
          * @type {object}
          */
-            this.emit('error',err);
+            this.emit('error',id, err);
         }
         this.netClient.onError = EmitError.bind(this);
 
@@ -86,49 +88,15 @@ class ModbusTCPClient extends  ModbusMaster {
         * Emit Indication event        *
         * @fires ModbusTCPClient#indication
         */
-        function EmitIndication(data){
+        function EmitIndication(id, data){
           /**
          * indication event.
          * @event ModbusTCPClient#indication
          */
-          this.emit('indication', data);
+          this.emit('indication',id, data);
         }
-        this.netClient.onWrite = EmitIndication.bind(this);
-
-        /**
-        * Modbus Slave Device {ip, port, timeout}
-        * @type {object}
-        */
-        Object.defineProperty(self,'slaveDevice',{
-            set: function(slave){
-                self.netClient.SlaveDevice = slave;
-
-            },
-            get: function(){
-                return self.netClient.SlaveDevice;
-            }
-        });
-
-        Object.defineProperty(self,'isConnected',{
-            get: function(){
-                return self.netClient.isConnected;
-            }
-        });
-
-        /**
-        * Serial mode 'rtu' or ascii
-        * @type {object}
-        */
-        Object.defineProperty(self,'mode',{
-            set: function(mode){
-                serialMode = mode;
-                (mode == 'ascii') ? ADU = ASCII_ADU : ADU = RTU_ADU ;
-            },
-            get: function(){
-                return serialMode;
-            }
-        });
-        this.mode = mode;
+        this.netClient.onWrite = EmitIndication.bind(this);        
+        
     }
 
 
@@ -137,9 +105,18 @@ class ModbusTCPClient extends  ModbusMaster {
     * @param {object} pdu of request
     * @return {object} adu request
     */
-    CreateADU(address, pdu){
-      var adu = new ADU();
-      adu.address = address;
+    CreateADU(id, pdu){
+      let slave = this.slaveList.get(id);
+      var ADU;
+      
+      if(slave.serialMode == 'ascii'){
+        ADU = ASCII_ADU;
+      }
+      else{
+        ADU = RTU_ADU;
+      }
+      let adu = new ADU();
+      adu.address = slave.modbusAddress;
       adu.pdu = pdu;
 
       adu.MakeBuffer();
@@ -154,16 +131,25 @@ class ModbusTCPClient extends  ModbusMaster {
     * @fires ModbusTCPClient#modbus_exception {object}
     * @fires ModbusTCPClient#error {object}
     */
-    ParseResponse(aduBuffer) {
+    ParseResponse(id, aduBuffer) {
+
+      let slave = this.slaveList.get(id);
+      var ADU;
+      if(slave.serialMode == 'ascii'){
+        ADU = ASCII_ADU;
+      }
+      else{
+        ADU = RTU_ADU;
+      }
 
       let resp = new ADU(aduBuffer);
       try{
         resp.ParseBuffer();
-        return this.ParseResponsePDU(resp.pdu);
+        return this.ParseResponsePDU(id, resp.pdu);
       }
       catch(err){
         if(err.description == 'checksum error'){
-          this.emit('modbus_exception', "CHEKSUM ERROR");
+          this.emit('modbus_exception', id, "CHEKSUM ERROR");
           return false;
         }
         else throw err;
@@ -172,18 +158,55 @@ class ModbusTCPClient extends  ModbusMaster {
     }
 
 
+    Start(id){
+      let self = this;
+      let successPromise;
 
-	  /**
-    *Stablish connection to server
-    */
-	  Start(){
-		  this.netClient.Connect();
+      if(id){
+        let slave = self.slaveList.get(id);
+        if(slave.isReady){
+          return Promise.resolve(id);
+        }
+        else{
+          return self.netClient.Connect(slave);
+        }
+      }
+      else{
+        let promiseList = [];
+        this.slaveList.forEach(function(slave, key){
+          let promise;          
+          promise = self.netClient.Connect(slave);
+          promiseList.push(promise);
+        })
+        successPromise = Promise.all(promiseList);        
+        
+        return successPromise;
+      }
+		  
 	  }
     /**
     *disconnect from server
     */
-	  Stop(){
-		  this.netClient.Disconnet();
+	  Stop(id){
+		  if(id){
+        let slave = this.slaveList.get(id);
+        if(slave.isReady){
+          return Promise.resolve(id);
+        }
+        else{
+          return this.netClient.Disconnet(id);
+        }        
+      }
+      else{
+        let promiseList = [];
+        this.slaveList.forEach(function(slave, key){
+          let promise;
+          promise = this.netClient.Disconnet(id);
+          promiseList.push(promise);
+        })
+        successPromise = Promise.all(promiseList);
+        return successPromise;
+      }
 	  }
 
 }

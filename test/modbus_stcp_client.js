@@ -4,136 +4,146 @@ var modbusSTCPClient = nodbus.CreateMaster('eth', 'rtu');
 
 var value;
 
-modbusSTCPClient.slaveDevice = {port:502, ip:'127.0.0.1', timeout:50};
+modbusSTCPClient.AddSlave ('plc1', {port:502, timeout:50, modbusAddress:2});
+modbusSTCPClient.AddSlave ('plc2', {port:501, timeout:100, modbusAddress:1, serialMode:'ascii'});
 
-
-//Configurando todos los listeners
-
-modbusSTCPClient.on('data', function(data){
-    console.log(data)
+modbusSTCPClient.on('data', function(id, data){
+  console.log('Data from' + id + ': \n');
+  console.log(data);
 })
 
-modbusSTCPClient.on('timeout', function(){
-    console.log('timeout');
+modbusSTCPClient.on('timeout', function(id){
+  console.log(id+':timeout');
 });
 
-modbusSTCPClient.on('error', function(err){
-    console.log('error')
-    console.log(err)
-});
-
-modbusSTCPClient.on('modbus_exception', function(modbusError){
-    console.log(modbusError);
-});
-
-modbusSTCPClient.on('connect', function(sock){
-    console.log(sock.remoteAddress);
-});
-
-modbusSTCPClient.on('indication', function(data){
-	console.log(data)
-});
-
-modbusSTCPClient.on('disconnect', function(err){
-  console.log('client disconnected');
+modbusSTCPClient.on('error', function(id, err){
+  console.log(id + ':error')
   console.log(err)
 });
 
-modbusSTCPClient.on('raw_data', function(data){
-	console.log(data);
+modbusSTCPClient.on('modbus_exception', function(id, modbusError){
+  console.log(id + ': '+ modbusError);
+});
+
+modbusSTCPClient.on('connect', function(id){
+  console.log('connection stablished whit ' + id);
+});
+
+modbusSTCPClient.on('indication', function(id, data){
+console.log('indication send to ' + id);
+console.log(data)
+});
+
+modbusSTCPClient.on('disconnect', function(id, err){
+console.log(id+' disconnected');
+console.log(err)
+});
+
+modbusSTCPClient.on('raw_data', function(id, data){
+console.log('buffer from ' + id)
+console.log(data);
 })
 
-modbusSTCPClient.on('idle', function(){
-	console.log('ready to go');
+modbusSTCPClient.on('idle', function(id){
+console.log(id +' is waiting');
 })
 
 function Test(){
-  console.log('starting test')
-  //provando evento modbus exeption
-  //modbusSTCPClient.ReadHoldingRegisters(15265, 1);
+console.log('starting test')
+//provando evento modbus exeption
+//modbusSTCPClient.ReadHoldingRegisters(15265, 1);
 
-  //provando funcion 1
-  setTimeout(function(){
-    console.log('leyendo coils de la 0 a la 7');
-    modbusSTCPClient.ReadCoilStatus(1, 1, 8);
-  }, 100);
-
-
-
-  //provando funcion 2
-  setTimeout(function(){
-    console.log('leyendo inputs de la 3 a la 8');
-    modbusSTCPClient.ReadInputStatus(1, 3, 6);
-    //modbusSTCPClient.Poll({ModbusFunction:2,startItem:3,numberItems:5});
-  }, 150);
+//provando funcion 1
+setTimeout(function(){
+  console.log('leyendo coils de la 0 a la 7');
+  modbusSTCPClient.ReadCoilStatus('plc1', 0, 8);
+  modbusSTCPClient.ReadCoilStatus('plc2', 0, 8);
+  modbusSTCPClient.ReadCoilStatus('plc5', 0, 8);
+}, 100);
 
 
-  //provando funcion 3
-  setTimeout(function(){
-    console.log('leyendo holdingRegisters del 0 al 3');
-    modbusSTCPClient.ReadHoldingRegisters(1, 0, 4);
-    //modbusSTCPClient.Poll({ModbusFunction:3,startItem:1,numberItems:10});
-  }, 200);
+//provando funcion 2
+setTimeout(function(){
+  console.log('leyendo inputs de la 3 a la 8');
+  modbusSTCPClient.ReadInputStatus('plc1', 3, 6);
+  modbusSTCPClient.ReadInputStatus('plc2', 3, 6);
+}, 150);
 
 
-  //provando funcion 4
-  setTimeout(function(){
-    console.log('leyendo inputsRegisters del 1 al 5');
-    modbusSTCPClient.ReadInputRegisters(1, 1, 5);
-    //modbusSTCPClient.Poll({ModbusFunction:4,startItem:2,numberItems:12});
-  }, 250);
+//provando funcion 3
+setTimeout(function(){
+  console.log('leyendo holdingRegisters del 0 al 3');
+  modbusSTCPClient.ReadHoldingRegisters('plc1', 0, 4);
+  modbusSTCPClient.ReadHoldingRegisters('plc2', 0, 4);
+}, 200);
 
 
-  //provando funcion 5
-  setTimeout(function(){
-
-    console.log('forzando la coil 5 a 1');
-    modbusSTCPClient.ForceSingleCoil(true, 1, 5);
-
-  }, 300)
-
+//provando funcion 4
+setTimeout(function(){
+  console.log('leyendo inputsRegisters del 1 al 5');
+  modbusSTCPClient.ReadInputRegisters('plc1', 1, 5);
+  modbusSTCPClient.ReadInputRegisters('plc2', 1, 5);
+}, 250);
 
 
-  //provando funcion 6
-  setTimeout(function(){
-    console.log('forzando el registro 14 a 12536');
-    modbusSTCPClient.PresetSingleRegister(12536, 1, 14);
+//provando funcion 5
+setTimeout(function(){
+  console.log('forzando la coil 5 a 1');
+  modbusSTCPClient.ForceSingleCoil('plc1', true, 5);
+  modbusSTCPClient.ForceSingleCoil('plc2', true, 5);
+}, 300)
 
-  }, 350)
 
 
-  //provando funcion 15
-  setTimeout(function(){
-    console.log('forzando las coils 3 al 12 a 1011001010');
+//provando funcion 6
+setTimeout(function(){
+  console.log('forzando el registro 14 a 12536');
+  modbusSTCPClient.PresetSingleRegister('plc1', 12536, 14);
+  modbusSTCPClient.PresetSingleRegister('plc2', 12536, 14);
+}, 350)
 
-    values = [1, 0, 1, 1, 0, 0, 1, 0, 1, 0];
-    modbusSTCPClient.ForceMultipleCoils(values, 1, 3);
-    //modbusSTCPClient.Poll({ModbusFunction:15, startItem:3, numberItems:10,itemsValues:value});
-  }, 400)
 
-  //provando funcion 16
+//provando funcion 15
+setTimeout(function(){
+  console.log('forzando las coils 3 al 12 a 1011001010');
+  values = [1, 0, 1, 1, 0, 0, 1, 0, 1, 0];
+  modbusSTCPClient.ForceMultipleCoils('plc1', values, 3);
+  modbusSTCPClient.ForceMultipleCoils('plc2', values, 3);
+}, 400)
 
-  setTimeout(function(){
-    console.log('forzando los registros 8 al 10 a [0xf154 0x58d2 0x25a6]');
+//provando funcion 16
+setTimeout(function(){
+  console.log('forzando los registros 16 al 21 a [3.14, -54, 0, 7852689]');
+  values = [3.14, -54, 0, 7852689];
+  modbusSTCPClient.PresetMultipleRegisters('plc1', values , 16);
+  modbusSTCPClient.PresetMultipleRegisters('plc2', values , 16);
+}, 450)
 
-    values = [3.14, -54, 0, 7852689];
-    modbusSTCPClient.PresetMultipleRegisters(values , 1, 16);
-    //modbusSTCPClient.Poll({ModbusFunction:16, startItem:8, numberItems:3,itemsValues:value});
-  }, 450)
+//provando funcion 22
+setTimeout(function(){
+  console.log('mask registro 5');
+  values = [1, 0, 0, 1, -1, 0, 1, -1, -1, -1, 0, 0, 1, 1, -1, 0];
+  modbusSTCPClient.MaskHoldingRegister('plc1', values , 5);
+  modbusSTCPClient.MaskHoldingRegister('plc2', values , 5);    
+}, 500)
 
 }
 
-modbusSTCPClient.once('ready', Test);
-
-modbusSTCPClient.Start();
-
 setTimeout(function(){
-  console.log('testing ascii mode');
-  modbusSTCPClient.mode = 'ascii';
-  Test();
-}, 1450)
+console.log('check connection');
+console.log(modbusSTCPClient.isReady('plc1'));
+},1400);
 
-setTimeout(function(){
-  console.log('check connection');
-  console.log(modbusSTCPClient.isConnected);
-},2100);
+//modbusSTCPClient.once('ready', Test);
+
+let promise = modbusSTCPClient.Start();
+
+promise.then(function(value){
+console.log('conected to:');
+console.log(value);
+Test();
+}, function(value){
+console.log('fail to conect to');
+console.log(value);
+Test();
+});

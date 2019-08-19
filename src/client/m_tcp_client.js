@@ -2,7 +2,7 @@
 ** Modbus Tcp Client  module.
 * @module client/modbus_tcp_client
 * @author Hector E. Socarras.
-* @version 0.4.0
+* @version 0.8.0
 */
 
 const ModbusMaster = require('../protocol/modbus_master');
@@ -49,13 +49,16 @@ class ModbusTCPClient extends  ModbusMaster {
         * @param {object} had_error
         * @fires ModbusTCPClient#disconnect {object}
         */
-        function EmitDisconnect(had_error){
+        function EmitDisconnect(id, had_error){
+
+          let slave = this.slaveList.get(id);
             
             /**
            * disconnect event.
            * @event ModbusTCPClient#disconnect
            */
-            this.emit('disconnect', had_error);
+            this.emit('disconnect',id, had_error);
+            slave.isReady = false;
         }
         this.netClient.onClose = EmitDisconnect.bind(this);
 
@@ -64,14 +67,14 @@ class ModbusTCPClient extends  ModbusMaster {
         * @param {object} error
         * @fires ModbusTCPClient#error {object}
         */
-        function EmitError (err){
+        function EmitError (id, err){
 
           /**
          * error event.
          * @event ModbusTCPClient#error
          * @type {object}
          */
-            this.emit('error',err);
+            this.emit('error',id, err);
         }
         this.netClient.onError = EmitError.bind(this);
 
@@ -85,35 +88,15 @@ class ModbusTCPClient extends  ModbusMaster {
         * Emit Indication event        *
         * @fires ModbusTCPClient#indication
         */
-        function EmitIndication(data){
+        function EmitIndication(id, data){
           /**
          * indication event.
          * @event ModbusTCPClient#indication
          */
-          this.emit('indication', data);
+          this.emit('indication',id, data);
         }
         this.netClient.onWrite = EmitIndication.bind(this);
-
-        /**
-        * Slave modbus Device {ip, port, timeout}
-        * @type {object}
-        */
-        Object.defineProperty(self,'slaveDevice',{
-            set: function(slave){
-                self.netClient.SlaveDevice = slave;
-
-            },
-            get: function(){
-                return self.netClient.SlaveDevice;
-            }
-        });
-
-        Object.defineProperty(self,'isConnected',{
-            get: function(){
-                return self.netClient.isConnected;
-            }
-        });
-
+        
         /**
         * number of transaction
         * @type {number}
@@ -123,8 +106,10 @@ class ModbusTCPClient extends  ModbusMaster {
                 return transactionCountValue;
             },
             set: function(value){
-                if(value <= 0xFFF0){
+                if(value <= 0xFFF0 ){
+                  if(value = transactionCountValue + 1){
                     transactionCountValue = value;
+                  }                    
                 }
                 else{
                     transactionCountValue = 1;
@@ -135,17 +120,19 @@ class ModbusTCPClient extends  ModbusMaster {
         } )
 
     }
-
+   
 
     /**
     * function to create a adu
     * @param {object} pdu of request
     * @return {object} adu request
     */
-    CreateADU(address, pdu){
+    CreateADU(id, pdu){
       var adu = new ADU();
-      adu.address = address;
+      let slave = this.slaveList.get(id);
+      
       adu.pdu = pdu;
+      adu.address = slave.modbusAddress;
       adu.transactionCounter = this.transactionCounter++
 
       adu.MakeBuffer();
@@ -159,22 +146,24 @@ class ModbusTCPClient extends  ModbusMaster {
     * @fires ModbusTCPClient#modbus_exception {object}
     * @fires ModbusTCPClient#error {object}
     */
-    ParseResponse(aduBuffer) {
+    ParseResponse(id, aduBuffer) {
 
       let resp = new ADU(aduBuffer);
+      let slave = this.slaveList.get(id);
+
       try{
         resp.ParseBuffer();
         //chekeo el transactionID
-        if(resp.mbap.transactionID != this.currentModbusRequest.mbap.transactionID){
-          this.emit('modbus_exception', "Wrong Transaction ID");
+        if(resp.mbap.transactionID != slave.currentRequest.mbap.transactionID){
+          this.emit('modbus_exception', id, "Wrong Transaction ID");
             return false;
         }
         else if((aduBuffer.length - 6) != resp.mbap.length) {
-            this.emit('modbus_exception', "Header ByteCount Mismatch");
+            this.emit('modbus_exception',id,  "Header ByteCount Mismatch");
             return false;
         }
         else {
-            return this.ParseResponsePDU(resp.pdu);
+            return this.ParseResponsePDU(id, resp.pdu);
         }
       }
       catch(err){
@@ -184,16 +173,57 @@ class ModbusTCPClient extends  ModbusMaster {
     }
 
 	  /**
-    *Stablish connection to server
+    *Stablish connection to servers
     */
-	  Start(){
-		  this.netClient.Connect();
+	  Start(id){
+      let self = this;
+      let successPromise;
+
+      if(id){
+        let slave = self.slaveList.get(id);
+        if(slave.isReady){
+          return Promise.resolve(id);
+        }
+        else{
+          return self.netClient.Connect(slave);
+        }
+      }
+      else{
+        let promiseList = [];
+        this.slaveList.forEach(function(slave, key){
+          let promise;          
+          promise = self.netClient.Connect(slave);
+          promiseList.push(promise);
+        })
+        successPromise = Promise.all(promiseList);        
+        
+        return successPromise;
+      }
+		  
 	  }
     /**
     *disconnect from server
     */
-	  Stop(){
-		  this.netClient.Disconnet();
+	  Stop(id){
+		  if(id){
+        let slave = this.slaveList.get(id);
+        if(slave.isReady){
+          return Promise.resolve(id);
+        }
+        else{
+          return this.netClient.Disconnet(id);
+        }        
+      }
+      else{
+        let promiseList = [];
+        this.slaveList.forEach(function(slave, key){
+          let promise;
+          promise = this.netClient.Disconnet(id);
+          promiseList.push(promise);
+        })
+        successPromise = Promise.all(promiseList);
+        return successPromise;
+      }
 	  }
 }
 

@@ -2,7 +2,7 @@
 ** Modbus Master Base Class module.
 * @module protocol/modbus-master
 * @author Hector E. Socarras.
-* @version 0.6.0
+* @version 0.8.0
 */
 
 
@@ -20,55 +20,90 @@ class ModbusMaster extends ModbusDevice {
     constructor(){
         super();
         var self = this;
-        /**
-        * conexion status 1 conected, 0 disconnected
-        * @type {bool}
-        */
-        this.isConnected = false;
-
+        
         /**
         * array with slave's modbus address
         * @type {number[]}
         */
-        this.slaveList = [];
+        this.slaveList = new Map();
+               
+        this._EmitTimeout = function (id){
 
-        //current modbus request
-        this.currentModbusRequest = null;
+          let slave = this.slaveList.get(id);
 
-        this._idleStatus = true;
-        Object.defineProperty(self, 'isIddle', {
-          get: function(){
-            return self._idleStatus
+          if(slave.maxRetries == slave._retriesNumber){
+            slave.currentRequest = null
+            /**
+            * timeout event.
+            * @event ModbusClient#timeout
+            */
+            this.emit('timeout', id);
+            this.emit('idle', id);
           }
-        })
-
-        this._EmitTimeout = function (){
-
-          this.currentModbusRequest = null
-          /**
-         * timeout event.
-         * @event ModbusClient#timeout
-         */
-          this.emit('timeout');
-          this._idleStatus = true;
-          this.emit('idle');
+          else{
+            this.netClient.Write(id, slave.currentRequest.aduBuffer);
+            slave._retriesNumber++;
+          }
         }
 
-        this._EmitConnect = function (target){
+        this._EmitConnect = function (id){
+
+          let slave = this.slaveList.get(id);
+          slave.isReady = true;
+
             /**
            * connect event.
            * @event ModbusTCPClient#connect
            * @type {object}
            */
-            this.emit('connect',target);
+            this.emit('connect',id);
 
             /**
            * ready event.
            * @event ModbusTCPClient#ready
            */
-            this.emit('ready');
+            this.emit('ready', id);
         }
 
+    }
+
+    /**
+     * Function to add a slave object to master's slave list
+     * @param {string} id: Slave'id. Should be unique per slave                  *
+     * @param {Object} slave: Object {ipaddres, port, timeout, modbus_address}   *  
+     */
+    AddSlave(id, slave){
+      let Slave = {};
+      Slave.id = id;
+      Slave.modbusAddress = slave.modbusAddress || 247;
+      Slave.timeout = slave.timeout || 1000; //timeout in ms
+      Slave.serialMode = slave.serialMode || 'rtu';
+      Slave.ipAddress = slave.ipAddress || '127.0.0.1';
+      Slave.port = slave.port || 502;
+      Slave.currentRequest = null;
+      Slave.isReady = false;
+      Slave.maxRetries = 1;
+      Slave._retriesNumber = 0;      
+      
+      this.slaveList.set(id,Slave);
+    }
+
+    /**
+     * 
+     * @param {string} id 
+     */
+    RemoveSlave(id){
+      if(this.slaveList.has(id)){
+        this.slaveList.delete(id);      
+      }      
+    }
+
+    isReady(id){
+      if(this.slaveList.has(id)){
+        let slave = this.slaveList.get(id);
+        return slave.isReady;
+      }
+      else return undefined;      
     }
 
     /**
@@ -141,7 +176,7 @@ class ModbusMaster extends ModbusDevice {
                 values.copy(request.modbus_data,2);
               }
               else {
-                  this.emit('modbus_exception','Illegal value on query');
+                  this.emit('modbus_exception',id, 'Illegal value on query');
               }
               request.MakeBuffer();
               return request;
@@ -193,28 +228,40 @@ class ModbusMaster extends ModbusDevice {
         }
     }
 
-    CreateADU(address, pdu){
+    CreateADU(id, pdu){
       //function to be redefined in tcp or serial client
       return pdu
     }
 
-    ParseResponse(resp){};
+    ParseResponse(id, resp){
+      let resp = new PDU(resp);
+      try{
+        resp.ParseBuffer();
+        return this.ParseResponsePDU(id, resp);
+      }
+      catch(err){
+        throw err;
+      }
+      
+    };
 
     /**
     * extract data for a slave response
+    * @param {string} id reference of device.
     * @param {object} responsePDU
     * @return {Object} map Object whit register:value pairs
     * @fires ModbusMaster#modbus_exception {object}
     */
-    ParseResponsePDU(responsePDU){
+    ParseResponsePDU(id, responsePDU){
 
         let data = new Map();
         let byteCount = 0;
         let index = 0;
         let offset = 0;
         let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-        let startItem = this.currentModbusRequest.pdu.modbus_data.readUInt16BE(0);
-        let numberItems = this.currentModbusRequest.pdu.modbus_data.readUInt16BE(2);
+        let slave = this.slaveList.get(id);        
+        let startItem = slave.currentRequest.pdu.modbus_data.readUInt16BE(0);
+        let numberItems = slave.currentRequest.pdu.modbus_data.readUInt16BE(2);
         let key = '';
         let value;
         let timestamp;
@@ -282,7 +329,7 @@ class ModbusMaster extends ModbusDevice {
               for(let i = 0; i < numberItems; i++){
                 index = Math.floor(i/8);
                 offset = i % 8;
-                value = (this.currentModbusRequest.pdu.modbus_data[index + 5] & masks[offset]) ? true : false;
+                value = (slave.currentRequest.pdu.modbus_data[index + 5] & masks[offset]) ? true : false;
                 key = '0x'.concat((startItem + i).toString());
                 data.set(key, value);
               }
@@ -292,38 +339,49 @@ class ModbusMaster extends ModbusDevice {
               numberItems = responsePDU.modbus_data.readUInt16BE(2);
               for(let i = 0; i < numberItems; i++){
                   value = Buffer.alloc(2);
-                  value[0] = this.currentModbusRequest.pdu.modbus_data[2*i+5];
-                  value[1] = this.currentModbusRequest.pdu.modbus_data[2*i+6];
+                  value[0] = slave.currentRequest.pdu.modbus_data[2*i+5];
+                  value[1] = slave.currentRequest.pdu.modbus_data[2*i+6];
                   key = '4x'.concat((startItem + i).toString());
                   data.set(key, value);
                 }
                 break;
+            case 0x16:
+              startItem = responsePDU.modbus_data.readUInt16BE(0);
+              key = '4x'.concat(startItem.toString());
+              let mask = Buffer.alloc(2);
+              values = [0, 0];
+              mask= responsePDU.modbus_data.readUInt16BE(2);
+              values[0] = mask;
+              mask= responsePDU.modbus_data.readUInt16BE(4);
+              values[1] = mask;
+              data.set(key, values);
+              break;
             default:
                 //modbus exeption
                 switch(responsePDU.modbus_data[0]){
                     case 1:
-                        this.emit('modbus_exception', 'Illegal Function');
+                        this.emit('modbus_exception', id, 'Illegal Function');
                         break;
                     case 2:
-                        this.emit('modbus_exception', 'Illegal Data Address');
+                        this.emit('modbus_exception', id, 'Illegal Data Address');
                         break;
                     case 3:
-                        this.emit('modbus_exception', 'Illegal Data Value');
+                        this.emit('modbus_exception', id, 'Illegal Data Value');
                         break;
                     case 4:
-                        this.emit('modbus_exception', 'Slave Device Failure');
+                        this.emit('modbus_exception', id, 'Slave Device Failure');
                         break;
                     case 5:
-                        this.emit('modbus_exception', 'Unknow Error');
+                        this.emit('modbus_exception', id, 'Unknow Error');
                         break;
                     case 6:
-                        this.emit('modbus_exception', 'Unknow Error');
+                        this.emit('modbus_exception', id, 'Unknow Error');
                         break;
                     case 7:
-                        this.emit('modbus_exception', 'Unknow Error');
+                        this.emit('modbus_exception', id, 'Unknow Error');
                         break;
                     case 8:
-                        this.emit('modbus_exception', 'Unknow Error');
+                        this.emit('modbus_exception', id, 'Unknow Error');
                         break;
                 }
                 //devuelvo null
@@ -334,24 +392,26 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * extract data for a slave response
+    * @param {string} id reference of device.
     * @param {Buffer} resp
     * @fires ModbusMaster#raw_data {buffer} response frame
     * @fires ModbusMaster#data {object} map object whit pair register:values
     * @fires ModbusMaster#error {object}
     */
-    ProcessResponse(resp){
+    ProcessResponse(id, resp){
+
+    let slave = this.slaveList.get(id);
 
       /**
      * raw_data event.
      * @event ModbusMaster#raw_data
      * @type {object}
      */
-      this.emit('raw_data',resp);
-
-      if(this.currentModbusRequest){
-
+      this.emit('raw_data',id, resp);
+      
+      if(slave.currentRequest){
         try{
-          var respData = this.ParseResponse(resp);
+          var respData = this.ParseResponse(id, resp);
 
           if(respData){
             /**
@@ -359,41 +419,48 @@ class ModbusMaster extends ModbusDevice {
            * @event ModbusMaster#data
            * @type {object}
            */
-            this.emit('data',respData);
+            this.emit('data',id, respData);
 
             //elimino la query activa.
-            this.currentModbusRequest = null;
-            this._idleStatus = true;
-            this.emit('idle');
+            let slave = this.slaveList.get(id);
+            slave.currentRequest = null;
+            slave._retriesNumber = 0;
+            this.emit('idle', id);
 
           }
           else{
-            //implentar retry next version
-            this.currentModbusRequest = null;
-            this._idleStatus = true;
-            this.emit('idle');
+            if(slave.maxRetries > slave._retriesNumber){              
+              this.netClient.Write(id, slave.currentRequest.aduBuffer);
+              slave._retriesNumber++;
+            }
+            else{
+              //discart request
+              slave.currentRequest = null;
+              slave._retriesNumber = 0;
+              this.emit('error',id, new Error('Unknow Error'));
+            }         
           }
 
 
         }
         catch (err){
-          this.currentModbusRequest = null;
-          this._idleStatus = true;
-          this.emit('idle');
-          this.emit('error', err);
+          slave.currentRequest = null;
+          
+          this.emit('idle', id);
+          this.emit('error',id, err);
         }
       }
+      
     }
 
     /**
-    * Make a modbus indication from query object
-    *@param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;.
-    *@param {number} startItem firs address to read or write
-    *@param {number} numberItems number of registers to read or write.
-    *@param {array|number} itemsValues any of suported force data
+    * Make a modbus indication from query object.
+    *@param {string} id
+    *@param {Object} query    
     *@fires ModbusTCPClient#modbus_exception
     */
-    Poll(address = 1, area = 4, startItem = 0, numberItems = 1, itemsValues = null){
+    Poll(id, query){
+      /*
       let ModbusFunction = 3;
 
       switch(area){
@@ -478,16 +545,16 @@ class ModbusMaster extends ModbusDevice {
 
       switch (ModbusFunction) {
         case 1:
-          this.ReadCoilStatus(address, startItem, numberItems);
+          this.ReadCoilStatus(id, startItem, numberItems);
           break;
         case 2:
-          this.ReadInputStatus(address, startItem, numberItems);
+          this.ReadInputStatus(id, startItem, numberItems);
           break;
         case 3:
-          this.ReadHoldingRegisters(address, startItem, numberItems);
+          this.ReadHoldingRegisters(id, startItem, numberItems);
           break;
         case 4:
-          this.ReadInputRegisters(address, startItem, numberItems);
+          this.ReadInputRegisters(id, startItem, numberItems);
           break;
         case 5:
           this.ForceSingleCoil(itemsValues, address, tartItem);
@@ -506,26 +573,34 @@ class ModbusMaster extends ModbusDevice {
           break;
 
       }
+      */
     }
 
     /**
     * function 01 of modbus protocol
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
     * @param {number} startcoil first coil to read, start at 0 coil
     * @param {number} coilQuantity number of coils to read
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ReadCoilStatus(address = 1, startCoil = 0, coilQuantity = 1){
+    ReadCoilStatus(id, startCoil = 0, coilQuantity = 1){
 
-       if(this.isConnected && this.currentModbusRequest == null ){
-            //si estoy conectado y no hay query activa
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
+      let slave = this.slaveList.get(id);
+
+      //if is enable and there are no active request
+       if(slave.isReady && slave.currentRequest == null ){            
             let isSuccesfull
             var pdu = this.CreateRequestPDU(1, startCoil, coilQuantity);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -535,21 +610,28 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 02 of modbus protocol
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
     * @param {number} startInput first Input to read, start at 0 coil
     * @param {number} InputQuantity number of Inputs to read
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ReadInputStatus(address = 1, startInput = 0, inputQuantity = 1){
-         if(this.isConnected && this.currentModbusRequest == null){
+    ReadInputStatus(id, startInput = 0, inputQuantity = 1){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
+      let slave = this.slaveList.get(id);
+
+         if(slave.isReady && slave.currentRequest == null){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(2, startInput, inputQuantity);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -560,21 +642,28 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 03 of modbus protocol
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
     * @param {number} startRegister first holding register to read, start at 0 coil
     * @param {number} registerQuantity number of holding register to read
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ReadHoldingRegisters(address = 1, startRegister = 0, registerQuantity = 1){
-         if(this.isConnected && this.currentModbusRequest == null){
+    ReadHoldingRegisters(id, startRegister = 0, registerQuantity = 1){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
+      let slave = this.slaveList.get(id);
+
+         if(slave.isReady && slave.currentRequest == null){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(3, startRegister, registerQuantity);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -585,21 +674,28 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 04 of modbus protocol
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
     * @param {number} startRegister first input register to read, start at 0 coil
     * @param {number} registerQuantity number of input register to read
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ReadInputRegisters(address = 1, startRegister = 0, registerQuantity = 1){
-         if(this.isConnected && this.currentModbusRequest == null){
+    ReadInputRegisters(id, startRegister = 0, registerQuantity = 1){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
+      let slave = this.slaveList.get(id);
+
+         if(slave.isReady && slave.currentRequest == null){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(4, startRegister, registerQuantity);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -610,25 +706,33 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 05 of modbus protocol
-    * @param {number} startcoil first coil to write, start at 0 coil
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
     * @param {bool} value value to force
+    * @param {number} startcoil first coil to write, start at 0 coil
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ForceSingleCoil(value, address = 1, startCoil = 0){
+    ForceSingleCoil(id, value, startCoil = 0){
+
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+      
       let bufferValue = Buffer.alloc(2);
+      let slave = this.slaveList.get(id);
+
       if(value){
         bufferValue[0] = 0xFF;
       }
-        if(this.isConnected && this.currentModbusRequest == null){
+        if(slave.isReady && slave.currentRequest == null){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -638,28 +742,36 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 06 of modbus protocol
+    * @param {string} id reference of device.
     * @param {number} startRegister register to write.
-    * @param {number} address modbus address of device.
     * @param {number} value value to force
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    PresetSingleRegister(value, address = 1, startRegister = 0){
-      let val = Buffer.alloc(2)
+    PresetSingleRegister(id, value, startRegister = 0){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
+      let val = Buffer.alloc(2);
+      let slave = this.slaveList.get(id);
+
       if(value >= 0){
         val.writeUInt16BE(value);
       }
       else{
         val.writeInt16BE(value);
       }
-      if(this.isConnected && this.currentModbusRequest == null){
+
+      if(slave.isReady && slave.currentRequest == null){
           //si estoy conectado
           let isSuccesfull;
           var pdu = this.CreateRequestPDU(6, startRegister, 1, val);
-          var adu = this.CreateADU(address, pdu);
-          this.currentModbusRequest = adu;
+          var adu = this.CreateADU(id, pdu);
+          slave.currentRequest = adu;
+          slave._retriesNumber = 0;
 
-          isSuccesfull = this.netClient.Write(adu.aduBuffer);
-          this._idleStatus = false;
+          isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+          
           return isSuccesfull;
       }
       else{
@@ -669,18 +781,22 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 15 of modbus protocol
+    * @param {string} id reference of device.
     * @param {bool[]} forceData array of values to write.
-    * @param {number} address modbus address of device.
     * @param {number} startCoil first coil to write, start at 0 coil.
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    ForceMultipleCoils(forceData, address = 1, startCoil = 0){
+    ForceMultipleCoils(id, forceData, startCoil = 0){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
 
       let coilQuantity = forceData.length;
       let valueBuffer = Buffer.alloc(Math.floor((coilQuantity - 1)/8)+1);
       let byteTemp = 0x00;
       let offset = 0;
       let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+      let slave = this.slaveList.get(id);
 
       for(let i =0; i < coilQuantity; i++){
         if(forceData[i] == true){
@@ -691,15 +807,16 @@ class ModbusMaster extends ModbusDevice {
         }
       }
 
-         if(this.isConnected && this.currentModbusRequest == null){
+         if(slave.isReady && slave.currentRequest == null){
             //si estoy conectado
             let isSuccesfull
             var pdu = this.CreateRequestPDU(15, startCoil, coilQuantity, valueBuffer);
-            var adu = this.CreateADU(address, pdu);
-            this.currentModbusRequest = adu;
+            var adu = this.CreateADU(id, pdu);
+            slave.currentRequest = adu;
+            slave._retriesNumber = 0;
 
-            isSuccesfull = this.netClient.Write(adu.aduBuffer);
-            this._idleStatus = false;
+            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            
             return isSuccesfull;
         }
         else{
@@ -709,13 +826,18 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 16 of modbus protocol
+    * @param {string} id reference of device.
     * @param {number[]} forceData array whit the values to write
-    * @param {number} address modbus address of device.
     * @param {number} startRegister register to write.
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-    PresetMultipleRegisters(forceData, address = 1, startRegister = 0){
+    PresetMultipleRegisters(id, forceData, startRegister = 0){
+      if(this.slaveList.has(id) == false){
+        return undefined
+      }
+
       let valueBuffer = Buffer.alloc(0);
+      let slave = this.slaveList.get(id);
 
 
       forceData.forEach(function(value){
@@ -747,15 +869,16 @@ class ModbusMaster extends ModbusDevice {
 
       let registerQuantity = valueBuffer.length/2;
 
-       if(this.isConnected && this.currentModbusReques == null){
+       if(slave.isReady && slave.currentRequest == null){
           //si estoy conectado
           let isSuccesfull;
           var pdu = this.CreateRequestPDU(16, startRegister, registerQuantity, valueBuffer);
-          var adu = this.CreateADU(address, pdu);
-          this.currentModbusRequest = adu;
+          var adu = this.CreateADU(id, pdu);
+          slave.currentRequest = adu;
+          slave._retriesNumber = 0;
 
-          isSuccesfull = this.netClient.Write(adu.aduBuffer);
-          this._idleStatus = false;
+          isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+          
           return isSuccesfull;
       }
       else{
@@ -765,8 +888,8 @@ class ModbusMaster extends ModbusDevice {
 
     /**
     * function 22 of modbus protocol
-    * @param {number} startRegister register to write.
-    * @param {number} address modbus address of device.
+    * @param {string} id reference of device.
+    * @param {number} startRegister register to write.    
     * @param {int [16]} value : array with 1 in position that want to be true, 0 on position that
     * want to be false and -1 in position that not to be modified.
     * example register value is [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
@@ -774,8 +897,13 @@ class ModbusMaster extends ModbusDevice {
     *         result            [1 0 0 1   1 0 1 0    0 1 0 0   1 1 0 0] 0x3259
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
-   MaskHoldingRegister(value, address = 1, startRegister = 0){
+   MaskHoldingRegister(id, value, startRegister = 0){
+    if(this.slaveList.has(id) == false){
+      return undefined
+    }
+
     let val = Buffer.alloc(4)
+    let slave = this.slaveList.get(id);
     
     let AND_Mask = 0x00;
     let OR_Mask = 0xFFFF;
@@ -797,23 +925,22 @@ class ModbusMaster extends ModbusDevice {
       }
       
       tempMask = tempMask << 1; 
-    } 
+    }   
     
-    
-    console.log(OR_Mask)
     val.writeUInt16BE(AND_Mask);
     val.writeUInt16BE(OR_Mask, 2);
     
 
-    if(this.isConnected && this.currentModbusRequest == null){
+    if(slave.isReady && slave.currentRequest == null){
         //si estoy conectado
         let isSuccesfull;
         var pdu = this.CreateRequestPDU(22, startRegister, 1, val);
-        var adu = this.CreateADU(address, pdu);
-        this.currentModbusRequest = adu;
+        var adu = this.CreateADU(id, pdu);
+        slave.currentRequest = adu;
+        slave._retriesNumber = 0;
 
-        isSuccesfull = this.netClient.Write(adu.aduBuffer);
-        this._idleStatus = false;
+        isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+        
         return isSuccesfull;
     }
     else{

@@ -1,6 +1,6 @@
 var nodbus = require('..');
 
-var modbusSTCPServer = nodbus.CreateSlave(502, 2);
+var modbusSTCPServer = nodbus.CreateSlave(501, 1);
 
 
 modbusSTCPServer.on('listening', function(port){
