@@ -134,13 +134,15 @@ function Test(){
   }, 500)
 
 }
-
+let prom;
 setTimeout(function(){
   console.log('check connection');
   console.log(modbusTCPClient.isReady('plc1'));
-},1400);
-
-//modbusTCPClient.once('ready', Test);
+  prom = modbusTCPClient.Stop('plc1');
+  prom.then(function(id){
+    console.log(`isconected from ${id}`);
+  })
+},2400);
 
 let promise = modbusTCPClient.Start();
 

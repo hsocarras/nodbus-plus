@@ -46,6 +46,7 @@ class ModbusTCPClient extends  ModbusMaster {
 
         /**
         *Emit disconnect event
+        * @param {string} id
         * @param {object} had_error
         * @fires ModbusTCPClient#disconnect {object}
         */
@@ -181,7 +182,10 @@ class ModbusTCPClient extends  ModbusMaster {
 
       if(id){
         let slave = self.slaveList.get(id);
-        if(slave.isReady){
+        if(slave == undefined){
+          return Promise.reject(id);
+        }
+        else if(slave.isReady){
           return Promise.resolve(id);
         }
         else{
@@ -208,10 +212,10 @@ class ModbusTCPClient extends  ModbusMaster {
 		  if(id){
         let slave = this.slaveList.get(id);
         if(slave.isReady){
-          return Promise.resolve(id);
+          return this.netClient.Disconnet(id);          
         }
         else{
-          return this.netClient.Disconnet(id);
+          return Promise.resolve(id);
         }        
       }
       else{

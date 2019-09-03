@@ -75,14 +75,21 @@ class ModbusMaster extends ModbusDevice {
     AddSlave(id, slave){
       let Slave = {};
       Slave.id = id;
-      Slave.modbusAddress = slave.modbusAddress || 247;
+      
+      if(slave.modbusAddress >= 1 && slave.modbusAddress <= 247){
+        Slave.modbusAddress = slave.modbusAddress;
+      }
+      else{
+        Slave.modbusAddress = 247;
+      }
+      
       Slave.timeout = slave.timeout || 1000; //timeout in ms
       Slave.serialMode = slave.serialMode || 'rtu';
       Slave.ipAddress = slave.ipAddress || '127.0.0.1';
       Slave.port = slave.port || 502;
       Slave.currentRequest = null;
       Slave.isReady = false;
-      Slave.maxRetries = 1;
+      Slave.maxRetries = slave.maxRetries || 1;
       Slave._retriesNumber = 0;      
       
       this.slaveList.set(id,Slave);

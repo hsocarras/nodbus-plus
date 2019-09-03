@@ -139,11 +139,12 @@ class TcpClient {
       }
       else{
         let promise = new Promise(function(resolve, reject){
-          let socket = this.sockets.get(id);
+          let socket = self.sockets.get(id);
           socket.destroy();
-          self.sockets.delete(Slave.id);
+          self.sockets.delete(id);
           resolve(id)
         })
+        return promise;
       }        
     }
 
