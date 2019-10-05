@@ -241,10 +241,10 @@ class ModbusMaster extends ModbusDevice {
     }
 
     ParseResponse(id, resp){
-      let resp = new PDU(resp);
+      let _resp = new PDU(resp);
       try{
-        resp.ParseBuffer();
-        return this.ParseResponsePDU(id, resp);
+        _resp.ParseBuffer();
+        return this.ParseResponsePDU(id, _resp);
       }
       catch(err){
         throw err;
