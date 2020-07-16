@@ -28,10 +28,9 @@ class ModbusTCPServer extends ModbusSlave {
       * network layer
       * @type {object}
       */
-      this.tcpServer = new TcpServer();
+      this.tcpServer = new TcpServer(p);
 
       //Adding listeners to tcpServer events
-
       this.tcpServer.onData = this.ProcessModbusIndication.bind(this);
 
       /**
@@ -64,27 +63,14 @@ class ModbusTCPServer extends ModbusSlave {
           this.emit('connection-closed', socket)
       }.bind(this);
 
-      /**
-      * Event access denied
-      * Emited when new connecton is rejected by filter rules
-      * @fires ModbusTCPServer#access-denied
-      */
-      this.tcpServer.onAccessDenied = function EmitAccesDenied(socket){
-        /**
-       * access-denied event.
-       * @event ModbusTCPServer#access-denied
-       * @type {object}
-       */
-        this.emit('access-denied', socket);
-      }.bind(this);
-
+      
       /**
       * Event listening
       * Emited when server is listening
       * @see https://nodejs.org/api/net.html
       * @fires ModbusTCPServer#listening
       */
-      this.tcpServer.onListening  = function EmitListening(port){
+      this.tcpServer.onListening  = function EmitListening(){
         /**
        * listening event.
        * @event ModbusTCPServer#listening
@@ -184,7 +170,7 @@ class ModbusTCPServer extends ModbusSlave {
         set: function(max){
           self.tcpServer.maxConnections = max;
         }
-      })
+      })     
 
       //Sellando el tcpServer
       Object.defineProperty(self, 'tcpServer', {
@@ -211,55 +197,54 @@ class ModbusTCPServer extends ModbusSlave {
 
     /**
     * Function to execute when data are recive
-    * @param {Buffer} aduBuffer frame received by server
+    * @param {Buffer} dataFrame frame received by server
     * @return {Buffer} response;
     * @fires ModbusTCPServer#indication {Buffer}
     */
-    ProcessModbusIndication(aduBuffer){
-
+    ProcessModbusIndication(socketIndex, dataFrame){
+      var self = this;
+      let socket = this.tcpServer.activeConections[socketIndex]
       /**
      * indication event.
      * @event ModbusTCPServer#indication
      */
-      this.emit('indication', aduBuffer);
-      
-      var indicationADU = new ADU(aduBuffer);
-      
-        //checking header
-        if (this.AnalizeADU(indicationADU)){
-            //Si retorna 1
-            return Buffer.alloc(0);
-        }
-        else{
-            //Header ok
-            indicationADU.ParseBuffer();
+      this.emit('indication', socket, dataFrame);
+      let indicationStack = self.SplitTCPFrame(dataFrame)
+
+      indicationStack.forEach(function(value, index, array){
+        var indicationADU = new ADU(value);
+        try {
+          indicationADU.ParseBuffer();
+          if(self.AnalizeADU(indicationADU)){
+
+          }
+          else{
             //creando la respuesta
-            var responsePDU = this.BuildResponse(indicationADU.pdu);
+            var responsePDU = self.BuildResponse(indicationADU.pdu);
 
             if(indicationADU.address == 0){
               //broadcast no response
-              return Buffer.alloc(0);
+              return
             }
             else{
               //response
               if(responsePDU != null){
-                var modbusResponse = new ADU();
+                let modbusResponse = new ADU();
                 modbusResponse.address = indicationADU.mbap.unitID;
                 modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
                 modbusResponse.pdu = responsePDU;
                 modbusResponse.MakeBuffer();
 
-              return modbusResponse.aduBuffer;
+                self.tcpServer.Write(socketIndex, modbusResponse.aduBuffer)
               }
-              else{
-                return Buffer.alloc(0);
-              }
-              
             }
+          }
         }
+        catch(e){
+          self.emit('error', e)
+        }
+      })    
     }
-
-
 
     /**
     * Make the response modbus tcp header
@@ -289,6 +274,34 @@ class ModbusTCPServer extends ModbusSlave {
         this.emit('error', e);
         return 1;
       }
+    }
+
+    /**
+     * Split the input buffer in several indication buffer baset on length property
+     * of modbus tcp header. The goal of this funcion is suport several modbus indication
+     * on same tcp frame
+     * @param {Buffer Object} dataFrame 
+     * @return {Buffer array}
+     */
+    SplitTCPFrame(dataFrame){
+      //get de first tcp header length
+      let indicationsList = [];
+      let expectedlength = dataFrame.readUInt16BE(4);
+      let indication = Buffer.alloc(expectedlength + 6);
+
+      if(dataFrame.length <= expectedlength + 6){
+        dataFrame.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        return indicationsList;
+      }
+      else{
+        aduBuffer.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        let otherIndication = aduBuffer.slice(expectedlength + 6);
+        let other = this.SplitIndicationBuffer(otherIndication);
+        indicationsList = indicationsList.concat(other)
+        return indicationsList;
+      }      
     }
 }
 

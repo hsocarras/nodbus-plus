@@ -23,5 +23,11 @@ Se agrega el modbus slave a lo objetos exportados por nodbus.
 Add retries when a modbus indication has timeout.
 Add suport for multiples slaves.
 
+## Version 0.9.0
+* ### ModbusMaster
+
+* ### ModbusTCPServer
+Remove access control.
+Add suport for multiple simultaneus modbus-tcp indication tcp coelsing
 
 

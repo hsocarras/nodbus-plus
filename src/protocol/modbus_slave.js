@@ -132,9 +132,10 @@ class ModbusSlave extends ModbusDevice {
                 case 0x0F:
                     respPDU = this.ForceMultipleCoils(pdu);
                 break;
-                case 0x10:
+                case 0x10:                    
                     respPDU = this.PresetMultipleRegisters(pdu);
-                case 0x16:
+                    break;
+                case 0x16:                    
                     respPDU = this.MaskHoldingRegister(pdu);
                 break;
             }
@@ -201,20 +202,19 @@ class ModbusSlave extends ModbusDevice {
     }
 
     /**
-    * Write Data on slave memory
+    * Write Data on slave memory from user app
     * @param {number} value value to be write
     * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
     * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
     * @throws {String} description of error
     * @example
-    * SetData(25.2, 'float', 'holding-register', 10);
+    * SetRegisterValue(25.2, 'float', 'holding-register', 10);
     */
-    SetData(value, area = 'holding-register', dataAddress = 0, dataType = 'uint'){
+    SetRegisterValue(value, area = 'holding-register', dataAddress = 0, dataType = 'uint'){
       
-      if(value == null || value == undefined){
-        throw 'Error SetData value argument must be define'
-        return
+      if(typeof value != 'number' && typeof value != 'boolean' ){
+        throw new TypeError('Error  value argument must be a number');        
       }
 
       let memoryArea = null;
@@ -286,55 +286,11 @@ class ModbusSlave extends ModbusDevice {
             break;
       }
 
-      if(typeof(value) == 'number'|| typeof(value) == 'boolean'){
-        let val = Buffer.alloc(2);
-        switch(dataType){
-          case 'bool':            
-            val[0] = value ? 1 : 0;
-            if(memoryArea. WriteData != 'undefined'){
-              memoryArea. WriteData(value, dataAddress);
-            }
-            else{
-              memoryArea.SetRegister(val, dataAddress);
-            }            
-            break;
-          case 'uint':                   
-            val.writeUInt16LE(value)
-            memoryArea.SetRegister(val, dataAddress);
-            break;
-          case 'uint32':
-            buff32.writeUInt32LE(value);
-            memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
-            memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
-            break;
-          case 'int':            
-            val.writeInt16LE(value)
-            memoryArea.SetRegister(val, dataAddress);
-            break;
-          case 'int32':
-          buff32.writeInt32LE(value);
-          memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
-          memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
-            break;
-          case 'float':
-          buff32.writeFloatLE(value);
-          memoryArea.SetRegister(buff32.slice(0,2), dataAddress);
-          memoryArea.SetRegister(buff32.slice(2), dataAddress + 1);
-            break;
-          case 'double':
-          buff64.writeDoubleLE(value);
-          memoryArea.SetRegister(buff64.slice(0,2), dataAddress);
-          memoryArea.SetRegister(buff64.slice(2, 4), dataAddress + 1);
-          memoryArea.SetRegister(buff64.slice(4, 6), dataAddress + 2);
-          memoryArea.SetRegister(buff64.slice(6), dataAddress + 3);
-            break;
-            default:
-              throw 'invalid dataType'+ dataType;
-              break
-        }
+      try{
+        memoryArea.SetValue(value, dataAddress, dataType);
       }
-      else{
-        throw 'value not suported'
+      catch(e){
+        this.emit('error', e)
       }
 
     }
@@ -346,9 +302,9 @@ class ModbusSlave extends ModbusDevice {
     * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
     * @example
     * //return 25.2
-    * GetData('4', 10, 'float');
+    * GetRegisterValue('4', 10, 'float');
     */
-    GetData(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
+    GetRegisterValue(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
@@ -416,50 +372,9 @@ class ModbusSlave extends ModbusDevice {
           break;
       }
 
-      switch(dataType){
-          case 'bool':
-            if(memoryArea.ReadData != 'undefined'){
-              value = memoryArea.ReadData(dataAddress)
-            }
-            else{
-              value = memoryArea.GetRegister(dataAddress).readUInt16LE > 0 ? true : false;
-            }            
-            break;
-          case 'uint':
-            value = memoryArea.GetRegister(dataAddress).readUInt16LE();
-            break;
-          case 'uint32':
-            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
-            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
-            value = buff32.readUInt32LE();
-            break;
-          case 'int':
-            value = memoryArea.GetRegister(dataAddress).readInt16LE();;
-            break;
-          case 'int32':
-            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
-            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
-            value = buff32.readInt32LE();
-            break;
-          case 'float':
-            memoryArea.GetRegister(dataAddress).copy(buff32, 0);
-            memoryArea.GetRegister(dataAddress + 1).copy(buff32, 2);
-            value = buff32.readFloatLE();
-            break;
-          case 'double':
-            memoryArea.GetRegister(dataAddress).copy(buff64, 0);
-            memoryArea.GetRegister(dataAddress + 1).copy(buff64, 2);
-            memoryArea.GetRegister(dataAddress + 2).copy(buff64, 4);
-            memoryArea.GetRegister(dataAddress + 3).copy(buff64, 6);
-            value = buff64.readDoubleLE();
-            break;
-          default:
-            throw 'invalid dataType'+ dataType;
-            break
+      value = memoryArea.GetValue(dataAddress, dataType)
 
-        }
-
-        return value;
+      return value;
 
     }
 }

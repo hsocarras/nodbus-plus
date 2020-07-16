@@ -63,7 +63,7 @@ class TcpADU extends ADU {
           this.mbap.mbapBuffer = this.aduBuffer.slice(0,7);
           this.mbap.ParseBuffer();          
           this.address = this.mbap.unitID;
-          this.pdu.pduBuffer = this.aduBuffer.slice(7);
+          this.pdu.pduBuffer = this.aduBuffer.slice(7, 6 + this.mbap.length);
           this.pdu.ParseBuffer();
           
         }

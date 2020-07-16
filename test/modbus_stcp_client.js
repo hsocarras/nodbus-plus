@@ -4,8 +4,8 @@ var modbusSTCPClient = nodbus.CreateMaster('eth', 'rtu');
 
 var value;
 
-modbusSTCPClient.AddSlave ('plc1', {port:502, timeout:50, modbusAddress:2});
-modbusSTCPClient.AddSlave ('plc2', {port:501, timeout:100, modbusAddress:1, serialMode:'ascii'});
+modbusSTCPClient.AddSlave ('plc1', {ipAddress:"192.168.1.46", port:101, timeout:50, modbusAddress:6});
+//modbusSTCPClient.AddSlave ('plc2', {port:501, timeout:100, modbusAddress:1, serialMode:'ascii'});
 
 modbusSTCPClient.on('data', function(id, data){
   console.log('Data from' + id + ': \n');
@@ -52,7 +52,7 @@ function Test(){
 console.log('starting test')
 //provando evento modbus exeption
 //modbusSTCPClient.ReadHoldingRegisters(15265, 1);
-
+/*
 //provando funcion 1
 setTimeout(function(){
   console.log('leyendo coils de la 0 a la 7');
@@ -69,7 +69,7 @@ setTimeout(function(){
   modbusSTCPClient.ReadInputStatus('plc2', 3, 6);
 }, 150);
 
-
+*/
 //provando funcion 3
 setTimeout(function(){
   console.log('leyendo holdingRegisters del 0 al 3');
@@ -77,7 +77,7 @@ setTimeout(function(){
   modbusSTCPClient.ReadHoldingRegisters('plc2', 0, 4);
 }, 200);
 
-
+/*
 //provando funcion 4
 setTimeout(function(){
   console.log('leyendo inputsRegisters del 1 al 5');
@@ -126,14 +126,14 @@ setTimeout(function(){
   modbusSTCPClient.MaskHoldingRegister('plc1', values , 5);
   modbusSTCPClient.MaskHoldingRegister('plc2', values , 5);    
 }, 500)
-
+*/
 }
-
+/*
 setTimeout(function(){
 console.log('check connection');
 console.log(modbusSTCPClient.isReady('plc1'));
 },1400);
-
+*/
 //modbusSTCPClient.once('ready', Test);
 
 let promise = modbusSTCPClient.Start();

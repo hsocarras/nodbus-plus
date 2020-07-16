@@ -45,7 +45,7 @@ var PresetMultipleRegister = function (pdu) {
         respPDU.modbus_data = Buffer.alloc(4);
         pdu.modbus_data.copy(respPDU.modbus_data,0,0,4);
         this.emit('values', '4x', values);
-
+        
     }
     return respPDU;
 }

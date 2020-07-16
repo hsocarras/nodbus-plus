@@ -13,8 +13,9 @@ var net = require('net');
 class TCPServer {
   /**
   * Create a Tcp Server.
+  * @param {int} port Port for the server listen with.
   */
-  constructor(){
+  constructor(p=502){
 
     var self = this;
 
@@ -24,7 +25,7 @@ class TCPServer {
     */
     this.tcpServer = net.createServer();
 
-
+    //array whit conections
     let connections = [];
     /**
     * list of connections
@@ -61,43 +62,7 @@ class TCPServer {
     * port
     * @type {number}
     */
-    this.port = 502;
-
-    /**
-    * list of ip allowed
-    * @type {string[]}
-    */
-    this.listAuthorizedIP = ['INADDR_ANY'];
-
-    /**
-    * list of ip denied
-    * @type {string[]}
-    */
-    this.listForbidendIP  = ['NONE'];
-
-    /**
-    * Acces control function.
-    * @param {object} net.socket
-    * @return {bool}
-    */
-    function AllowConnection (socket) {
-
-        var isForbidden = self.listForbidendIP.indexOf(socket.remoteAddres);
-        var isAuthorized = self.listAuthorizedIP.indexOf(socket.remoteAddres);
-
-        if(isForbidden == -1 && self.listAuthorizedIP.indexOf('INADDR_ANY') >= 0 ){
-            return true
-        }
-        else if(isForbidden >= 0 ){
-            return false
-        }
-        else if(isAuthorized >= 0  & isForbidden == -1){
-            return true
-        }
-        else{
-            return false
-        }
-    }
+    this.port = p;   
 
     //Socket config
 
@@ -112,7 +77,7 @@ class TCPServer {
     *  function to executed when event data is emited
     * @param {Buffer} data
     */
-    this.onData = function(data){console.log(data)};
+    this.onData = function(index, data){console.log('data: ' + data + 'from master' + index)};
 
     /**
     *  function to executed when event listening is emited
@@ -124,12 +89,6 @@ class TCPServer {
     * @param {Object} net.socket
     */
     this.onConnection = function(){ console.log('new connection')};
-
-    /**
-    *  function to executed when event access-denied is emited
-    * @param {Object} net.socket
-    */
-    this.onAccessDenied = null;
 
     /**
     *  function to executed when event error is emited
@@ -174,121 +133,47 @@ class TCPServer {
     this.tcpServer.on('connection', function(socket) {
 
       self.onConnection(socket);
+        
 
-        if(AllowConnection(socket)){
+      //adding sockets to conections array
+      connections.push(socket)
 
-            //agrego el socket a la lista de conexiones activas
-            connections.push(socket)
+      //defining sockets behavior
+      if(self.connectionTimeout > 0) {
+        socket.setTimeout(self.connectionTimeout);
+      }
 
-            //defining sockets behavior
-            if(self.connectionTimeout > 0) {
-              socket.setTimeout(self.connectionTimeout);
-            }
+      socket.on('data',function(data){
 
-            socket.on('data',function(data){
+        let index = connections.indexOf(socket);
+        self.onData(index, data);
+          
+      });
 
-              var response = self.onData(data);
+      socket.on('error',self.onError);
 
-                if(response.length <= 1 ){
-                    return;
-                }
-                else{
-                    socket.write(response, 'utf8', function(){
-                      if(self.onWrite){
-                        self.onWrite(response);
-                      }
-                    });
-                }
-            });
-
-            socket.on('error',self.onError);
-
-            socket.on('timeout',function() {
-                socket.end();
-            })
+      socket.on('timeout',function() {
+          socket.end();
+      })
 
 
-            if(self.onClientEnd){
-              socket.on('end', self.onClientEnd);
-            }
+      if(self.onClientEnd){
+        socket.on('end', self.onClientEnd);
+      }
 
-            socket.on('close',function(){
-                var index = connections.indexOf(socket);
-                connections.splice(index,1);
-            });
+      socket.on('close',function(){
+          var index = connections.indexOf(socket);
+          connections.splice(index,1);
+      });
 
-            if(self.onConnectionClose){
-              socket.on('close', self.onConnectionClose);
-            }
-        }
-        else{
-            socket.end();
-            if(self.onAccessDenied){
-              self.onAccessDenied(socket);
-            }
-        }
+      if(self.onConnectionClose){
+        socket.on('close', self.onConnectionClose);
+      }        
+        
     });
 
-  }
-
-  /**
-  * Add a ip to list of allowed ip
-  * @param {string} ip format aaa.bbb.ccc.ddd
-  * @throws {string}
-  */
-  AddAuthorizedIP(ip){
-    if(typeof(ip) == 'string'){
-       this.listAuthorizedIP.push(ip);
-    }
-    else{
-      throw 'error of ip format'
-    }
-  }
-
-  /**
-  * Remove a ip to list of allowed ip
-  * @param {string} ip format aaa.bbb.ccc.ddd
-  * @throws {string}
-  */
-  RemoveAuthorizedIP (ip){
-       if(typeof(ip) == 'string'){
-           var index = listAuthorizedIP.indexOf(ip)
-           this.listAuthorizedIP.splice(index,i);
-       }
-       else{
-         throw 'error of ip format'
-       }
-  }
-
-  /**
-  * Add a ip to list of forbiden ip
-  * @param {string} ip format aaa.bbb.ccc.ddd
-  * @throws {string}
-  */
-  AddForbidenIP (ip){
-      if(typeof(ip) == 'string'){
-         this.listForbidendIPIP.push(ip);
-      }
-      else{
-        throw 'error of ip format'
-      }
-  }
-
-  /**
-  * Remove a ip to list of forbiden ip
-  * @param {string} ip format aaa.bbb.ccc.ddd
-  * @throws {string}
-  */
-  RemoveForbidendIP (ip){
-       if(typeof(ip) == 'string'){
-           var index = listAuthorizedIP.indexOf(ip)
-           this.listForbidendIP.splice(index,i);
-       }
-       else{
-         throw 'error of ip format'
-       }
-  }
-
+  }  
+  
   /**
   * Start the tcp server
   */
@@ -315,15 +200,19 @@ class TCPServer {
 
   /**
   * function to write in a conection
-  * @param {objec} socket
+  * @param {number} socketIndex. Index to socket in conections array
   * @param {buffer} data
   */
-  Write (socket,data){
-      socket.write(data);
+  Write (socketIndex,data){
+    let self = this;
+    let socket = self.activeConections[socketIndex];
+    socket.write(data, 'utf8', function(){
+      if(self.onWrite){
+        self.onWrite(data);
+      }
+    });
   }
 
 }
-
-
 
 module.exports = TCPServer;

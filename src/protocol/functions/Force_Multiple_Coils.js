@@ -59,7 +59,7 @@ var ForceMultipleCoils = function (pdu){
           for(var i = 0; i < number_points; i++){
             let offset = startCoil + i;
             let val = forceData[Math.floor(i/8)] & masks[i%8]
-            this.coils.WriteData(val, offset);
+            this.coils.SetValue(val, offset);
             values.set(offset, val > 0);
           }
 

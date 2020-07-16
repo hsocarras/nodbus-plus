@@ -30,8 +30,8 @@ modbusTCPServer.on('client-disconnect', function(socket){
     console.log('Client ' + socket.remoteAddress + ' disconnected');
 });
 
-modbusTCPServer.on('indication', function(adubuffer){
-    console.log('Indication Recieved');
+modbusTCPServer.on('indication', function(client, adubuffer){
+    console.log('Indication Recieved from' + client.remoteAddress);
     console.log(adubuffer);
 });
 
@@ -41,35 +41,35 @@ modbusTCPServer.on('response', function(resp){
 });
 
 
-modbusTCPServer.SetData(1, 'inputs', 2);
-modbusTCPServer.SetData(1, 'inputs', 3);
-modbusTCPServer.SetData(1, 'inputs', 7);
-modbusTCPServer.SetData(1, 'inputs', 11);
+modbusTCPServer.SetRegisterValue(1, 'inputs', 2);
+modbusTCPServer.SetRegisterValue(1, 'inputs', 3);
+modbusTCPServer.SetRegisterValue(1, 'inputs', 7);
+modbusTCPServer.SetRegisterValue(1, 'inputs', 11);
 
 
-modbusTCPServer.SetData(1, 'coils', 1);
-modbusTCPServer.SetData(1, 'coils', 6);
-modbusTCPServer.SetData(1, 'coils', 9);
-modbusTCPServer.SetData(1, 'coils', 15);
+modbusTCPServer.SetRegisterValue(1, 'coils', 1);
+modbusTCPServer.SetRegisterValue(1, 'coils', 6);
+modbusTCPServer.SetRegisterValue(1, 'coils', 9);
+modbusTCPServer.SetRegisterValue(1, 'coils', 15);
 
-modbusTCPServer.SetData(59, 'holding', 0, 'uint');
-modbusTCPServer.SetData(-358, 'holding', 2, 'int');
-modbusTCPServer.SetData(3.14, 'holding', 3, 'float');
-modbusTCPServer.SetData(0x12, 'holding', 5);
-modbusTCPServer.SetData(0x9E36, 'holding', 6);
-modbusTCPServer.SetData(3598.59, 'holding', 9, 'double');
+modbusTCPServer.SetRegisterValue(59, 'holding', 0, 'uint');
+modbusTCPServer.SetRegisterValue(-358, 'holding', 2, 'int');
+modbusTCPServer.SetRegisterValue(3.14, 'holding', 3, 'float');
+modbusTCPServer.SetRegisterValue(0x12, 'holding', 5);
+modbusTCPServer.SetRegisterValue(0x9E36, 'holding', 6);
+modbusTCPServer.SetRegisterValue(3598.59, 'holding', 9, 'double');
 
-modbusTCPServer.SetData(-27, 'inputs-registers', 1, 'int');
-modbusTCPServer.SetData(-34752648, 'inputs-registers', 2, 'int32');
-modbusTCPServer.SetData(123456789, 'inputs-registers', 5, 'uint32');
+modbusTCPServer.SetRegisterValue(-27, 'inputs-registers', 1, 'int');
+modbusTCPServer.SetRegisterValue(-34752648, 'inputs-registers', 2, 'int32');
+modbusTCPServer.SetRegisterValue(123456789, 'inputs-registers', 5, 'uint32');
 
-console.log(modbusTCPServer.GetData('holding',0,'uint'));
-console.log(modbusTCPServer.GetData('holding',2,'int'));
-console.log(modbusTCPServer.GetData('holding',3,'float'));
-console.log(modbusTCPServer.GetData('holding',9,'double'));
-console.log(modbusTCPServer.GetData(3,2,'int32'));
-console.log(modbusTCPServer.GetData(3,5,'uint32'));
-console.log(modbusTCPServer.GetData(1,7));
+console.log(modbusTCPServer.GetRegisterValue('holding',0,'uint'));
+console.log(modbusTCPServer.GetRegisterValue('holding',2,'int'));
+console.log(modbusTCPServer.GetRegisterValue('holding',3,'float'));
+console.log(modbusTCPServer.GetRegisterValue('holding',9,'double'));
+console.log(modbusTCPServer.GetRegisterValue(3,2,'int32'));
+console.log(modbusTCPServer.GetRegisterValue(3,5,'uint32'));
+console.log(modbusTCPServer.GetRegisterValue(1,7));
 
 
 modbusTCPServer.Start();

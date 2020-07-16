@@ -29,7 +29,7 @@ var ReadInputStatus = function (pdu) {
         //cantidad de inputs a leer
         var numberOfInputs =   pdu.modbus_data.readUInt16BE(2);
 
-        let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+        
 
         //Calculando cantidad de bytes de la respuesta 12%8=1
         //ejemplo 12 inputs necesitan 2 bytes
@@ -40,14 +40,7 @@ var ReadInputStatus = function (pdu) {
         respPDU.modbus_data[0]=byte_count;
 
         //buffer temporal con tamano suficiente para copiar el segmento del registro con las inputs solicitadas
-        var input_segment =  Buffer.alloc(byte_count);
-
-        for(var i = 0; i < numberOfInputs; i++){
-          if(this.inputs.ReadData(initInput + i)){
-            input_segment[Math.floor(i/8)] = input_segment[Math.floor(i/8)] | masks[i%8];
-          }
-          else input_segment[Math.floor(i/8)] = input_segment[Math.floor(i/8)] & (~masks[i%8]);
-        }
+        var input_segment =  this.inputs.EncodeRegister(initInput, numberOfInputs);        
 
         //copiando las cois al campo de data de la PDU
         input_segment.copy(respPDU.modbus_data,1);

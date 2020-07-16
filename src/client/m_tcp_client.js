@@ -195,7 +195,8 @@ class ModbusTCPClient extends  ModbusMaster {
       else{
         let promiseList = [];
         this.slaveList.forEach(function(slave, key){
-          let promise;          
+          let promise; 
+          console.log(slave)         
           promise = self.netClient.Connect(slave);
           promiseList.push(promise);
         })
