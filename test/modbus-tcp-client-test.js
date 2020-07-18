@@ -17,13 +17,17 @@ modbusTCPClient.on('data', function(id, data){
     console.log('Data from' + id + ': \n');
     console.log(data);
 })
-
-modbusTCPClient.on('timeout', function(id){
-    console.log(id+':timeout');
+/*
+modbusTCPClient.on('reponse', function(resp){
+  console.log('response: ' + resp.id);  
+})
+*/
+modbusTCPClient.on('timeout', function(id, req){
+    console.log(id+':timeout on ' + req.id);
 });
 
 modbusTCPClient.on('error', function(id, err){
-    console.log(id + ':error')
+    console.log(id + ':error:')
     console.log(err)
 });
 
@@ -35,9 +39,9 @@ modbusTCPClient.on('connect', function(id){
     console.log('connection stablished whit ' + id);
 });
 
-modbusTCPClient.on('indication', function(id, data){
+modbusTCPClient.on('indication', function(id, req){
   console.log('indication send to ' + id);
-	console.log(data)
+	console.log(req.adu.aduBuffer)
 });
 
 modbusTCPClient.on('disconnect', function(id, err){
@@ -100,7 +104,7 @@ function Test(){
   }, 300)
 
 
-
+  
   //provando funcion 6
   setTimeout(function(){
     console.log('forzando el registro 14 a 12536');
@@ -132,12 +136,26 @@ function Test(){
     modbusTCPClient.MaskHoldingRegister('plc1', values , 5);
     modbusTCPClient.MaskHoldingRegister('plc2', values , 5);    
   }, 500)
-
+  
+  
+  //provando tcp coalesing
+  modbusTCPClient.ReadInputStatus('plc1', 4, 6);
+  modbusTCPClient.ReadHoldingRegisters('plc1', 1, 14);
+  modbusTCPClient.ReadInputRegisters('plc1', 1, 5);
+  modbusTCPClient.ForceSingleCoil('plc1', true, 5);
+  modbusTCPClient.PresetSingleRegister('plc1', 12536, 14);
+  let values = [1, 0, 1, 1, 0, 0, 1, 0, 1, 0];
+  modbusTCPClient.ForceMultipleCoils('plc1', values, 3);
+  values = [3.14, -54, 0, 7852689];
+  modbusTCPClient.PresetMultipleRegisters('plc1', values , 16);
+  values = [1, 0, 0, 1, -1, 0, 1, -1, -1, -1, 0, 0, 1, 1, -1, 0];
+  modbusTCPClient.MaskHoldingRegister('plc1', values , 5);
+  
 }
 let prom;
 setTimeout(function(){
   console.log('check connection');
-  console.log(modbusTCPClient.isReady('plc1'));
+  console.log(modbusTCPClient.isSlaveReady('plc1'));
   prom = modbusTCPClient.Stop('plc1');
   prom.then(function(id){
     console.log(`isconected from ${id}`);
@@ -153,7 +171,7 @@ promise.then(function(value){
 }, function(value){
   console.log('fail to conect to');
   console.log(value);
-  Test();
+  //Test();
 });
 
 

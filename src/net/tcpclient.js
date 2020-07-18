@@ -61,21 +61,21 @@ class TcpClient {
       return this.sockets.has(id);
     }
 
-    Connect(Slave){      
+    Connect(slave){
         let self = this;
         let promise = new Promise(function(resolve, reject){
           try{
-            var conn = net.createConnection(Slave.port,Slave.ipAddress);
+            var conn = net.createConnection(slave.port,slave.ip);
   
             //add Slave id to socket object
-            conn.slaveID = Slave.id;
+            conn.slaveID = slave.id;
             Object.defineProperty(conn, 'slaveID', {
               writable: false,
               enumerable: false,
               configurable: false
           } )
             //add Slave timeout to socket
-            conn.slaveTimeout = Slave.timeout;
+            conn.slaveTimeout = slave.timeout;
   
             //configurando el socket devuelto
             conn.once('connect',function(){              
@@ -83,13 +83,12 @@ class TcpClient {
             })
 
             conn.on('connect',function(){
-                 self.sockets.set(Slave.id, conn);
+                 self.sockets.set(slave.id, conn);
                  self.onConnect(conn.slaveID);
             });
            
   
-            conn.on('data', function(data){
-                conn.setTimeout(0);
+            conn.on('data', function(data){                
                 self.onData(conn.slaveID, data);
             });
   
@@ -106,8 +105,7 @@ class TcpClient {
               }              
             })
   
-            conn.on('timeout', function(){
-                conn.setTimeout(0);
+            conn.on('timeout', function(){                
                 self.onTimeOut(conn.slaveID);
             })
   
@@ -125,7 +123,7 @@ class TcpClient {
           }
           catch(e){
             self.onError(e);
-            reject(conn.slaveID);
+            reject(slave.id);
           }
         })
 
@@ -148,22 +146,21 @@ class TcpClient {
       }        
     }
 
-    Write(id, data){
+    Write(id, request){
       let self = this;
         if(this.sockets.has(id) == false){
             return false;
         }
         else{
           let isSuccesfull
+          let data = request.adu.aduBuffer;
           let socket = this.sockets.get(id);
             isSuccesfull = socket.write(data, 'utf8', function(){
               if(self.onWrite){
-                self.onWrite(id, data);
+                self.onWrite(id, request);
+                request.StartTimer();
               }
-            });
-            if(isSuccesfull){
-              socket.setTimeout(socket.slaveTimeout);
-            }
+            });            
 
             return isSuccesfull;
         }

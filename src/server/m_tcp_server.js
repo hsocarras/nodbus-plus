@@ -211,8 +211,8 @@ class ModbusTCPServer extends ModbusSlave {
       this.emit('indication', socket, dataFrame);
       let indicationStack = self.SplitTCPFrame(dataFrame)
 
-      indicationStack.forEach(function(value, index, array){
-        var indicationADU = new ADU(value);
+      indicationStack.forEach(function(element, index, array){
+        var indicationADU = new ADU(element);
         try {
           indicationADU.ParseBuffer();
           if(self.AnalizeADU(indicationADU)){
@@ -276,33 +276,7 @@ class ModbusTCPServer extends ModbusSlave {
       }
     }
 
-    /**
-     * Split the input buffer in several indication buffer baset on length property
-     * of modbus tcp header. The goal of this funcion is suport several modbus indication
-     * on same tcp frame
-     * @param {Buffer Object} dataFrame 
-     * @return {Buffer array}
-     */
-    SplitTCPFrame(dataFrame){
-      //get de first tcp header length
-      let indicationsList = [];
-      let expectedlength = dataFrame.readUInt16BE(4);
-      let indication = Buffer.alloc(expectedlength + 6);
-
-      if(dataFrame.length <= expectedlength + 6){
-        dataFrame.copy(indication,  0, 0, expectedlength + 6);
-        indicationsList.push(indication);
-        return indicationsList;
-      }
-      else{
-        aduBuffer.copy(indication,  0, 0, expectedlength + 6);
-        indicationsList.push(indication);
-        let otherIndication = aduBuffer.slice(expectedlength + 6);
-        let other = this.SplitIndicationBuffer(otherIndication);
-        indicationsList = indicationsList.concat(other)
-        return indicationsList;
-      }      
-    }
+    
 }
 
 module.exports = ModbusTCPServer;

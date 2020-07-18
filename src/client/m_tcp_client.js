@@ -7,7 +7,9 @@
 
 const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
-const ADU = require('../protocol/tcp_adu');
+const Request = require('../protocol/request');
+const Response = require('../protocol/response');
+const Slave = require('../protocol/slave_descriptor');
 
 
 
@@ -59,7 +61,7 @@ class ModbusTCPClient extends  ModbusMaster {
            * @event ModbusTCPClient#disconnect
            */
             this.emit('disconnect',id, had_error);
-            slave.isReady = false;
+            slave.isConnected = false;
         }
         this.netClient.onClose = EmitDisconnect.bind(this);
 
@@ -79,22 +81,26 @@ class ModbusTCPClient extends  ModbusMaster {
         }
         this.netClient.onError = EmitError.bind(this);
 
+        
         /**
-        * Emit timeout event        *
-        * @fires ModbusTCPClient#timeout
+        * Emit timeout event on inactive socket      *
+        * @fires ModbusTCPClient#inactive
         */
-        this.netClient.onTimeOut = self._EmitTimeout.bind(this);
+       function EmitInactive (socket){
+          this.emit('inactive', socket)
+       }
+       this.netClient.onTimeOut = EmitInactive.bind(this);
 
         /**
         * Emit Indication event        *
         * @fires ModbusTCPClient#indication
         */
-        function EmitIndication(id, data){
+        function EmitIndication(id, req){
           /**
          * indication event.
          * @event ModbusTCPClient#indication
          */
-          this.emit('indication',id, data);
+          this.emit('indication',id, req);
         }
         this.netClient.onWrite = EmitIndication.bind(this);
         
@@ -121,23 +127,60 @@ class ModbusTCPClient extends  ModbusMaster {
         } )
 
     }
+
+    /**
+     * Function to add a slave object to master's slave list
+     * @param {string} id: Slave'id. Should be unique per slave
+     * @param {Object} slave: Object {ip, port, timeout, address}
+     */
+    AddSlave(id, slave){
+      let slaveDevice = new Slave();
+      slaveDevice.id = id;
+      slaveDevice.type = 'tcp';
+      if(slave.address >= 1 && slave.address <= 247){
+        slaveDevice.address = slave.address;
+      }
+      else{
+        slaveDevice.address = 247;
+      }
+      
+      slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
+      slaveDevice.ip = slave.ip || '127.0.0.1';
+      slaveDevice.port = slave.port || 502;     
+      slaveDevice.maxRetries = slave.maxRetries || 1;  
+      slaveDevice.maxRequests = 16; 
+
+      //Emiting the idle event
+      let EmitIdle = function(){
+        this.emit('idle', slaveDevice.id)
+      }.bind(this)      
+      slaveDevice.on('drain', EmitIdle);
+      
+      this.slaveList.set(id, slaveDevice);
+    }
    
 
     /**
-    * function to create a adu
+    * function to create a modbust tcp request
+    * @param {number} id id of slave in slave list
     * @param {object} pdu of request
     * @return {object} adu request
     */
-    CreateADU(id, pdu){
-      var adu = new ADU();
+    CreateRequest(id, pdu){
+      var req = new Request('tcp');
       let slave = this.slaveList.get(id);
       
-      adu.pdu = pdu;
-      adu.address = slave.modbusAddress;
-      adu.transactionCounter = this.transactionCounter++
+      req.adu.pdu = pdu;
+      req.adu.address = slave.address;
+      req.adu.transactionCounter = this.transactionCounter;   
+      req.adu.MakeBuffer();   
+      req.id = this.transactionCounter;
+      this.transactionCounter++;
+      req.slaveID = id;
+      req.OnTimeout = this._EmitTimeout.bind(this);
 
-      adu.MakeBuffer();
-      return adu;
+      req.adu.MakeBuffer();
+      return req;
     }
 
     /**
@@ -147,25 +190,32 @@ class ModbusTCPClient extends  ModbusMaster {
     * @fires ModbusTCPClient#modbus_exception {object}
     * @fires ModbusTCPClient#error {object}
     */
-    ParseResponse(id, aduBuffer) {
-
-      let resp = new ADU(aduBuffer);
-      let slave = this.slaveList.get(id);
-
+    ParseResponse(slave, aduBuffer) {
+      
+      let resp = new Response('tcp');
+      resp.adu.aduBuffer = aduBuffer;
+      
       try{
-        resp.ParseBuffer();
+        resp.adu.ParseBuffer();
+        resp.id = resp.adu.mbap.transactionID;
+
         //chekeo el transactionID
-        if(resp.mbap.transactionID != slave.currentRequest.mbap.transactionID){
-          this.emit('modbus_exception', id, "Wrong Transaction ID");
-            return false;
+        if(slave.SearchRequest(resp.id) == undefined){
+          this.emit('modbus_exception', slave.id, "Wrong Transaction ID");
+            console.log('Wrong Transac ID')
+            console.log(resp.id)
+            return null;
         }
-        else if((aduBuffer.length - 6) != resp.mbap.length) {
-            this.emit('modbus_exception',id,  "Header ByteCount Mismatch");
-            return false;
+        else{ 
+          if((aduBuffer.length - 6) != resp.adu.mbap.length) {
+            this.emit('modbus_exception',slave.id,  "Header ByteCount Mismatch");
+            return null;
+          }
+          else {
+            return resp;
+          }
         }
-        else {
-            return this.ParseResponsePDU(id, resp.pdu);
-        }
+        
       }
       catch(err){
         throw err;
@@ -185,7 +235,7 @@ class ModbusTCPClient extends  ModbusMaster {
         if(slave == undefined){
           return Promise.reject(id);
         }
-        else if(slave.isReady){
+        else if(slave.isConnected){
           return Promise.resolve(id);
         }
         else{
@@ -194,9 +244,8 @@ class ModbusTCPClient extends  ModbusMaster {
       }
       else{
         let promiseList = [];
-        this.slaveList.forEach(function(slave, key){
-          let promise; 
-          console.log(slave)         
+        this.slaveList.forEach(function(slave, key){          
+          let promise;                    
           promise = self.netClient.Connect(slave);
           promiseList.push(promise);
         })
@@ -212,7 +261,7 @@ class ModbusTCPClient extends  ModbusMaster {
 	  Stop(id){
 		  if(id){
         let slave = this.slaveList.get(id);
-        if(slave.isReady){
+        if(slave.isConnected){
           return this.netClient.Disconnet(id);          
         }
         else{

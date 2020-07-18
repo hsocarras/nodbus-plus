@@ -22,79 +22,50 @@ class ModbusMaster extends ModbusDevice {
         var self = this;
         
         /**
-        * array with slave's modbus address
-        * @type {number[]}
+        * map with slave's 
+        * @type {Map}
         */
         this.slaveList = new Map();
-               
-        this._EmitTimeout = function (id){
-
-          let slave = this.slaveList.get(id);
-
-          if(slave.maxRetries == slave._retriesNumber){
-            slave.currentRequest = null
-            /**
-            * timeout event.
-            * @event ModbusClient#timeout
-            */
-            this.emit('timeout', id);
-            this.emit('idle', id);
-          }
-          else{
-            this.netClient.Write(id, slave.currentRequest.aduBuffer);
-            slave._retriesNumber++;
-          }
-        }
-
-        this._EmitConnect = function (id){
-
-          let slave = this.slaveList.get(id);
-          slave.isReady = true;
-
-            /**
-           * connect event.
-           * @event ModbusTCPClient#connect
-           * @type {object}
-           */
-            this.emit('connect',id);
-
-            /**
-           * ready event.
-           * @event ModbusTCPClient#ready
-           */
-            this.emit('ready', id);
-        }
-
+        
     }
 
-    /**
-     * Function to add a slave object to master's slave list
-     * @param {string} id: Slave'id. Should be unique per slave                  *
-     * @param {Object} slave: Object {ipaddres, port, timeout, modbus_address}   *  
-     */
-    AddSlave(id, slave){
-      let Slave = {};
-      Slave.id = id;
-      
-      if(slave.modbusAddress >= 1 && slave.modbusAddress <= 247){
-        Slave.modbusAddress = slave.modbusAddress;
+    _EmitTimeout(id, req){
+
+      let slave = this.slaveList.get(id);
+
+      if(slave.maxRetries == req._retriesNumber){
+        slave.RemoveRequest(req)
+        /**
+        * timeout event.
+        * @event ModbusClient#timeout
+        */
+        this.emit('timeout', id, req);        
       }
       else{
-        Slave.modbusAddress = 247;
+        this.netClient.Write(id, req);
+        req._retriesNumber++;
       }
-      
-      Slave.timeout = slave.timeout || 1000; //timeout in ms
-      Slave.serialMode = slave.serialMode || 'rtu';
-      Slave.ipAddress = slave.ipAddress || '127.0.0.1';
-      Slave.port = slave.port || 502;
-      Slave.currentRequest = null;
-      Slave.isReady = false;
-      Slave.maxRetries = slave.maxRetries || 1;
-      Slave._retriesNumber = 0;      
-      
-      this.slaveList.set(id,Slave);
     }
 
+    _EmitConnect(id){
+      let slave = this.slaveList.get(id);
+      slave.isConnected = true;
+
+        /**
+       * connect event.
+       * @event ModbusTCPClient#connect
+       * @type {object}
+       */
+        this.emit('connect',id);
+
+        /**
+       * ready event.
+       * @event ModbusTCPClient#ready
+       */
+        this.emit('ready', id);
+    }
+
+   
     /**
      * 
      * @param {string} id 
@@ -105,10 +76,10 @@ class ModbusMaster extends ModbusDevice {
       }      
     }
 
-    isReady(id){
+    isSlaveReady(id){
       if(this.slaveList.has(id)){
         let slave = this.slaveList.get(id);
-        return slave.isReady;
+        return slave.isConnected;
       }
       else return undefined;      
     }
@@ -228,50 +199,40 @@ class ModbusMaster extends ModbusDevice {
               request.modbus_function = 0x16;              
               request.modbus_data = Buffer.alloc(6);
               request.modbus_data.writeUInt16BE(startAddres,0);              
-              values.copy(request.modbus_data,2);
+              values.copy(request.modbus_data,2);              
               request.MakeBuffer();
               return request;
               break;
         }
     }
 
-    CreateADU(id, pdu){
+    CreateRequest(id, pdu){
       //function to be redefined in tcp or serial client
       return pdu
     }
 
-    ParseResponse(id, resp){
-      let _resp = new PDU(resp);
-      try{
-        _resp.ParseBuffer();
-        return this.ParseResponsePDU(id, _resp);
-      }
-      catch(err){
-        throw err;
-      }
-      
-    };
+    //function to redefine on childs class
+    ParseResponse(slave, respAdu){ }
 
     /**
-    * extract data for a slave response
-    * @param {string} id reference of device.
-    * @param {object} responsePDU
+    * extract data for a slave response.
+    * @param {object} responsePDU PDU received
+    * @param {object} reqPDU  PDU sended
     * @return {Object} map Object whit register:value pairs
     * @fires ModbusMaster#modbus_exception {object}
     */
-    ParseResponsePDU(id, responsePDU){
+    ParseResponsePDU(responsePDU, reqPDU){
 
-        let data = new Map();
-        let byteCount = 0;
+        let data = new Map();   
+        
         let index = 0;
         let offset = 0;
-        let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-        let slave = this.slaveList.get(id);        
-        let startItem = slave.currentRequest.pdu.modbus_data.readUInt16BE(0);
-        let numberItems = slave.currentRequest.pdu.modbus_data.readUInt16BE(2);
+        let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];           
+        let startItem = reqPDU.modbus_data.readUInt16BE(0);
+        let numberItems = reqPDU.modbus_data.readUInt16BE(2);
         let key = '';
         let value;
-        let timestamp;
+        let timestamp = Date.now();
 
         switch(responsePDU.modbus_function){
             case 0x01:
@@ -336,7 +297,7 @@ class ModbusMaster extends ModbusDevice {
               for(let i = 0; i < numberItems; i++){
                 index = Math.floor(i/8);
                 offset = i % 8;
-                value = (slave.currentRequest.pdu.modbus_data[index + 5] & masks[offset]) ? true : false;
+                value = (reqPDU.modbus_data[index + 5] & masks[offset]) ? true : false;
                 key = '0x'.concat((startItem + i).toString());
                 data.set(key, value);
               }
@@ -346,8 +307,8 @@ class ModbusMaster extends ModbusDevice {
               numberItems = responsePDU.modbus_data.readUInt16BE(2);
               for(let i = 0; i < numberItems; i++){
                   value = Buffer.alloc(2);
-                  value[0] = slave.currentRequest.pdu.modbus_data[2*i+5];
-                  value[1] = slave.currentRequest.pdu.modbus_data[2*i+6];
+                  value[0] = reqPDU.modbus_data[2*i+5];
+                  value[1] = reqPDU.modbus_data[2*i+6];
                   key = '4x'.concat((startItem + i).toString());
                   data.set(key, value);
                 }
@@ -356,108 +317,141 @@ class ModbusMaster extends ModbusDevice {
               startItem = responsePDU.modbus_data.readUInt16BE(0);
               key = '4x'.concat(startItem.toString());
               let mask = Buffer.alloc(2);
-              values = [0, 0];
+              value = [0, 0];
               mask= responsePDU.modbus_data.readUInt16BE(2);
-              values[0] = mask;
+              value[0] = mask;
               mask= responsePDU.modbus_data.readUInt16BE(4);
-              values[1] = mask;
-              data.set(key, values);
-              break;
+              value[1] = mask;
+              data.set(key, value);
+              break;            
             default:
+                key = 'exception';
                 //modbus exeption
                 switch(responsePDU.modbus_data[0]){
                     case 1:
-                        this.emit('modbus_exception', id, 'Illegal Function');
+                        this.emit('modbus_exception', resp.slaveID, 'Illegal Function');                        
+                        value = 1;                        
                         break;
                     case 2:
-                        this.emit('modbus_exception', id, 'Illegal Data Address');
+                        this.emit('modbus_exception', resp.slaveID, 'Illegal Data Address');
+                        value = 2;                        
                         break;
                     case 3:
-                        this.emit('modbus_exception', id, 'Illegal Data Value');
+                        this.emit('modbus_exception', resp.slaveID, 'Illegal Data Value');
+                        value = 3;
                         break;
                     case 4:
-                        this.emit('modbus_exception', id, 'Slave Device Failure');
+                        this.emit('modbus_exception', resp.slaveID, 'Slave Device Failure');
+                        value = 4;
                         break;
                     case 5:
-                        this.emit('modbus_exception', id, 'Unknow Error');
+                        this.emit('modbus_exception', resp.slaveID, 'ACKNOWLEDGE');
+                        value = 5;
                         break;
                     case 6:
-                        this.emit('modbus_exception', id, 'Unknow Error');
+                        this.emit('modbus_exception', resp.slaveID, 'SLAVE DEVICE BUSY');
+                        value = 6;
                         break;
                     case 7:
-                        this.emit('modbus_exception', id, 'Unknow Error');
+                        this.emit('modbus_exception', resp.slaveID, 'NEGATIVE ACKNOWLEDGE');
+                        value = 7;
                         break;
                     case 8:
-                        this.emit('modbus_exception', id, 'Unknow Error');
+                        this.emit('modbus_exception', resp.slaveID, 'MEMORY PARITY ERROR');
+                        value = 8;
                         break;
                 }
-                //devuelvo null
-                data = null;
+                
+                data.set(key, values);
         }
+        
         return data;
     }
 
     /**
     * extract data for a slave response
     * @param {string} id reference of device.
-    * @param {Buffer} resp
+    * @param {Buffer} respADU
     * @fires ModbusMaster#raw_data {buffer} response frame
     * @fires ModbusMaster#data {object} map object whit pair register:values
     * @fires ModbusMaster#error {object}
     */
-    ProcessResponse(id, resp){
+    ProcessResponse(id, respADU){
 
-    let slave = this.slaveList.get(id);
-
+      let slave = this.slaveList.get(id);
+      var self = this;
+      
       /**
      * raw_data event.
      * @event ModbusMaster#raw_data
      * @type {object}
      */
-      this.emit('raw_data',id, resp);
+      this.emit('raw_data',id, respADU);
+      let respStack = self.SplitTCPFrame(respADU)
       
-      if(slave.currentRequest){
-        try{
-          var respData = this.ParseResponse(id, resp);
+      respStack.forEach(function(element, index, array){
+              
+        if(slave.requestStack.size > 0){ 
+                  
+          try{            
+            var resp = self.ParseResponse(slave, element); 
+            let req = slave.SearchRequest(resp.id);
+            
+            if(resp){
 
-          if(respData){
-            /**
-           * data event.
-           * @event ModbusMaster#data
-           * @type {object}
-           */
-            this.emit('data',id, respData);
+              resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+              resp.timestamp = Date.now();
+              req.StopTimer();
 
-            //elimino la query activa.
-            let slave = this.slaveList.get(id);
-            slave.currentRequest = null;
-            slave._retriesNumber = 0;
-            this.emit('idle', id);
+              //in exception case
+              if(resp.data.has('exception')){
+                if(resp.data.get('exception') == 5){
+                  //Error code 5 send a retry attemp after 1 second
+                  if(req._retriesNumber < slave.maxRetries){            
+                    setTimeout(function(){
+                      self.netClient.Write(slave.id, req);
+                      req._retriesNumber++;
+                    }, 1000)
+                  }
+                  else{
+                    //discart request
+                    self.emit('response', resp);
+                    //elimino la query activa.
+                    slave.RemoveRequest(req);
+                  }
+                }
+                else{
+                  //discart request
+                  self.emit('response', resp);
+                  //elimino la query activa.
+                  slave.RemoveRequest(req);
+                }  
+              }
+              else{
+                /**
+                * data event.
+                * @event ModbusMaster#data
+                * @type {object}
+                */
+                self.emit('data',id, resp.data);
 
+                /**
+                * response event.
+                * @event ModbusMaster#data
+                * @type {object}
+                */
+                self.emit('response', resp);
+    
+                //elimino la query activa.
+                slave.RemoveRequest(req);                                     
+              }
+            }  
           }
-          else{
-            if(slave.maxRetries > slave._retriesNumber){              
-              this.netClient.Write(id, slave.currentRequest.aduBuffer);
-              slave._retriesNumber++;
-            }
-            else{
-              //discart request
-              slave.currentRequest = null;
-              slave._retriesNumber = 0;
-              this.emit('error',id, new Error('Unknow Error'));
-            }         
+          catch (err){                   
+            self.emit('error',id, err);
           }
-
-
         }
-        catch (err){
-          slave.currentRequest = null;
-          
-          this.emit('idle', id);
-          this.emit('error',id, err);
-        }
-      }
-      
+      })  
     }
 
     /**
@@ -593,21 +587,23 @@ class ModbusMaster extends ModbusDevice {
     ReadCoilStatus(id, startCoil = 0, coilQuantity = 1){
 
       if(this.slaveList.has(id) == false){
-        return undefined
+        return false
       }
 
       let slave = this.slaveList.get(id);
 
       //if is enable and there are no active request
-       if(slave.isReady && slave.currentRequest == null ){            
+       if(slave.isConnected && slave.isMaxRequest == false){            
             let isSuccesfull
             var pdu = this.CreateRequestPDU(1, startCoil, coilQuantity);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
-            
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
             return isSuccesfull;
         }
         else{
@@ -629,15 +625,18 @@ class ModbusMaster extends ModbusDevice {
 
       let slave = this.slaveList.get(id);
 
-         if(slave.isReady && slave.currentRequest == null){
+         if(slave.isConnected && slave.isMaxRequest == false){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(2, startInput, inputQuantity);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }       
             
             return isSuccesfull;
         }
@@ -661,15 +660,18 @@ class ModbusMaster extends ModbusDevice {
 
       let slave = this.slaveList.get(id);
 
-         if(slave.isReady && slave.currentRequest == null){
+         if(slave.isConnected && slave.isMaxRequest == false){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(3, startRegister, registerQuantity);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
             
             return isSuccesfull;
         }
@@ -693,15 +695,18 @@ class ModbusMaster extends ModbusDevice {
 
       let slave = this.slaveList.get(id);
 
-         if(slave.isReady && slave.currentRequest == null){
+         if(slave.isConnected && slave.isMaxRequest == false){
             //si estoy conectado
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(4, startRegister, registerQuantity);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
             
             return isSuccesfull;
         }
@@ -730,15 +735,18 @@ class ModbusMaster extends ModbusDevice {
       if(value){
         bufferValue[0] = 0xFF;
       }
-        if(slave.isReady && slave.currentRequest == null){
+        if(slave.isConnected && slave.isMaxRequest == false){
             //si estoy conectado
             let isSuccesfull;
-            var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);            
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
             
             return isSuccesfull;
         }
@@ -756,7 +764,7 @@ class ModbusMaster extends ModbusDevice {
     */
     PresetSingleRegister(id, value, startRegister = 0){
       if(this.slaveList.has(id) == false){
-        return undefined
+        return false
       }
 
       let val = Buffer.alloc(2);
@@ -769,15 +777,18 @@ class ModbusMaster extends ModbusDevice {
         val.writeInt16BE(value);
       }
 
-      if(slave.isReady && slave.currentRequest == null){
+      if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
           let isSuccesfull;
           var pdu = this.CreateRequestPDU(6, startRegister, 1, val);
-          var adu = this.CreateADU(id, pdu);
-          slave.currentRequest = adu;
-          slave._retriesNumber = 0;
-
-          isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+          var req = this.CreateRequest(id, pdu);
+          let isRequestStacked = slave.AddRequest(req);            
+          if(isRequestStacked){
+            isSuccesfull = this.netClient.Write(id, req);
+          }
+          else{
+            isSuccesfull = false;
+          }
           
           return isSuccesfull;
       }
@@ -814,15 +825,18 @@ class ModbusMaster extends ModbusDevice {
         }
       }
 
-         if(slave.isReady && slave.currentRequest == null){
+         if(slave.isConnected && slave.isMaxRequest == false){
             //si estoy conectado
             let isSuccesfull
             var pdu = this.CreateRequestPDU(15, startCoil, coilQuantity, valueBuffer);
-            var adu = this.CreateADU(id, pdu);
-            slave.currentRequest = adu;
-            slave._retriesNumber = 0;
-
-            isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+            var req = this.CreateRequest(id, pdu);
+            let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
             
             return isSuccesfull;
         }
@@ -876,15 +890,18 @@ class ModbusMaster extends ModbusDevice {
 
       let registerQuantity = valueBuffer.length/2;
 
-       if(slave.isReady && slave.currentRequest == null){
+       if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
           let isSuccesfull;
           var pdu = this.CreateRequestPDU(16, startRegister, registerQuantity, valueBuffer);
-          var adu = this.CreateADU(id, pdu);
-          slave.currentRequest = adu;
-          slave._retriesNumber = 0;
-
-          isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+          var req = this.CreateRequest(id, pdu);
+          let isRequestStacked = slave.AddRequest(req);            
+            if(isRequestStacked){
+              isSuccesfull = this.netClient.Write(id, req);
+            }
+            else{
+              isSuccesfull = false;
+            }
           
           return isSuccesfull;
       }
@@ -938,15 +955,18 @@ class ModbusMaster extends ModbusDevice {
     val.writeUInt16BE(OR_Mask, 2);
     
 
-    if(slave.isReady && slave.currentRequest == null){
+    if(slave.isConnected && slave.isMaxRequest == false){
         //si estoy conectado
         let isSuccesfull;
         var pdu = this.CreateRequestPDU(22, startRegister, 1, val);
-        var adu = this.CreateADU(id, pdu);
-        slave.currentRequest = adu;
-        slave._retriesNumber = 0;
-
-        isSuccesfull = this.netClient.Write(id, adu.aduBuffer);
+        var req = this.CreateRequest(id, pdu);
+        let isRequestStacked = slave.AddRequest(req);            
+        if(isRequestStacked){
+          isSuccesfull = this.netClient.Write(id, req);
+        }
+        else{
+          isSuccesfull = false;
+        }
         
         return isSuccesfull;
     }
