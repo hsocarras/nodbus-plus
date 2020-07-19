@@ -19,7 +19,7 @@ class ModbusSlave extends ModbusDevice {
   /**
   * Create a Modbus Slave.
   */
-    constructor(modbusAddress = 1){
+    constructor(address = 1){
         super();
 
         var self = this;
@@ -27,14 +27,14 @@ class ModbusSlave extends ModbusDevice {
         /**
         *Suported functions
         * @type {number[]}
-        */
-        this.supportedModbusFunctions = [0x01,0x02,0x03,0x04,0x05,0x06,0x0F,0x10, 0x16];
+        */       
+        var supportedFunctions = [0x01,0x02,0x03,0x04,0x05,0x06,0x0F,0x10, 0x16];
 
         //Sellando esta propiedad
         Object.defineProperty(self, 'supportedModbusFunctions',{
-          enumerable:true,
-          writable:false,
-          configurable:false
+          get: function(){
+            return supportedFunctions;
+          }
         });
 
         /**
@@ -42,14 +42,14 @@ class ModbusSlave extends ModbusDevice {
         * @type {number}
         ** @throws {RangeError}
         */
-        this.mAddress = modbusAddress;
-        Object.defineProperty(self, 'modbusAddress',{
+        let mAddress = address;
+        Object.defineProperty(self, 'address',{
           get: function(){
-            return self.mAddress;
+            return mAddress;
           },
           set: function(address){
             if(address >= 1 && address <= 247){
-              self.mAddress = address
+              mAddress = address
             }
             else{
               throw new RangeError('Address must be a value fron 1 to 247', 'modbus_slave.js', '55');
@@ -138,20 +138,15 @@ class ModbusSlave extends ModbusDevice {
                 case 0x16:                    
                     respPDU = this.MaskHoldingRegister(pdu);
                 break;
+                default:
+                    respPDU.modbus_function = pdu.modbus_function | 0x80;
+                    respPDU.modbus_data[0] = 0x01;
+                  break
             }
 
             respPDU.MakeBuffer();
             return respPDU;
-        }
-        /** Exception */
-        else if(this.AnalizePDU(pdu) == 1){
-          
-            respPDU.modbus_function = pdu.modbus_function | 0x80;
-            respPDU.modbus_data[0] = 0x01;
-
-            respPDU.MakeBuffer();
-            return respPDU;
-        }
+        }        
         /** Bad PDU*/
         else{
           return null
@@ -169,20 +164,9 @@ class ModbusSlave extends ModbusDevice {
 
         var tempPDU = this.CreatePDU();
 
-        /**Checks for supported functions*/
-        if(this.supportedModbusFunctions.indexOf(pdu.modbus_function) == -1){
-          /**
-         * modbus_exeption event.
-         * @event ModbusSlave#modbus_exeption
-         * @type {String}
-         */
-            this.emit('modbus_exeption',"Illegal Function");
-
-            return 1;
-        }
-        else {
+       
             if(pdu.modbus_data.length < 4){
-              return 2;
+              return 1;
             }
             else if (pdu.modbus_function == 15 || pdu.modbus_function == 16) {
               let byteCount = pdu.modbus_data.readUInt8(4);
@@ -190,14 +174,14 @@ class ModbusSlave extends ModbusDevice {
                 return 0;
               }
               else{
-                return 2;
+                return ;
               }
             }
             /** Valid PDU. */
             else{
               return 0;
             }
-        }
+        
 
     }
 

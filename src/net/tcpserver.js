@@ -203,12 +203,12 @@ class TCPServer {
   * @param {number} socketIndex. Index to socket in conections array
   * @param {buffer} data
   */
-  Write (socketIndex,data){
+  Write (socketIndex, resp){
     let self = this;
     let socket = self.activeConections[socketIndex];
-    socket.write(data, 'utf8', function(){
+    socket.write(resp.adu.aduBuffer, 'utf8', function(){
       if(self.onWrite){
-        self.onWrite(data);
+        self.onWrite(resp);
       }
     });
   }

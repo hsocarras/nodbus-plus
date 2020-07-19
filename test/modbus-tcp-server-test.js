@@ -35,9 +35,14 @@ modbusTCPServer.on('indication', function(client, adubuffer){
     console.log(adubuffer);
 });
 
+modbusTCPServer.on('request', function(client, req){
+    console.log('Indication Recieved from' + client.remoteAddress);
+    console.log(req);
+});
+
 modbusTCPServer.on('response', function(resp){
     console.log('Response:');
-    console.log(resp);
+    console.log(resp.adu.aduBuffer);
 });
 
 

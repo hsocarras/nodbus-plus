@@ -38,7 +38,7 @@ class Response {
                 throw new TypeError('type must be a string whit a valid modbus frame type')
         }
 
-        self.slaveID = 0;
+        self.deviceID = 0;
         self.id = 0;
         self.timeStamp = null;
         self.data = null

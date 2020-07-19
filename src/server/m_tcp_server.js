@@ -7,6 +7,8 @@
 
 const ModbusSlave = require('../protocol/modbus_slave');
 const TcpServer = require('../net/tcpserver');
+const Request = require('../protocol/request');
+const Response = require('../protocol/response');
 const ADU = require('../protocol/tcp_adu');
 
 
@@ -203,7 +205,9 @@ class ModbusTCPServer extends ModbusSlave {
     */
     ProcessModbusIndication(socketIndex, dataFrame){
       var self = this;
-      let socket = this.tcpServer.activeConections[socketIndex]
+      let socket = this.tcpServer.activeConections[socketIndex];
+      
+
       /**
      * indication event.
      * @event ModbusTCPServer#indication
@@ -212,30 +216,37 @@ class ModbusTCPServer extends ModbusSlave {
       let indicationStack = self.SplitTCPFrame(dataFrame)
 
       indicationStack.forEach(function(element, index, array){
-        var indicationADU = new ADU(element);
-        try {
-          indicationADU.ParseBuffer();
-          if(self.AnalizeADU(indicationADU)){
+        let req = new Request('tcp');
+        req.adu.aduBuffer = element;
 
+        try {
+          req.adu.ParseBuffer();
+          self.emit('request', socket, req);
+
+          if(self.AnalizeADU(req.adu)){
+            return
           }
           else{
             //creando la respuesta
-            var responsePDU = self.BuildResponse(indicationADU.pdu);
+            let resp = new Response('tcp');
+            resp.deviceId = socketIndex;
+            resp.adu.pdu = self.BuildResponse(req.adu.pdu);
 
-            if(indicationADU.address == 0){
+            if(req.address == 0){
               //broadcast no response
               return
             }
             else{
               //response
-              if(responsePDU != null){
-                let modbusResponse = new ADU();
-                modbusResponse.address = indicationADU.mbap.unitID;
-                modbusResponse.transactionCounter = indicationADU.mbap.transactionID;
-                modbusResponse.pdu = responsePDU;
-                modbusResponse.MakeBuffer();
+              if(resp.adu.pdu != null){
+                
+                resp.adu.address = req.adu.mbap.unitID;
+                resp.adu.transactionCounter = req.adu.mbap.transactionID;                
+                resp.adu.MakeBuffer();
+                resp.timeStamp = Date.now();
+                resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
 
-                self.tcpServer.Write(socketIndex, modbusResponse.aduBuffer)
+                self.tcpServer.Write(socketIndex, resp)
               }
             }
           }
@@ -253,9 +264,7 @@ class ModbusTCPServer extends ModbusSlave {
     * @fires ModbusTCPServer#error {object}
     */
     AnalizeADU(adu){
-      try{
-        adu.ParseBuffer();
-        
+              
         if (adu.mbap.protocolID != 0){
             //si el protocolo no es modbus standard
             this.emit('modbus_exeption','Protocol not Suported');
@@ -269,11 +278,7 @@ class ModbusTCPServer extends ModbusSlave {
         else{
           return 0;
         }
-      }
-      catch(e){        
-        this.emit('error', e);
-        return 1;
-      }
+      
     }
 
     
