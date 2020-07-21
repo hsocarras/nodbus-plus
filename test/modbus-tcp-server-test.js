@@ -5,6 +5,8 @@ var modbusTCPServer = new nodbus.ModbusTcpServer(502);
 
 modbusTCPServer.on('listening', function(port){
     console.log('Server listening on: ' + port);
+    console.log('Server max connections: ' + modbusTCPServer.maxConnections);
+    console.log('Server listenning status: ' + modbusTCPServer.isListening)
 });
 
 modbusTCPServer.on('values', function(reference, address){

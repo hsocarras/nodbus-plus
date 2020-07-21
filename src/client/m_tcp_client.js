@@ -12,7 +12,6 @@ const Response = require('../protocol/response');
 const Slave = require('../protocol/slave_descriptor');
 
 
-
 /**
  * Class representing a modbus tcp client.
  * @extends ModbusMaster
@@ -124,7 +123,7 @@ class ModbusTCPClient extends  ModbusMaster {
             },
             enumerable: false,
             configurable: false
-        } )
+        } )        
 
     }
 
@@ -134,6 +133,7 @@ class ModbusTCPClient extends  ModbusMaster {
      * @param {Object} slave: Object {ip, port, timeout, address}
      */
     AddSlave(id, slave){
+      console.log(Slave)
       let slaveDevice = new Slave();
       slaveDevice.id = id;
       slaveDevice.type = 'tcp';
@@ -196,14 +196,14 @@ class ModbusTCPClient extends  ModbusMaster {
       resp.adu.aduBuffer = aduBuffer;
       
       try{
+        
         resp.adu.ParseBuffer();
         resp.id = resp.adu.mbap.transactionID;
+        resp.connectionID = slave.id;
 
         //chekeo el transactionID
         if(slave.SearchRequest(resp.id) == undefined){
-          this.emit('modbus_exception', slave.id, "Wrong Transaction ID");
-            console.log('Wrong Transac ID')
-            console.log(resp.id)
+          this.emit('modbus_exception', slave.id, "Wrong Transaction ID");            
             return null;
         }
         else{ 

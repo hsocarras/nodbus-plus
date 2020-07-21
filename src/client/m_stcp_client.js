@@ -7,24 +7,23 @@
 
 const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
-const RTU_ADU = require('../protocol/rtu_adu');
-const ASCII_ADU = require('../protocol/ascii_adu');
-var ADU ;
+const Request = require('../protocol/request');
+const Response = require('../protocol/response');
+const Slave = require('../protocol/slave_descriptor');
+
 
 /**
  * Class representing a modbus master over tcp.
  * @extends ModbusMaster
 */
-class ModbusTCPClient extends  ModbusMaster {
+class ModbusSerialClient extends  ModbusMaster {
   /**
   * Create a Modbus Serial over Tcp Client.
   */
-    constructor(mode = 'rtu'){
+    constructor(){
         super();
 
         var self = this;
-
-        var serialMode = mode;
 
         /**
         * tcp layer
@@ -38,8 +37,8 @@ class ModbusTCPClient extends  ModbusMaster {
         /**
         * Emit connect and ready events
         * @param {object} target Socket object
-        * @fires ModbusTCPClient#connect {object}
-        * @fires ModbusTCPClient#ready
+        * @fires ModbusSerialClient#connect {object}
+        * @fires ModbusSerialClient#ready
         */
         this.netClient.onConnect = self._EmitConnect.bind(this);
 
@@ -47,14 +46,14 @@ class ModbusTCPClient extends  ModbusMaster {
         /**
         *Emit disconnect event
         * @param {object} had_error
-        * @fires ModbusTCPClient#disconnect {object}
+        * @fires ModbusSerialClient#disconnect {object}
         */
         function EmitDisconnect(id, had_error){
           let slave = this.slaveList.get(id);
 
             /**
            * disconnect event.
-           * @event ModbusTCPClient#disconnect
+           * @event ModbusSerialClient#disconnect
            */
           this.emit('disconnect',id, had_error);
           slave.isReady = false;
@@ -65,13 +64,13 @@ class ModbusTCPClient extends  ModbusMaster {
         /**
         *Emit error event
         * @param {object} error
-        * @fires ModbusTCPClient#error {object}
+        * @fires ModbusSerialClient#error {object}
         */
         function EmitError (id, err){
 
           /**
          * error event.
-         * @event ModbusTCPClient#error
+         * @event ModbusSerialClient#error
          * @type {object}
          */
             this.emit('error',id, err);
@@ -79,80 +78,109 @@ class ModbusTCPClient extends  ModbusMaster {
         this.netClient.onError = EmitError.bind(this);
 
         /**
-        * Emit timeout event        *
-        * @fires ModbusTCPClient#timeout
+        * Emit timeout event on inactive socket      *
+        * @fires ModbusSerialClient#inactive
         */
-        this.netClient.onTimeOut =  self._EmitTimeout.bind(this);;
-
+      function EmitInactive (port){
+        this.emit('inactive', port)
+      }
+      this.netClient.onTimeOut = EmitInactive.bind(this);
+        
         /**
         * Emit Indication event        *
-        * @fires ModbusTCPClient#indication
+        * @fires ModbusSerialClient#indication
         */
         function EmitIndication(id, data){
           /**
          * indication event.
-         * @event ModbusTCPClient#indication
+         * @event ModbusSerialClient#indication
          */
           this.emit('indication',id, data);
         }
-        this.netClient.onWrite = EmitIndication.bind(this);        
+        this.netClient.onWrite = EmitIndication.bind(this);      
+
         
     }
 
+    /**
+     * Function to add a slave object to master's slave list
+     * @param {string} id: Slave'id. Should be unique per slave
+     * @param {Object} slave: Object {ip, port, timeout, address}
+     */
+    AddSlave(id, slave){
+      let slaveDevice = new Slave();
+      slaveDevice.id = id;
+      slaveDevice.type = slave.type || 'rtu';
+      if(slave.address >= 1 && slave.address <= 247){
+        slaveDevice.address = slave.address;
+      }
+      else{
+        slaveDevice.address = 247;
+      }
+      
+      slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
+      slaveDevice.ip = slave.ip || '127.0.0.1';
+      slaveDevice.port = slave.port || 502;     
+      slaveDevice.maxRetries = slave.maxRetries || 1;  
+      slaveDevice.maxRequests = 1; 
+
+      //Emiting the idle event
+      let EmitIdle = function(){
+        this.emit('idle', slaveDevice.id)
+      }.bind(this)      
+      slaveDevice.on('drain', EmitIdle);
+      
+      this.slaveList.set(id, slaveDevice);
+    }
 
     /**
     * function to create a adu
     * @param {object} pdu of request
     * @return {object} adu request
     */
-    CreateADU(id, pdu){
+    CreateRequest(id, pdu){
       let slave = this.slaveList.get(id);
-      var ADU;
+      var req = new Request(slave.type);     
       
-      if(slave.serialMode == 'ascii'){
-        ADU = ASCII_ADU;
-      }
-      else{
-        ADU = RTU_ADU;
-      }
-      let adu = new ADU();
-      adu.address = slave.modbusAddress;
-      adu.pdu = pdu;
+      
+      req.adu.pdu = pdu;
+      req.adu.address = slave.address;
+      req.adu.MakeBuffer();
+      req.id = this.reqCounter;
+      this.reqCounter++;
+      req.slaveID = id;
+      req.OnTimeout = this._EmitTimeout.bind(this);
 
-      adu.MakeBuffer();
-
-      return adu;
+      return req;
     }
 
     /**
     * function to pasrse server response
     * @param {Buffer} aduBuffer frame of response
     * @return {object} map Object whit register:value pairs
-    * @fires ModbusTCPClient#modbus_exception {object}
-    * @fires ModbusTCPClient#error {object}
+    * @fires ModbusSerialClient#modbus_exception {object}
+    * @fires ModbusSerialClient#error {object}
     */
-    ParseResponse(id, aduBuffer) {
+    ParseResponse(slave, aduBuffer) {
 
-      let slave = this.slaveList.get(id);
-      var ADU;
-      if(slave.serialMode == 'ascii'){
-        ADU = ASCII_ADU;
-      }
-      else{
-        ADU = RTU_ADU;
-      }
-
-      let resp = new ADU(aduBuffer);
+      let resp = new Response(slave.type);
+      resp.adu.aduBuffer = aduBuffer;
+      
+      
       try{
-        resp.ParseBuffer();
-        return this.ParseResponsePDU(id, resp.pdu);
+        resp.adu.ParseBuffer();        
+        resp.id = this.resCounter;        
+        resp.connectionID = slave.id;
+        return resp;
       }
       catch(err){
-        if(err.description == 'checksum error'){
-          this.emit('modbus_exception', id, "CHEKSUM ERROR");
-          return false;
+        console.log('parsed err')
+        if(typeof e == 'string') {
+          this.emit('modbus_exception', slave.id, "CHEKSUM ERROR");
         }
-        else throw err;
+        else{
+          this.emit('error', err);
+        }        
       }
 
     }
@@ -211,4 +239,4 @@ class ModbusTCPClient extends  ModbusMaster {
 
 }
 
-module.exports = ModbusTCPClient;
+module.exports = ModbusSerialClient;

@@ -17,9 +17,40 @@ class ModbusDevice extends EventEmitter {
   * Create a Modbus Device.
   */
 	constructor(){
-        super();
+      super();
+      var self = this;
       
-            
+      /**
+      * number of valid request sended for a master or received for a slave
+      * @type {number}
+      */ 
+      this.reqCountValue = 0;
+      
+      /**
+      * counter of response sended for a slave or received for a master
+      * @type {number}
+      */
+      this.resCountValue = 0;
+    }
+
+    get reqCounter(){
+      return this.reqCountValue;
+    }
+
+    set reqCounter(value){
+      if(value = this.reqCountValue + 1){
+        this.reqCountValue = value;
+      }
+    }
+
+    get resCounter(){
+      return this.resCountValue;
+    }
+    
+    set resCounter(value){
+      if(value = this.resCountValue + 1){
+        this.resCountValue = value;
+      }
     }
 
   /**

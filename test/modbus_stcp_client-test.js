@@ -1,10 +1,10 @@
-var nodbus = require('..');
+var nodbus = require('../src/nodbus-plus');
 
 var modbusSTCPClient = nodbus.CreateMaster('eth', 'rtu');
 
 var value;
 
-modbusSTCPClient.AddSlave ('plc1', {ipAddress:"192.168.1.46", port:101, timeout:50, modbusAddress:6});
+modbusSTCPClient.AddSlave ('plc1', {ip:"127.0.0.1", port:502, timeout:50, address:2});
 //modbusSTCPClient.AddSlave ('plc2', {port:501, timeout:100, modbusAddress:1, serialMode:'ascii'});
 
 modbusSTCPClient.on('data', function(id, data){
@@ -12,8 +12,12 @@ modbusSTCPClient.on('data', function(id, data){
   console.log(data);
 })
 
-modbusSTCPClient.on('timeout', function(id){
-  console.log(id+':timeout');
+modbusSTCPClient.on('reponse', function(resp){
+  console.log('response: ' + resp.id);  
+})
+
+modbusSTCPClient.on('timeout', function(id, req){
+  console.log(id+':timeout on ' + req.id);
 });
 
 modbusSTCPClient.on('error', function(id, err){
@@ -29,9 +33,9 @@ modbusSTCPClient.on('connect', function(id){
   console.log('connection stablished whit ' + id);
 });
 
-modbusSTCPClient.on('indication', function(id, data){
-console.log('indication send to ' + id);
-console.log(data)
+modbusSTCPClient.on('indication', function(id, req){
+  console.log('indication send to ' + id);
+	console.log(req.adu.aduBuffer)
 });
 
 modbusSTCPClient.on('disconnect', function(id, err){
@@ -52,7 +56,7 @@ function Test(){
 console.log('starting test')
 //provando evento modbus exeption
 //modbusSTCPClient.ReadHoldingRegisters(15265, 1);
-/*
+
 //provando funcion 1
 setTimeout(function(){
   console.log('leyendo coils de la 0 a la 7');
@@ -69,7 +73,7 @@ setTimeout(function(){
   modbusSTCPClient.ReadInputStatus('plc2', 3, 6);
 }, 150);
 
-*/
+
 //provando funcion 3
 setTimeout(function(){
   console.log('leyendo holdingRegisters del 0 al 3');
@@ -77,7 +81,7 @@ setTimeout(function(){
   modbusSTCPClient.ReadHoldingRegisters('plc2', 0, 4);
 }, 200);
 
-/*
+
 //provando funcion 4
 setTimeout(function(){
   console.log('leyendo inputsRegisters del 1 al 5');
@@ -126,15 +130,18 @@ setTimeout(function(){
   modbusSTCPClient.MaskHoldingRegister('plc1', values , 5);
   modbusSTCPClient.MaskHoldingRegister('plc2', values , 5);    
 }, 500)
-*/
+
 }
-/*
+
 setTimeout(function(){
 console.log('check connection');
-console.log(modbusSTCPClient.isReady('plc1'));
+console.log(modbusSTCPClient.isSlaveReady('plc1'));
+prom = modbusSTCPClient.Stop('plc1');
+  prom.then(function(id){
+    console.log(`isconected from ${id}`);
+  })
 },1400);
-*/
-//modbusSTCPClient.once('ready', Test);
+
 
 let promise = modbusSTCPClient.Start();
 
@@ -145,5 +152,5 @@ Test();
 }, function(value){
 console.log('fail to conect to');
 console.log(value);
-Test();
+//Test();
 });

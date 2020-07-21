@@ -39,9 +39,9 @@ class TCPServer {
     * listening status
     * @type {boolean}
     */
-    Object.defineProperty(self, 'isListening',{
+    Object.defineProperty(TCPServer.prototype, 'isListening',{
       get: function(){
-        return self.tcpServer.listening;
+        return this.tcpServer.listening;
       }
     });
 
@@ -49,12 +49,12 @@ class TCPServer {
     * Max connections
     * @type {number}
     */
-    Object.defineProperty(self, 'maxConnections',{
+    Object.defineProperty(TCPServer.prototype, 'maxConnections',{
       get: function(){
-        return self.tcpServer.maxConnections;
+        return this.tcpServer.maxConnections;
       },
       set: function(max){
-        self.tcpServer.maxConnections = max;
+        this.tcpServer.maxConnections = max;
       }
     });
 

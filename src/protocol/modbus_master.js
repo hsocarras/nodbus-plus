@@ -235,7 +235,13 @@ class ModbusMaster extends ModbusDevice {
      * @type {object}
      */
       this.emit('raw_data',id, respADU);
-      let respStack = self.SplitTCPFrame(respADU)
+      var respStack = [];
+      if(slave.type == 'tcp'){
+        var respStack = self.SplitTCPFrame(respADU)
+      }
+      else{
+        respStack[0]= respADU;
+      }      
       
       respStack.forEach(function(element, index, array){
               
@@ -243,10 +249,15 @@ class ModbusMaster extends ModbusDevice {
                   
           try{            
             var resp = self.ParseResponse(slave, element); 
-            let req = slave.SearchRequest(resp.id);
+            if(slave.type == 'tcp'){
+              var req = slave.SearchRequest(resp.id);
+            }
+            else{
+              req = slave.SearchRequest(self.reqCounter-1);
+            }
             
-            if(resp){
-
+            
+            if(resp){              
               resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
               resp.timestamp = Date.now();
               req.StopTimer();
@@ -255,28 +266,28 @@ class ModbusMaster extends ModbusDevice {
               if(resp.data.has('exception')){
                 switch(resp.data.get('exception')){
                   case 1:
-                    this.emit('modbus_exception', resp.deviceID, 'Illegal Function');  
+                    this.emit('modbus_exception', resp.connectionID, 'Illegal Function');  
                     break;
                   case 2:
-                      this.emit('modbus_exception', resp.deviceID, 'Illegal Data Address');
+                      this.emit('modbus_exception', resp.connectionID, 'Illegal Data Address');
                       break;
                   case 3:
-                      this.emit('modbus_exception', resp.deviceID, 'Illegal Data Value');
+                      this.emit('modbus_exception', resp.connectionID, 'Illegal Data Value');
                       break;
                   case 4:
-                      this.emit('modbus_exception', resp.deviceID, 'Slave Device Failure');
+                      this.emit('modbus_exception', resp.connectionID, 'Slave Device Failure');
                       break;
                   case 5:
-                      this.emit('modbus_exception', resp.deviceID, 'ACKNOWLEDGE');
+                      this.emit('modbus_exception', resp.connectionID, 'ACKNOWLEDGE');
                       break;
                   case 6:
-                      this.emit('modbus_exception', resp.deviceID, 'SLAVE DEVICE BUSY');
+                      this.emit('modbus_exception', resp.connectionID, 'SLAVE DEVICE BUSY');
                       break;
                   case 7:
-                      this.emit('modbus_exception', resp.deviceID, 'NEGATIVE ACKNOWLEDGE');
+                      this.emit('modbus_exception', resp.connectionID, 'NEGATIVE ACKNOWLEDGE');
                       break;
                   case 8:
-                      this.emit('modbus_exception', resp.deviceID, 'MEMORY PARITY ERROR');
+                      this.emit('modbus_exception', resp.connectionID, 'MEMORY PARITY ERROR');
                       break;
                 }
                 if(resp.data.get('exception') == 5){

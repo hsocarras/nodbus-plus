@@ -13,7 +13,16 @@ class Response {
     constructor(type){
         var self = this;
 
+        /**
+         * type
+         * @type {string} Indicate if is a tcp or serial request
+         */
         self.type = type;
+
+        /**
+         * adu
+         * @type {ADU Object} Protocol aplication data unit 
+         */
         self.adu;
         switch(type){
             case 'tcp':
@@ -38,9 +47,27 @@ class Response {
                 throw new TypeError('type must be a string whit a valid modbus frame type')
         }
 
-        self.deviceID = 0;
+        /**
+         * On master this field indicate for with slave id are come from 
+         * On slave takes 
+         */
+        self.connectionID = null;
+
+        /**
+         * On master this field indicate the transaction id of response 
+         * On slave the same
+         */
         self.id = 0;
+
+        /**
+         * On master this field indicate when the response was received 
+         * On slave indicate when the response was sended
+         */
         self.timeStamp = null;
+
+        /**
+         * This field indicate a detailed data about pdu
+         */
         self.data = null
     }
     

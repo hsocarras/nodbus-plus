@@ -13,7 +13,16 @@ class Request {
     constructor(type){
         var self = this;
 
+        /**
+         * type
+         * @type {string} Indicate if is a tcp or serial request
+         */
         self.type = type;
+
+        /**
+         * adu
+         * @type {ADU Object} Protocol aplication data unit 
+         */
         self.adu;
         switch(type){
             case 'tcp':
@@ -38,9 +47,24 @@ class Request {
                 throw new TypeError('type must be a string whit a valid modbus frame type')
         }
 
-        self.slaveID = 0;
+        /**
+         * On master this field indicate for with slave are intended to
+         * On slave takes his modbus address
+         */
+        self.slaveID = null;
+
+        /**
+         * On master this field indicate of id on req stack, it match with transactionID
+         * On slave has no use, take the value of reqest counter
+         */
         self.id = 0;
+
+        /**
+         * On master this field indicate the timout value for request
+         * On slave has no use yet
+         */
         self.timeout = 1000;
+
         self.OnTimeout = null;
         self._timer = null;
         self._retriesNumber = 0;
