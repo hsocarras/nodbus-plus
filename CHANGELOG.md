@@ -24,10 +24,14 @@ Add retries when a modbus indication has timeout.
 Add suport for multiples slaves.
 
 ## Version 0.9.0
-* ### ModbusMaster
+
+All devices get improve api with request and resonse object
+
+* ### ModbusTCPMaster
+Can send multiples request to a modbus slave. Can handle multiples responses due to tcp coalesing
 
 * ### ModbusTCPServer
 Remove access control.
-Add suport for multiple simultaneus modbus-tcp indication tcp coelsing
+Add suport for multiple simultaneus modbus-tcp indication due to tcp coalesing
 
 

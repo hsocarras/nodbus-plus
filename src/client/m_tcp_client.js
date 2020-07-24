@@ -7,6 +7,7 @@
 
 const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
+const UdpClient = require('../net/udpclient');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
 const Slave = require('../protocol/slave_descriptor');
@@ -19,19 +20,38 @@ const Slave = require('../protocol/slave_descriptor');
 class ModbusTCPClient extends  ModbusMaster {
   /**
   * Create a Modbus Tcp Client.
+  * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
   */
-    constructor(){
+    constructor(tp = 'tcp'){
         super();
 
         var self = this;
 
         var transactionCountValue = 1;
 
+        var transportProtocol
+        if(typeof tp == 'string'){
+          transportProtocol = tp
+        }
+        else{
+          throw new TypeError('transport protocol should be a string')
+        }
+
         /**
         * tcp layer
         * @type {object}
         */
-        this.netClient = new TcpClient();
+        switch(transportProtocol){
+          case 'udp4':
+            this.netClient = new UdpClient('udp4');
+            break;
+          case 'udp6':
+            this.netClient = new UdpClient('udp6');
+            break;
+          default:
+            this.netClient = new TcpClient();
+        }
+        
 
         //asociando el evento data del netClient con la funcion ProcessResponse
         this.netClient.onData = this.ProcessResponse.bind(this);
@@ -133,7 +153,7 @@ class ModbusTCPClient extends  ModbusMaster {
      * @param {Object} slave: Object {ip, port, timeout, address}
      */
     AddSlave(id, slave){
-      console.log(Slave)
+      
       let slaveDevice = new Slave();
       slaveDevice.id = id;
       slaveDevice.type = 'tcp';

@@ -25,38 +25,18 @@ class TCPServer {
     */
     this.tcpServer = net.createServer();
 
-    //array whit conections
+    //array whit connections
     let connections = [];
+    
     /**
     * list of connections
     * @type {Object[]}
     */
-    Object.defineProperty(self,'activeConections',{
+    Object.defineProperty(self,'activeConnections',{
         get: function(){ return connections}
     })
-
-    /**
-    * listening status
-    * @type {boolean}
-    */
-    Object.defineProperty(TCPServer.prototype, 'isListening',{
-      get: function(){
-        return this.tcpServer.listening;
-      }
-    });
-
-    /**
-    * Max connections
-    * @type {number}
-    */
-    Object.defineProperty(TCPServer.prototype, 'maxConnections',{
-      get: function(){
-        return this.tcpServer.maxConnections;
-      },
-      set: function(max){
-        this.tcpServer.maxConnections = max;
-      }
-    });
+    
+      
 
     /**
     * port
@@ -117,25 +97,21 @@ class TCPServer {
     */
     this.onWrite = null
 
-    this.tcpServer.on('error', function(err){
-      self.onError(err);
-    });
+    this.tcpServer.on('error', self.onError);
 
     this.tcpServer.on('close', function(){
       connections = [];
       self.onServerClose();
     });
 
-    this.tcpServer.on('listening', function(){
-      self.onListening()
-    });
+    this.tcpServer.on('listening', self.onListening);
 
     this.tcpServer.on('connection', function(socket) {
 
       self.onConnection(socket);
         
 
-      //adding sockets to conections array
+      //adding sockets to connections array
       connections.push(socket)
 
       //defining sockets behavior
@@ -173,6 +149,22 @@ class TCPServer {
     });
 
   }  
+
+  get maxConnections(){
+    return this.tcpServer.maxConnections;
+  }
+
+  set maxConnections(max){
+    this.tcpServer.maxConnections = max;
+  }
+
+  /**
+  * listening status
+  * @type {boolean}
+  */
+  get isListening(){
+    return this.tcpServer.listening;
+  }
   
   /**
   * Start the tcp server
@@ -192,7 +184,7 @@ class TCPServer {
   Stop (){
       //cerrando el server
       this.tcpServer.close();
-      var sockets = this.activeConections;
+      var sockets = this.activeConnections;
       sockets.forEach(function(element){
           element.destroy();
       });
@@ -200,12 +192,12 @@ class TCPServer {
 
   /**
   * function to write in a conection
-  * @param {number} socketIndex. Index to socket in conections array
+  * @param {number} socketIndex. Index to socket in connections array
   * @param {buffer} data
   */
   Write (socketIndex, resp){
     let self = this;
-    let socket = self.activeConections[socketIndex];
+    let socket = self.activeConnections[socketIndex];
     socket.write(resp.adu.aduBuffer, 'utf8', function(){
       if(self.onWrite){
         self.onWrite(resp);

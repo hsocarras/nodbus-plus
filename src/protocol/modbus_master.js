@@ -476,7 +476,7 @@ class ModbusMaster extends ModbusDevice {
       }
 
       let slave = this.slaveList.get(id);
-
+      
       //if is enable and there are no active request
        if(slave.isConnected && slave.isMaxRequest == false){            
             let isSuccesfull
