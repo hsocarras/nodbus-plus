@@ -2,14 +2,14 @@
  * Nodbus module.
  * @module nodbus
  * @author Hector E. Socarras Cabrera
- * @version 0.7.2
+ * @version 0.10.0
 */
 
 
 const ModbusTcpServer = require('./server/m_tcp_server');
 const ModbusTcpClient = require('./client/m_tcp_client');
-const ModbusSTcpServer = require('./server/m_stcp_server');
-const ModbusSTcpClient = require('./client/m_stcp_client');
+const ModbusSerialServer = require('./server/m_serial_server');
+const ModbusSerialClient = require('./client/m_serial_client');
 const ModbusMaster = require('./protocol/modbus_master');
 const ModbusSlave = require('./protocol/modbus_slave');
 
@@ -22,17 +22,17 @@ const ModbusSlave = require('./protocol/modbus_slave');
 module.exports.ModbusTcpServer = ModbusTcpServer;
 
 /**
- * ModbusSTcpServer.
- * @module nodbus/ModbusSTcpServer
+ * ModbusSerialServer.
+ * @module nodbus/ModbusSerialServer
  */
-/** Constructor for ModbusSTcpServer Class. */
-module.exports.ModbusSTcpServer = ModbusSTcpServer;
+/** Constructor for ModbusSerialServer Class. */
+module.exports.ModbusSerialServer = ModbusSerialServer;
 
 /**
  * ModbusSlave.
  * @module nodbus/ModbusSlave
  */
-/** Constructor for ModbusSTcpServer Class. */
+/** Constructor for ModbusSlave base Class. */
 module.exports.ModbusSlave = ModbusSlave;
 
 /**
@@ -43,68 +43,122 @@ module.exports.ModbusSlave = ModbusSlave;
 module.exports.ModbusTcpClient = ModbusTcpClient;
 
 /**
- * ModbusSTcpClient.
- * @module nodbus/ModbusSTcpClient
+ * ModbusSerialClient.
+ * @module nodbus/ModbusSerialClient
  */
 /** Constructor for ModbusTcpClient Class. */
-module.exports.ModbusSTcpClient = ModbusSTcpClient;
+module.exports.ModbusSerialClient = ModbusSerialClient;
 
 /**
  * ModbusMaster.
  * @module nodbus/ModbusMaster
  */
-/** Constructor for ModbusSTcpServer Class. */
+/** Constructor for ModbusMaster Class. */
 module.exports.ModbusMaster = ModbusMaster;
 
 /**
 * Create a Slave instance
 * @param {number|string} port tcp port or string indicating serial port.
-* @param {startAddres} modbusAddress modbus addres 1 to 247 for serial slave or tcp for ethernet.
-* @param {pointsQuantity} pointsQuantity
-* @param {number|Buffer} values values to write
-* @return {Object} PDU object
+* @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
+* @param {number} modbusAddress modbus addres 1 to 247 for serial slave or tcp for ethernet.
+* @param {string} mode Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
+* @return {Object} Slave object
 */
-module.exports.CreateSlave = function (port = 502, modbusAddress = 'tcp', mode = 'aut'){
+module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1, mode){
 
   if(typeof port == 'number'){
-    //tcp network
-    if(typeof modbusAddress == 'number'){
-      //serial protocol
-      return new ModbusSTcpServer(port, modbusAddress, mode)
-    }
-    else{
-      //tcp protocol
-      return new ModbusTcpServer(port);
-    }
+    
+    switch (tp){
+      case 'tcp':
+        if(mode == undefined){
+          //si el modo no fue defnido es un esclavo modbustcp
+          return new ModbusTcpServer(port, 'tcp', modbusAddress);
+        }
+        else{
+          if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
+            return new ModbusSerialServer(port, 'tcp', modbusAddress, mode);
+          }
+          else{
+            return new ModbusSerialServer(port, 'tcp', modbusAddress, 'auto');
+          }
+        }
+        break;
+      case 'udp4':
+          if(mode == undefined){
+            //si el modo no fue defnido es un esclavo modbustcp
+            return new ModbusTcpServer(port, 'udp4', modbusAddress);
+          }
+          else{
+            if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
+              return new ModbusSerialServer(port, 'udp4', modbusAddress, mode);
+            }
+            else{
+              return new ModbusSerialServer(port, 'udp4', modbusAddress, 'auto');
+            }
+          }
+        break;
+      case 'udp6':
+          if(mode == undefined){
+            //si el modo no fue defnido es un esclavo modbustcp
+            return new ModbusTcpServer(port, 'udp6', modbusAddress);
+          }
+          else{
+            if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
+              return new ModbusSerialServer(port, 'udp6', modbusAddress, mode);
+            }
+            else{
+              return new ModbusSerialServer(port, 'udp6', modbusAddress, 'auto');
+            }
+          }
+        break;
+      default:
+        throw new RangeError('transport layer not supported')
 
-  }
+    }
+  }  
   else{
-    throw 'serial port no suported yet'
+    throw new TypeError('port must be a number')
   }
 
 }
 
-module.exports.CreateMaster = function (port = 'eth', mode = 'tcp'){
+/**
+* Create a Slave instance
 
-  if(port == 'eth'){
-    //tcp network
-    switch (mode) {
-      case 'tcp':
-        return new ModbusTcpClient();
-        break;
-      case 'rtu':
-        return new ModbusSTcpClient('rtu');
-        break;
-      case 'ascii':
-        return new ModbusSTcpClient('ascii');
-        break
-      default:
+* @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
+* @param {string} mode Serial or TCP.
+* @return {Object} Master object
+*/
+module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
 
-    }
-
-  }
-  else{
-    throw 'serial port no suported yet'
+  switch(tp){
+    case 'tcp':
+        if(mode == 'serial'){
+          return new ModbusSerialClient('tcp');
+        }
+        else{
+          return new ModbusTcpClient('tcp');
+        }
+      break;
+    case 'udp4':
+        if(mode == 'serial'){
+          return new ModbusSerialClient('udp4');
+        }
+        else{
+          return new ModbusTcpClient('udp4');
+        }
+      break;
+    case 'udp6':
+        if(mode == 'serial'){
+          return new ModbusSerialClient('udp6');
+        }
+        else{
+          return new ModbusTcpClient('udp6');
+        }
+      break;
+    default:
+      throw new RangeError('Transport layer not supported')
+      break;
   }
 
 }

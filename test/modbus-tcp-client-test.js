@@ -160,7 +160,7 @@ setTimeout(function(){
   prom.then(function(id){
     console.log(`isconected from ${id}`);
   })
-},2400);
+},5000);
 
 let promise = modbusTCPClient.Start();
 

@@ -23,8 +23,8 @@ class ModbusTCPServer extends ModbusSlave {
   * @param {number} p Port to listen.
   * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
   */
-    constructor(p=502, tp = 'tcp'){
-      super();
+    constructor(p=502, tp = 'tcp', modbusAddress = 1){
+      super(modbusAddress);
 
       var transportProtocol
       if(typeof tp == 'string'){

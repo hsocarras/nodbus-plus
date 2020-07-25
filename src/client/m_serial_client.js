@@ -7,6 +7,7 @@
 
 const ModbusMaster = require('../protocol/modbus_master');
 const TcpClient = require('../net/tcpclient');
+const UdpClient = require('../net/udpclient');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
 const Slave = require('../protocol/slave_descriptor');
@@ -20,16 +21,33 @@ class ModbusSerialClient extends  ModbusMaster {
   /**
   * Create a Modbus Serial over Tcp Client.
   */
-    constructor(){
+    constructor(tp = 'tcp'){
         super();
 
         var self = this;
+
+        var transportProtocol
+        if(typeof tp == 'string'){
+          transportProtocol = tp
+        }
+        else{
+          throw new TypeError('transport protocol should be a string')
+        }
 
         /**
         * tcp layer
         * @type {object}
         */
-        this.netClient = new TcpClient();
+       switch(transportProtocol){
+        case 'udp4':
+          this.netClient = new UdpClient('udp4');
+          break;
+        case 'udp6':
+          this.netClient = new UdpClient('udp6');
+          break;
+        default:
+          this.netClient = new TcpClient();
+      }
 
         //asociando el evento data del netClient con la funcion ProcessResponse
         this.netClient.onData = this.ProcessResponse.bind(this);
@@ -119,7 +137,7 @@ class ModbusSerialClient extends  ModbusMaster {
       }
       
       slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
-      slaveDevice.ip = slave.ip || '127.0.0.1';
+      slaveDevice.ip = slave.ip || '127.0.0.1';      
       slaveDevice.port = slave.port || 502;     
       slaveDevice.maxRetries = slave.maxRetries || 1;  
       slaveDevice.maxRequests = 1; 
@@ -173,8 +191,7 @@ class ModbusSerialClient extends  ModbusMaster {
         resp.connectionID = slave.id;
         return resp;
       }
-      catch(err){
-        console.log('parsed err')
+      catch(err){        
         if(typeof e == 'string') {
           this.emit('modbus_exception', slave.id, "CHEKSUM ERROR");
         }
@@ -187,6 +204,7 @@ class ModbusSerialClient extends  ModbusMaster {
 
 
     Start(id){
+      
       let self = this;
       let successPromise;
 
@@ -195,14 +213,14 @@ class ModbusSerialClient extends  ModbusMaster {
         if(slave.isReady){
           return Promise.resolve(id);
         }
-        else{
+        else{          
           return self.netClient.Connect(slave);
         }
       }
       else{
         let promiseList = [];
         this.slaveList.forEach(function(slave, key){
-          let promise;          
+          let promise;                
           promise = self.netClient.Connect(slave);
           promiseList.push(promise);
         })

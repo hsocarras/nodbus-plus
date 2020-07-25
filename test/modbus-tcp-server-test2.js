@@ -1,6 +1,6 @@
 var nodbus = require('../src/nodbus-plus');
 
-var modbusTCPServer = new nodbus.ModbusTcpServer(503);
+var modbusTCPServer = new nodbus.ModbusTcpServer(500);
 
 
 modbusTCPServer.on('listening', function(port){

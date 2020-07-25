@@ -6,7 +6,8 @@
 */
 
 const ModbusSlave = require('../protocol/modbus_slave');
-const netServer = require('../net/tcpserver');
+const tcpServer = require('../net/tcpserver');
+const udpServer = require('../net/udpserver');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
 const ASCII_ADU = require('../protocol/ascii_adu');
@@ -19,19 +20,38 @@ class ModbusSerialServer extends ModbusSlave {
   /**
   * Create a Modbus Tcp Server.
   * @param {number} p Port to listen.
+  * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
+  * @param {number} modbusAddress. address based on modbus protocol
   * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'aut' (default) both mode
   */
-    constructor(p = 502, modbusAddress = 1, mode = 'aut'){
+    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'aut'){
       super(modbusAddress);
 
       var self = this;
+
+      var transportProtocol
+      if(typeof tp == 'string'){
+        transportProtocol = tp
+      }
+      else{
+        throw new TypeError('transport protocol should be a string')
+      }
 
       /**
       * network layer
       * @type {object}
       */
-      this.netServer = new netServer();
-
+      switch(transportProtocol){
+        case 'udp4':
+          this.netServer = new udpServer(p, 'udp4');
+          break;
+        case 'udp6':
+          this.netServer = new udpServer(p, 'udp6');
+          break;
+        default:
+            this.netServer = new tcpServer(p);
+      }
+      
       //Adding listeners to netServer events
 
       this.netServer.onData = this.ProcessModbusIndication.bind(this);
@@ -227,7 +247,7 @@ class ModbusSerialServer extends ModbusSlave {
     ProcessModbusIndication(connectionID, dataFrame){
 
       var self = this;
-      let socket = this.netServer.activeConections[connectionID];
+      let socket = this.netServer.activeConnections[connectionID];
 
       /**
      * indication event.
@@ -237,7 +257,7 @@ class ModbusSerialServer extends ModbusSlave {
 
       let req;
 
-      if(this.mode == 'aut'){        
+      if(this.mode == 'auto'){        
           (ASCII_ADU.isAsciiAdu(dataFrame)) ? req = new Request('ascii') : req = new Request('rtu');;
       }
       else{

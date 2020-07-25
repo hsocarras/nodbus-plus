@@ -158,7 +158,7 @@ setTimeout(function(){
   console.log(modbusTCPClient.isSlaveReady('plc1'));
   prom = modbusTCPClient.Stop('plc1');
   prom.then(function(id){
-    console.log(`isconected from ${id}`);
+    console.log(`disconected from ${id}`);
   })
 },2400);
 

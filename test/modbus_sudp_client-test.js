@@ -1,10 +1,10 @@
 var nodbus = require('../src/nodbus-plus');
 
-var modbusSTCPClient = nodbus.CreateMaster('tcp', 'serial');
+var modbusSTCPClient = nodbus.CreateMaster('udp6', 'serial');
 
 var value;
 
-modbusSTCPClient.AddSlave ('plc1', {ip:"127.0.0.1", port:502, timeout:50, address:2});
+modbusSTCPClient.AddSlave ('plc1', {ip:'::1', port:502, timeout:50, address:12});
 //modbusSTCPClient.AddSlave ('plc2', {port:501, timeout:100, modbusAddress:1, serialMode:'ascii'});
 
 modbusSTCPClient.on('data', function(id, data){

@@ -58,7 +58,7 @@ class UDPClient {
 
     Connect(slave){
         let self = this;
-
+        
         let promise = new Promise(function(resolve, reject){
           try{
             var conn = dgram.createSocket(self.type);
