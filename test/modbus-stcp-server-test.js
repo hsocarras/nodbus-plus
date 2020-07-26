@@ -45,6 +45,10 @@ modbusSTCPServer.on('response', function(resp){
     console.log(resp.adu.aduBuffer);
 });
 
+modbusSTCPServer.on('modbus_exception', function(exc){
+    console.log(exc);    
+});
+
 modbusSTCPServer.SetRegisterValue(1, 'inputs', 2);
 modbusSTCPServer.SetRegisterValue(1, 'inputs', 3);
 modbusSTCPServer.SetRegisterValue(1, 'inputs', 7);

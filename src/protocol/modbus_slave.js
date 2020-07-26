@@ -139,12 +139,43 @@ class ModbusSlave extends ModbusDevice {
                     respPDU = this.MaskHoldingRegister(pdu);
                 break;
                 default:
+                    //Exception ILLEGAL FUNCTION code 0x01
                     respPDU.modbus_function = pdu.modbus_function | 0x80;
                     respPDU.modbus_data[0] = 0x01;
                   break
             }
-
+            
             respPDU.MakeBuffer();
+
+            //emiting modbus-execption on slave
+            let data = this.ParseResponsePDU(respPDU, pdu);
+            switch(data.get('exception')){
+              case 1:
+                this.emit('modbus_exception', 'Illegal Function');  
+                break;
+              case 2:
+                  this.emit('modbus_exception', 'Illegal Data Address');
+                  break;
+              case 3:
+                  this.emit('modbus_exception', 'Illegal Data Value');
+                  break;
+              case 4:
+                  this.emit('modbus_exception', 'Slave Device Failure');
+                  break;
+              case 5:
+                  this.emit('modbus_exception', 'ACKNOWLEDGE');
+                  break;
+              case 6:
+                  this.emit('modbus_exception', 'SLAVE DEVICE BUSY');
+                  break;
+              case 7:
+                  this.emit('modbus_exception', 'NEGATIVE ACKNOWLEDGE');
+                  break;
+              case 8:
+                  this.emit('modbus_exception', 'MEMORY PARITY ERROR');
+                  break;
+            }
+            
             return respPDU;
         }        
         /** Bad PDU*/
@@ -174,7 +205,29 @@ class ModbusSlave extends ModbusDevice {
                 return 0;
               }
               else{
-                return ;
+                return 1;
+              }
+            }
+            else if (pdu.modbus_function == 1 || pdu.modbus_function == 2) {
+              let numberPoints = pdu.modbus_data.readUInt16BE(2);
+              if(numberPoints < 2040 ){
+                return 0
+              }
+              else{
+                //can't send more digital value than 2040 because it will need more than 255 bytes and only 
+                //have 1 byte for the bytecount
+                return 1
+              }
+            }
+            else if (pdu.modbus_function == 3 || pdu.modbus_function == 4) {
+              let numberPoints = pdu.modbus_data.readUInt16BE(2);
+              if(numberPoints < 128 ){
+                return 0
+              }
+              else{
+                //can't send more registers than 127 because it will need more than 255 bytes and only 
+                //have 1 byte for the bytecount
+                return 1
               }
             }
             /** Valid PDU. */

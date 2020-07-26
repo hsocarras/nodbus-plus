@@ -304,16 +304,8 @@ class ModbusSerialServer extends ModbusSlave {
 
               self.reqStack.push(req);             
 
-              try{
-                
-                resp.adu.pdu = self.BuildResponse(req.adu.pdu);                
-                
-                //response
-                if(resp.adu.pdu != null){                  
-                                  
-                  resp.adu.MakeBuffer();                  
-                  
-                }
+              try{                
+                resp.adu.pdu = self.BuildResponse(req.adu.pdu);  
                 
               }
               catch(e){
@@ -323,17 +315,22 @@ class ModbusSerialServer extends ModbusSlave {
                 resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
                 resp.adu.pdu.modbus_data[0] = 4;
                 resp.adu.MakeBuffer();
+                this.emit('modbus_exception', 'Slave Device Failure');
               }
               finally{
-                if(req.address != 0){
-                  resp.timeStamp = Date.now();
-                  resp.id = self.resCounter;
-                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                  self.resCounter++; 
-                  //removing req from req stak
-                  self.reqStack.splice(self.reqStack.indexOf(req), 1);
-                  self.netServer.Write(connectionID, resp); 
-                   
+                //response
+                if(resp.adu.pdu != null){ 
+                  resp.adu.MakeBuffer();
+                  if(req.address != 0){
+                    resp.timeStamp = Date.now();
+                    resp.id = self.resCounter;
+                    resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+                    self.resCounter++; 
+                    //removing req from req stak
+                    self.reqStack.splice(self.reqStack.indexOf(req), 1);
+                    self.netServer.Write(connectionID, resp); 
+                    
+                  }
                 }
               }
             }

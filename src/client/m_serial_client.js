@@ -10,7 +10,7 @@ const TcpClient = require('../net/tcpclient');
 const UdpClient = require('../net/udpclient');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
-const Slave = require('../protocol/slave_descriptor');
+const Slave = require('../protocol/slave_endpoint');
 
 
 /**

@@ -8,7 +8,7 @@
 /**
  * Class representing a boolean memory area.
 */
-class BoleanRegister {
+class BooleanRegister {
   /**
   * Create a bolean register.
   * @param {number} size total amount of references (inputs or coils).
@@ -37,6 +37,7 @@ class BoleanRegister {
   *function to encode a register to send through a stream.
   * protocol send in BE; register are store in LE
   *@param {number} dataAddress address of register
+  *@param {number} number_of_point number of registers to encode
   *@return {buffer}
   */
   EncodeRegister(dataAddress = 0, number_of_points = 1){
@@ -154,17 +155,19 @@ class BoleanRegister {
   /**
    * function to rezise the buffer of register
    * @param {number} newSise
+   * @return {number} the actual size of register
    */
-  Resize(newSize){
+  ReSize(newSize){
     if(typeof newSize == 'number'){      
       if(newSize > this.size){
         let expandBuffer = Buffer.alloc(newSize - this.size);
         his.registerBuffer = Buffer.concat([this.registerBuffer, expandBuffer], newSize)
-        this.size = newSize
+        this.size = newSize        
       } 
     }
+    return this.size
   }
 
 }
 
-module.exports = BoleanRegister;
+module.exports = BooleanRegister;

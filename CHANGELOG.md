@@ -34,4 +34,6 @@ Can send multiples request to a modbus slave. Can handle multiples responses due
 Remove access control.
 Add suport for multiple simultaneus modbus-tcp indication due to tcp coalesing
 
+## Version 0.10.0
 
+All devices get suport for udp transport layer.

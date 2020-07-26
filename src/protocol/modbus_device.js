@@ -172,12 +172,13 @@ class ModbusDevice extends EventEmitter {
           data.set(key, value);
           break;            
         default:
-            key = 'exception';
-            //modbus exeption
+          //modbus exeption
+            key = 'exception';            
             value = responsePDU.modbus_data[0];
+            data.set(key, value);             
             break
             
-            data.set(key, values);
+            
     }
     
     return data;

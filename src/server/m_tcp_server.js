@@ -258,13 +258,7 @@ class ModbusTCPServer extends ModbusSlave {
             resp.id = req.id;
 
             try{
-              resp.adu.pdu = self.BuildResponse(req.adu.pdu);
-
-                //response                 
-                if(resp.adu.pdu != null){
-                  resp.adu.MakeBuffer();
-                }
-              
+              resp.adu.pdu = self.BuildResponse(req.adu.pdu);              
             }
             catch(e){
                //slave failure exeption
@@ -273,14 +267,19 @@ class ModbusTCPServer extends ModbusSlave {
                resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
                resp.adu.pdu.modbus_data[0] = 4;
                resp.adu.MakeBuffer();
+               this.emit('modbus_exception', 'Slave Device Failure');
             }
             finally{
-              if(req.address != 0){
-                resp.timeStamp = Date.now();
-                resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                self.resCounter++;
-                
-                self.netServer.Write(connectionID, resp);   
+              if(resp.adu.pdu != null){
+                resp.adu.MakeBuffer();
+                if(req.address != 0){
+                  resp.timeStamp = Date.now();
+                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+                  self.resCounter++;
+                  
+                  self.netServer.Write(connectionID, resp); 
+                    
+                }
               }
             }
           }               

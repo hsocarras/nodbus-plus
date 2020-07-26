@@ -20,8 +20,7 @@ var PresetSingleRegister = function (pdu){
         //Creando exception 0x02
         respPDU.modbus_function = pdu.modbus_function | 0x80;
         respPDU.modbus_data[0] = 0x02;
-
-        this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        
     }
     else {
         let values = new Map();

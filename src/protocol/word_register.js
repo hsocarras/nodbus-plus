@@ -183,8 +183,8 @@ class WordRegister {
 * function to get the register value from user app.
 * The register are encoding usin litle endian
 * @param {number} dataAddress address of register
-* @param {string} dataType value format. Suppoting format: bool, uint,  uint32, uint64, int,  int32, int64, float,  double.
-* @return {value}
+* @param {string} dataType value format. Suppoting format: uint,  uint32, uint64, int,  int32, int64, float,  double.
+* @return {number}
 */
   GetValue(dataAddress = 0, dataType = 'uint'){
     if(dataAddress >= 0 && dataAddress <= this.size){
@@ -250,15 +250,17 @@ class WordRegister {
   /**
    * function to rezise the buffer of register
    * @param {number} newSise
+   * @return {number} the actual size of register
    */
-  Resize(newSize){
+  ReSize(newSize){
     if(typeof newSize == 'number'){      
       if(newSize > this.size){
         let expandBuffer = Buffer.alloc(2*(newSize - this.size))
         this.registerBuffer = Buffer.concat([this.registerBuffer, expandBuffer], 2*newSize)
         this.size = newSize
       } 
-    }   
+    }
+    return this.size   
   }
 }
 

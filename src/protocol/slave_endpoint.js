@@ -1,7 +1,7 @@
 const EventEmitter = require('events');
 
 
-class Slave extends EventEmitter {
+class SlaveEndPoint extends EventEmitter {
     constructor(){
         super();
         var self = this;
@@ -90,4 +90,4 @@ class Slave extends EventEmitter {
 
 }
 
-module.exports = Slave;
+module.exports = SlaveEndPoint;

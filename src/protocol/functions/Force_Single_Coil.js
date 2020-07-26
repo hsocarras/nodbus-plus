@@ -25,7 +25,7 @@ var ForceSingleCoil = function (pdu){
         respPDU.modbus_function = pdu.modbus_function | 0x80;
         respPDU.modbus_data[0] = 0x02;
 
-        this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        //this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
 
         return respPDU;
     }

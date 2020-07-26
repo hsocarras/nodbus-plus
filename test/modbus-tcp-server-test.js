@@ -47,6 +47,9 @@ modbusTCPServer.on('response', function(resp){
     console.log(resp.adu.aduBuffer);
 });
 
+modbusTCPServer.on('modbus_exception', function(exc){
+    console.log(exc);    
+});
 
 modbusTCPServer.SetRegisterValue(1, 'inputs', 2);
 modbusTCPServer.SetRegisterValue(1, 'inputs', 3);

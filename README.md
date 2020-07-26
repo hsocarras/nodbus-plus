@@ -27,7 +27,7 @@ Create a modbus serial slave over tcp.
 
 ```javascript
         var ModbusSerialServer = require('nodbus-plus').ModbusSerialServer;
-        var Slave = new ModbusSTcpServer(502,'tcp', 1);
+        var Slave = new ModbusSerialServer(502,'tcp', 1);
         Slave.Start();
 ```
 or use function CreateSlave:
@@ -35,7 +35,7 @@ or use function CreateSlave:
 ```javascript
 
         var nodbus = require('nodbus-plus');
-        var ModbusSTcpServer = nodbus.CreateSlave(502, 'tcp', 1, 'auto');
+        var ModbusSerialServer = nodbus.CreateSlave(502, 'tcp', 1, 'auto');
 ```
 
 Create a modbus tcp client.
