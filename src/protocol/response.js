@@ -49,7 +49,7 @@ class Response {
 
         /**
          * On master this field indicate for with slave id are come from 
-         * On slave takes 
+         * On slave takes the index on the conection stack
          */
         self.connectionID = null;
 

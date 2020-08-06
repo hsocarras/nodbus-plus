@@ -22,9 +22,9 @@ class ModbusSerialServer extends ModbusSlave {
   * @param {number} p Port to listen.
   * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
   * @param {number} modbusAddress. address based on modbus protocol
-  * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'aut' (default) both mode
+  * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'auto' (default) both mode
   */
-    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'aut'){
+    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'auto'){
       super(modbusAddress);
 
       var self = this;
@@ -153,23 +153,7 @@ class ModbusSerialServer extends ModbusSlave {
        * @event ModbusnetServer#client-disconnect
        */
         this.emit('client-disconnect',socket);
-      }
-
-      /**
-      * port
-      * @type {number}
-      * @public
-      */
-      Object.defineProperty(ModbusSerialServer.prototype, 'port', {
-        get : function(){
-          return self.netServer.port;
-        },
-        set : function(p){
-          self.netServer.port = p;
-        }
-      })
-      this.port = p;
-              
+      }       
 
       /**
       * mode
@@ -178,42 +162,11 @@ class ModbusSerialServer extends ModbusSlave {
       this.mode = mode;
 
       /**
-       * current req stack or input buffer
-       * If exeded his max length exepction 5 should be sended
+       * current req 
+       * If another req arrive while the current req is not null, exepction 5 should be sended
        * @type {Array}
        */
-      this.reqStack = [];
-      
-      /**
-       * current req stack max length
-       * @type {Map}
-       */
-      this.maxRequests = 16;
-
-      /**
-      * listening status
-      * @type {bool}
-      * @public
-      */
-      Object.defineProperty(ModbusSerialServer.prototype, 'isListening',{
-        get: function(){
-          return this.netServer.isListening;
-        }
-      })
-
-      /**
-      * max client
-      * @type {number}
-      * @public
-      */
-      Object.defineProperty(ModbusSerialServer.prototype, 'maxConnections',{
-        get: function(){
-          return this.netServer.maxConnections;
-        },
-        set: function(max){
-          this.netServer.maxConnections = max;
-        }
-      })
+      this.currentRequest = null;  
 
       //Sellando el netServer
       Object.defineProperty(self, 'netServer', {
@@ -222,6 +175,29 @@ class ModbusSerialServer extends ModbusSlave {
         configurable:false
       })
       
+    }
+
+    get maxConnections(){
+      return this.netServer.maxConnections;
+    }
+
+    set maxConnections(max){
+      this.netServer.maxConnections = 1;
+    }
+
+    /**
+      * Getter listening status
+      */
+     get isListening(){
+      return this.netServer.isListening;
+    }
+
+    get port(){
+      return this.netServer.port
+    }
+
+    set port(newport){
+      this.netServer.port = newport
     }
 
     /**
@@ -299,10 +275,10 @@ class ModbusSerialServer extends ModbusSlave {
             resp.connectionID = connectionID;
             resp.adu.address = self.address;
 
-            if(this.reqStack.length < self.maxRequests){
+            if(this.currentRequest == null){
               //if requestStack is not full
 
-              self.reqStack.push(req);             
+              self.currentRequest = req;             
 
               try{                
                 resp.adu.pdu = self.BuildResponse(req.adu.pdu);  
@@ -327,7 +303,7 @@ class ModbusSerialServer extends ModbusSlave {
                     resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
                     self.resCounter++; 
                     //removing req from req stak
-                    self.reqStack.splice(self.reqStack.indexOf(req), 1);
+                    self.currentRequest = null;
                     self.netServer.Write(connectionID, resp); 
                     
                   }

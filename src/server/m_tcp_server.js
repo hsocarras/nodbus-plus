@@ -155,14 +155,7 @@ class ModbusTCPServer extends ModbusSlave {
        */
         this.emit('client-disconnect',socket);
       }
-
-      /**
-      * port
-      * @type {number}
-      * @public
-      */      
-      this.port = p;
-
+      
       /**
       * max client
       * @type {number}
@@ -192,6 +185,14 @@ class ModbusTCPServer extends ModbusSlave {
 
     set maxConnections(max){
       this.netServer.maxConnections = max;
+    }
+    
+    get port(){
+      return this.netServer.port
+    }
+
+    set port(newport){
+      this.netServer.port = newport
     }
 
     /**

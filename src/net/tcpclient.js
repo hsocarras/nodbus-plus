@@ -74,8 +74,9 @@ class TcpClient {
               enumerable: false,
               configurable: false
           } )
-            //add Slave timeout to socket
-            conn.slaveTimeout = slave.timeout;
+
+            //Set timeout of socket to 1 min
+            conn.setTimeout(60000);
   
             //configurando el socket devuelto
             conn.once('connect',function(){              

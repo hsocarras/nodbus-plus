@@ -64,18 +64,18 @@ module.exports.ModbusMaster = ModbusMaster;
 * @param {string} mode Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1, mode){
+module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1, mode = 'tcp'){
 
   if(typeof port == 'number'){
     
     switch (tp){
       case 'tcp':
-        if(mode == undefined){
+        if(mode == 'tcp'){
           //si el modo no fue defnido es un esclavo modbustcp
           return new ModbusTcpServer(port, 'tcp', modbusAddress);
         }
         else{
-          if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
+          if(mode == 'auto' || mode == 'rtu' || mode == 'ascii'){
             return new ModbusSerialServer(port, 'tcp', modbusAddress, mode);
           }
           else{
@@ -89,7 +89,7 @@ module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1
             return new ModbusTcpServer(port, 'udp4', modbusAddress);
           }
           else{
-            if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
+            if(mode == 'auto' || mode == 'rtu' || mode == 'ascii'){
               return new ModbusSerialServer(port, 'udp4', modbusAddress, mode);
             }
             else{

@@ -33,7 +33,7 @@ class SlaveEndPoint extends EventEmitter {
         this.modbus_address = 1;
 
         this.timeout = 1000;
-        this.serialMode = null;
+        
         this.isConnected = false;
         this.maxRetries = 1;
         this.maxRequests = 1
@@ -75,9 +75,9 @@ class SlaveEndPoint extends EventEmitter {
         }
     }
 
-    RemoveRequest(req){
-        this.requestStack.delete(req.id)
-        if(this.requestStack.length == 0){
+    RemoveRequest(req){                
+        this.requestStack.delete(req.id)        
+        if(this.requestStack.size == 0){            
             this.emit('drain');
         }
     }

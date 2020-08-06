@@ -33,9 +33,9 @@ modbusSTCPClient.on('connect', function(id){
   console.log('connection stablished whit ' + id);
 });
 
-modbusSTCPClient.on('indication', function(id, req){
+modbusSTCPClient.on('indication', function(id, aduBuffer){
   console.log('indication send to ' + id);
-	console.log(req.adu.aduBuffer)
+	console.log(aduBuffer)
 });
 
 modbusSTCPClient.on('disconnect', function(id, err){

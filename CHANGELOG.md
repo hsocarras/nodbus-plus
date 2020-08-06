@@ -28,6 +28,7 @@ Add suport for multiples slaves.
 All devices get improve api with request and resonse object
 
 * ### ModbusTCPMaster
+
 Can send multiples request to a modbus slave. Can handle multiples responses due to tcp coalesing
 
 * ### ModbusTCPServer

@@ -39,9 +39,9 @@ modbusTCPClient.on('connect', function(id){
     console.log('connection stablished whit ' + id);
 });
 
-modbusTCPClient.on('indication', function(id, req){
+modbusTCPClient.on('indication', function(id, aduBuffer){
   console.log('indication send to ' + id);
-	console.log(req.adu.aduBuffer)
+	console.log(aduBuffer)
 });
 
 modbusTCPClient.on('disconnect', function(id, err){
