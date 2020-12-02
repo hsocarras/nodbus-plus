@@ -5,9 +5,9 @@
 * @version 0.9.0
 */
 
-const TCPAdu = require('./tcp_adu');
-const RTUAdu = require('./rtu_adu');
-const ASCIIAdu = require('./ascii_adu');
+const TCPAdu = require('./frame/tcp_adu');
+const RTUAdu = require('./frame/rtu_adu');
+const ASCIIAdu = require('./frame/ascii_adu');
 
 class Request {
     constructor(type){

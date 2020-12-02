@@ -6,12 +6,12 @@
 */
 
 
-const ModbusTcpServer = require('./server/m_tcp_server');
-const ModbusTcpClient = require('./client/m_tcp_client');
-const ModbusSerialServer = require('./server/m_serial_server');
-const ModbusSerialClient = require('./client/m_serial_client');
-const ModbusMaster = require('./protocol/modbus_master');
-const ModbusSlave = require('./protocol/modbus_slave');
+const ModbusTcpServer = require('./slave/m_tcp_slave');
+const ModbusTcpClient = require('./master/m_tcp_client');
+const ModbusSerialServer = require('./slave/m_serial_slave');
+const ModbusSerialClient = require('./master/m_serial_client');
+const ModbusMaster = require('./master/modbus_master');
+const ModbusSlave = require('./slave/modbus_slave');
 
 
 /**
@@ -66,7 +66,7 @@ module.exports.ModbusMaster = ModbusMaster;
 */
 module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1, mode = 'tcp'){
 
-  if(typeof port == 'number'){
+  if(typeof port == 'number' || typeof port == 'string'){
     
     switch (tp){
       case 'tcp':
@@ -111,13 +111,19 @@ module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1
             }
           }
         break;
+        case 'serie':
+            return new ModbusSerialServer(port, 'serie', modbusAddress, mode);
+          break
+        case 'serial':
+            return new ModbusSerialServer(port, 'serie', modbusAddress, mode);
+          break
       default:
         throw new RangeError('transport layer not supported')
 
     }
-  }  
+  } 
   else{
-    throw new TypeError('port must be a number')
+    throw new TypeError('port must be a number or string')
   }
 
 }
@@ -129,7 +135,7 @@ module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1
 * @param {string} mode Serial or TCP.
 * @return {Object} Master object
 */
-module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
+module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp', port){
 
   switch(tp){
     case 'tcp':
@@ -155,6 +161,12 @@ module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
         else{
           return new ModbusTcpClient('udp6');
         }
+      break;
+    case 'serial':
+      return new ModbusSerialClient('serie', port);
+      break;
+    case 'serie':
+      return new ModbusSerialClient('serie', port);
       break;
     default:
       throw new RangeError('Transport layer not supported')

@@ -17,10 +17,20 @@ class TcpClient {
     constructor(){
 
         /**
-        *net.socket Object
+        *map Object
+        *Key: slave id, data: socket used to send data to slave device
         * @type {object}
         */
         this.sockets = new Map();
+
+        /**
+         * Reverse lookup table
+         * used to know which slave belong to a ip address, in case of tcp
+         * gateway,  only one socket is used for all serial slave, instead to open a conection
+         * for every slave on tcp gateway because commonly tcp gateway's server don't suport many 
+         * connection
+         */
+        this.ipMap = new Map();
 
         /**
         * prevent than server close de connection for idle time
@@ -65,61 +75,83 @@ class TcpClient {
         let self = this;
         let promise = new Promise(function(resolve, reject){
           try{
-            var conn = net.createConnection(slave.port,slave.ip);
-  
-            //add Slave id to socket object
-            conn.slaveID = slave.id;
-            Object.defineProperty(conn, 'slaveID', {
-              writable: false,
-              enumerable: false,
-              configurable: false
-          } )
+            let ipkey = slave.ip + ':' + slave.port.toString();
 
-            //Set timeout of socket to 1 min
-            conn.setTimeout(60000);
-  
-            //configurando el socket devuelto
-            conn.once('connect',function(){              
-              resolve(conn.slaveID)
-            })
+            //gateway case. To open only one conection for every slave
+            if(self.ipMap.has(ipkey)){
+              //if is already exist add the new slave id to de slaves asociate to that address
+              let slaves = self.ipMap.get(ipkey);
+              let conn = self.sockets.get(slaves[0]);
+              slaves.push(slave.id);
+              self.sockets.set(slave.id, conn);  
+              if(self.isConnected){
+                resolve(ipkey)
+                self.onConnect(slave.id);
+              }
+              
+            }
+            else{
+            
+              var conn = net.createConnection(slave.port,slave.ip);           
+              conn.id = ipkey;
+              self.ipMap.set(conn.id, [slave.id])
 
-            conn.on('connect',function(){
-                 self.sockets.set(slave.id, conn);
-                 self.onConnect(conn.slaveID);
-            });
+              //Set timeout of socket to 1 min
+              conn.setTimeout(60000);
+    
+              //configurando el socket devuelto
+              conn.once('connect',function(){              
+                resolve(ipkey);
+                let slaves = self.ipMap.get(ipkey);
+                slaves.forEach((id)=>{
+                  self.sockets.set(id, conn);
+                  self.onConnect(id);
+                })
+              })
            
   
-            conn.on('data', function(data){                
-                self.onData(conn.slaveID, data);
-            });
-  
-            conn.on('error', function(err){
-              self.onError(conn.slaveID, err)
-            })
+              conn.on('data', function(data){                
+                  self.onData(conn.id, data);
+              });
+    
+              conn.on('error', function(err){
+                self.onError(conn.id, err)
+              })
 
-            conn.once('error', function(err){
-              if(self.sockets.has(conn.slaveID)){
-                return
-              }
-              else{
-                reject(conn.slaveID);
-              }              
-            })
-  
-            conn.on('timeout', function(){                
-                self.onTimeOut(conn.slaveID);
-            })
-  
-            conn.on('end', function(){
-              conn.end();
-              self.onEnd(conn.slaveID);
-            });
-  
-            conn.on('close',function(had_error){
-              let key = conn.slaveID;
-                self.sockets.delete(key);
-                self.onClose(conn.slaveID, had_error);
-            });            
+              conn.once('error', function(err){                
+                //if the connection exits, then was succsesfull establishes previously
+                if(self.ipMap.has(conn.id)){
+                  return
+                }
+                else{
+                  
+                  reject(conn.id);
+                }              
+              })
+    
+              conn.on('timeout', function(){                
+                  self.onTimeOut(conn.id);
+              })
+    
+              conn.on('end', function(){
+                conn.end();
+                self.onEnd(conn.id);
+              });
+    
+              conn.on('close',function(had_error){
+                
+                let keys = self.ipMap.get(conn.id);
+
+                if(keys){
+                  keys.forEach(element => {
+                    self.sockets.delete(element);
+                    self.onClose(element, had_error);
+                  });
+                  self.ipMap.delete(conn.id); 
+                }
+              });  
+
+            }          
             
           }
           catch(e){
@@ -133,15 +165,41 @@ class TcpClient {
 
     Disconnet(id){
       let self = this;
+      let conn = self.sockets.get(id);
+
       if(this.sockets.has(id) == false){
         return Promise.resolve(id);
+      }
+      else if(self.ipMap.get(conn.id).length > 1){
+        //if there are more than one slave asociated to that connection. Gateway case.
+        let socket = self.sockets.get(id);        
+        let listofId = self.ipMap.get(socket.id);
+        let index = listofId.indexOf(id);
+        if(index != -1){
+          listofId.splice(index, 1);
+        }
+       
+        self.sockets.delete(id);
+        return Promise.resolve(id);
+
       }
       else{
         let promise = new Promise(function(resolve, reject){
           let socket = self.sockets.get(id);
-          socket.destroy();
-          self.sockets.delete(id);
-          resolve(id)
+          
+          socket.end();
+          //watchdog for await the FIN packet of the other end of the socket
+          let watchdogTimer = setTimeout(()=>{
+            socket.destroy();
+          }, 5000)
+
+          //listener for the FIN packet of the other end
+          socket.once('end',() => {
+            self.ipMap.delete(socket.id)
+            self.sockets.delete(id);
+            clearTimeout(watchdogTimer);
+            resolve(id)
+          })          
         })
         return promise;
       }        
@@ -158,9 +216,9 @@ class TcpClient {
           let socket = this.sockets.get(id);
             isSuccesfull = socket.write(data, 'utf8', function(){
               if(self.onWrite){
-                self.onWrite(id, request);
-                request.StartTimer();
+                self.onWrite(id, request);                
               }
+              request.StartTimer();
             });            
 
             return isSuccesfull;

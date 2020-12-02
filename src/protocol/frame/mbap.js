@@ -49,9 +49,13 @@ class MBAP {
         this.protocolID = this.mbapBuffer.readUInt16BE(2);
         this.length = this.mbapBuffer.readUInt16BE(4);
         this.unitID = this.mbapBuffer.readUInt8(6);
+
+        if(this.protocolID != 0){
+          throw new Error('Protocol id in Modbus TCP Header not suported');
+        }
       }
-      else{
-        throw new Error('wrong mbap buffer');
+      else{        
+        throw new Error('Wrong Header Length');
       }
   }
 

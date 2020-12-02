@@ -35,22 +35,14 @@ class SlaveEndPoint extends EventEmitter {
         this.timeout = 1000;
         
         this.isConnected = false;
-        this.maxRetries = 1;
-        this.maxRequests = 1
+        this.maxRetries = 0;
         
-        this.requestStack = new Map();
 
         
         
     }
 
-    get isMaxRequest(){        
-        if(this.maxRequests > this.requestStack.size){
-            return false
-        }
-        else return true
-    }
-    
+        
     get address(){
         return this.modbus_address;
     }
@@ -63,30 +55,6 @@ class SlaveEndPoint extends EventEmitter {
             throw new RangeError('modbus address number 1 - 247')
         }
     }
-   
-    AddRequest(req){
-        if(this.isMaxRequest == false){
-            this.requestStack.set(req.id, req);
-            return true
-        }
-        else{
-            this.emit('full');          
-            return false
-        }
-    }
-
-    RemoveRequest(req){                
-        this.requestStack.delete(req.id)        
-        if(this.requestStack.size == 0){            
-            this.emit('drain');
-        }
-    }
-
-    SearchRequest(id){
-               
-        return this.requestStack.get(id);
-    }
-
 
 }
 

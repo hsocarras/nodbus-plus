@@ -14,16 +14,16 @@ modbusTCPClient.AddSlave ('plc2', {port:500, ip:'127.0.0.1', timeout:100, addres
 //Configurando todos los listeners
 
 modbusTCPClient.on('data', function(id, data){
-    console.log('Data from' + id + ': \n');
-    console.log(data);
+    console.log('Data from ' + id + ': \n');
+    //console.log(data);
 })
-/*
-modbusTCPClient.on('reponse', function(resp){
-  console.log('response: ' + resp.id);  
+
+modbusTCPClient.on('response', function(id, resp){
+  console.log('response from ' + id + ': ' + resp);  
 })
-*/
+
 modbusTCPClient.on('timeout', function(id, req){
-    console.log(id+':timeout on ' + req.id);
+    console.log(id +': timeout on request ' + req.id);
 });
 
 modbusTCPClient.on('error', function(id, err){
@@ -71,7 +71,7 @@ function Test(){
     modbusTCPClient.ReadCoilStatus('plc5', 0, 8);
   }, 100);
 
-
+  
   //provando funcion 2
   setTimeout(function(){
     console.log('leyendo inputs de la 3 a la 8');
@@ -158,7 +158,7 @@ setTimeout(function(){
   console.log(modbusTCPClient.isSlaveReady('plc1'));
   prom = modbusTCPClient.Stop('plc1');
   prom.then(function(id){
-    console.log(`isconected from ${id}`);
+    console.log(`disconected from ${id}`);
   })
 },5000);
 

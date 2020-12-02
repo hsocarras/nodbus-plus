@@ -5,12 +5,12 @@
 * @version 0.8.0
 */
 
-const ModbusMaster = require('../protocol/modbus_master');
+const ModbusMaster = require('./modbus_master');
 const TcpClient = require('../net/tcpclient');
 const UdpClient = require('../net/udpclient');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
-const Slave = require('../protocol/slave_endpoint');
+const Slave = require('./endpoint/tcp_endpoint');
 
 
 /**
@@ -51,10 +51,13 @@ class ModbusTCPClient extends  ModbusMaster {
           default:
             this.netClient = new TcpClient();
         }
+
+        //map indicating wich slaves belong to a given tcp socket
+        this.connTable = this.netClient.ipMap;
         
 
         //asociando el evento data del netClient con la funcion ProcessResponse
-        this.netClient.onData = this.ProcessResponse.bind(this);
+        this.netClient.onData = this.ProcessResponse.bind(this);        
 
         /**
         * Emit connect and ready events
@@ -158,14 +161,13 @@ class ModbusTCPClient extends  ModbusMaster {
     AddSlave(id, slave){
       
       let slaveDevice = new Slave();
-      slaveDevice.id = id;
-      slaveDevice.type = 'tcp';      
+      slaveDevice.id = id;          
       slaveDevice.address = slave.address || 247;      
       slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
       slaveDevice.ip = slave.ip || '127.0.0.1';
       slaveDevice.port = slave.port || 502;     
-      slaveDevice.maxRetries = slave.maxRetries || 1;  
-      slaveDevice.maxRequests = 16; 
+      slaveDevice.maxRetries = slave.maxRetries || 0;  
+      slaveDevice.maxRequests = 16;
 
       //Emiting the idle event
       let EmitIdle = function(){
@@ -207,7 +209,7 @@ class ModbusTCPClient extends  ModbusMaster {
     * @fires ModbusTCPClient#modbus_exception {object}
     * @fires ModbusTCPClient#error {object}
     */
-    ParseResponse(slave, aduBuffer) {
+    ParseResponse(aduBuffer) {
       
       let resp = new Response('tcp');
       resp.adu.aduBuffer = aduBuffer;
@@ -216,22 +218,7 @@ class ModbusTCPClient extends  ModbusMaster {
         
         resp.adu.ParseBuffer();
         resp.id = resp.adu.mbap.transactionID;
-        resp.connectionID = slave.id;
-
-        //chekeo el transactionID
-        if(slave.SearchRequest(resp.id) == undefined){
-          this.emit('modbus_exception', slave.id, "Wrong Transaction ID");            
-            return null;
-        }
-        else{ 
-          if((aduBuffer.length - 6) != resp.adu.mbap.length) {
-            this.emit('modbus_exception',slave.id,  "Header ByteCount Mismatch");
-            return null;
-          }
-          else {
-            return resp;
-          }
-        }
+        return resp;
         
       }
       catch(err){
@@ -239,6 +226,39 @@ class ModbusTCPClient extends  ModbusMaster {
       }
 
     }
+
+    /**
+     * Split the input buffer in several indication buffer baset on length property
+     * of modbus tcp header. The goal of this funcion is suport several modbus indication
+     * on same tcp frame
+     * @param {Buffer Object} dataFrame 
+     * @return {Buffer array}
+     */
+    SplitTCPFrame(dataFrame){
+      //get de first tcp header length
+      let indicationsList = [];
+      let expectedlength = dataFrame.readUInt16BE(4);
+      let indication = Buffer.alloc(expectedlength + 6);
+
+      if(dataFrame.length <= expectedlength + 6){
+        dataFrame.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        return indicationsList;
+      }
+      else{
+        dataFrame.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        let otherIndication = dataFrame.slice(expectedlength + 6);
+        let other = this.SplitTCPFrame(otherIndication);
+        indicationsList = indicationsList.concat(other)
+        return indicationsList;
+      }      
+    }
+
+    _GetResponseStack(rawResp){
+      return this.SplitTCPFrame(rawResp);
+    }
+
 
 	  /**
     *Stablish connection to servers
@@ -248,7 +268,9 @@ class ModbusTCPClient extends  ModbusMaster {
       let successPromise;
 
       if(id){
+
         let slave = self.slaveList.get(id);
+
         if(slave == undefined){
           return Promise.reject(id);
         }
@@ -256,8 +278,9 @@ class ModbusTCPClient extends  ModbusMaster {
           return Promise.resolve(id);
         }
         else{
+
           successPromise = self.netClient.Connect(slave);
-          successPromise.then(function(){
+          successPromise.then(function(id){
              /**
               * ready event.
               * @event ModbusTCPClient#ready
@@ -272,7 +295,7 @@ class ModbusTCPClient extends  ModbusMaster {
         this.slaveList.forEach(function(slave, key){          
           let promise;                    
           promise = self.netClient.Connect(slave);
-          promiseList.push(promise);
+          promiseList.push(promise);          
         })
         successPromise = Promise.all(promiseList);        
         successPromise.then(function(){
@@ -280,7 +303,10 @@ class ModbusTCPClient extends  ModbusMaster {
            * ready event.
            * @event ModbusTCPClient#ready
          */
+        
          self.emit('ready');
+       }, function(id){
+
        })
         return successPromise;
       }
@@ -319,25 +345,24 @@ class ModbusTCPClient extends  ModbusMaster {
     * @return {boolean} true if succes, false if not connected, or waiting for response
     */
    ReadCoilStatus(id, startCoil = 0, coilQuantity = 1){
-
+    
     if(this.slaveList.has(id) == false){
+      
       return false
     }
 
     let slave = this.slaveList.get(id);
     
     //if is enable and there are no active request
-     if(slave.isConnected && slave.isMaxRequest == false){            
-          let isSuccesfull
+     if(slave.isConnected && slave.isMaxRequest == false){   
+          
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(1, startCoil, coilQuantity);
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
-          }
-          else{
-            isSuccesfull = false;
-          }
+          }          
           return isSuccesfull;
       }
       else{
@@ -361,16 +386,13 @@ class ModbusTCPClient extends  ModbusMaster {
 
        if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false
           var pdu = this.CreateRequestPDU(2, startInput, inputQuantity);
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
           }
-          else{
-            isSuccesfull = false;
-          }       
           
           return isSuccesfull;
       }
@@ -396,15 +418,12 @@ class ModbusTCPClient extends  ModbusMaster {
 
        if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(3, startRegister, registerQuantity);
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
-          }
-          else{
-            isSuccesfull = false;
           }
           
           return isSuccesfull;
@@ -431,17 +450,14 @@ class ModbusTCPClient extends  ModbusMaster {
 
        if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(4, startRegister, registerQuantity);
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
           }
-          else{
-            isSuccesfull = false;
-          }
-          
+                    
           return isSuccesfull;
       }
       else{
@@ -471,17 +487,14 @@ class ModbusTCPClient extends  ModbusMaster {
     }
       if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);            
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
           }
-          else{
-            isSuccesfull = false;
-          }
-          
+                    
           return isSuccesfull;
       }
       else{
@@ -513,17 +526,14 @@ class ModbusTCPClient extends  ModbusMaster {
 
     if(slave.isConnected && slave.isMaxRequest == false){
         //si estoy conectado
-        let isSuccesfull;
+        let isSuccesfull = false;
         var pdu = this.CreateRequestPDU(6, startRegister, 1, val);
         var req = this.CreateRequest(id, pdu);
         let isRequestStacked = slave.AddRequest(req);            
         if(isRequestStacked){
           isSuccesfull = this.netClient.Write(id, req);
         }
-        else{
-          isSuccesfull = false;
-        }
-        
+                
         return isSuccesfull;
     }
     else{
@@ -544,9 +554,7 @@ class ModbusTCPClient extends  ModbusMaster {
     }
 
     let coilQuantity = forceData.length;
-    let valueBuffer = Buffer.alloc(Math.floor((coilQuantity - 1)/8)+1);
-    let byteTemp = 0x00;
-    let offset = 0;
+    let valueBuffer = Buffer.alloc(Math.floor((coilQuantity - 1)/8)+1);    
     let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
     let slave = this.slaveList.get(id);
 
@@ -561,17 +569,14 @@ class ModbusTCPClient extends  ModbusMaster {
 
        if(slave.isConnected && slave.isMaxRequest == false){
           //si estoy conectado
-          let isSuccesfull
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(15, startCoil, coilQuantity, valueBuffer);
           var req = this.CreateRequest(id, pdu);
           let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
           }
-          else{
-            isSuccesfull = false;
-          }
-          
+                    
           return isSuccesfull;
       }
       else{
@@ -626,17 +631,14 @@ class ModbusTCPClient extends  ModbusMaster {
 
      if(slave.isConnected && slave.isMaxRequest == false){
         //si estoy conectado
-        let isSuccesfull;
+        let isSuccesfull = false;
         var pdu = this.CreateRequestPDU(16, startRegister, registerQuantity, valueBuffer);
         var req = this.CreateRequest(id, pdu);
         let isRequestStacked = slave.AddRequest(req);            
           if(isRequestStacked){
             isSuccesfull = this.netClient.Write(id, req);
           }
-          else{
-            isSuccesfull = false;
-          }
-        
+
         return isSuccesfull;
     }
     else{
@@ -691,15 +693,12 @@ class ModbusTCPClient extends  ModbusMaster {
 
   if(slave.isConnected && slave.isMaxRequest == false){
       //si estoy conectado
-      let isSuccesfull;
+      let isSuccesfull = false;
       var pdu = this.CreateRequestPDU(22, startRegister, 1, val);
       var req = this.CreateRequest(id, pdu);
       let isRequestStacked = slave.AddRequest(req);            
       if(isRequestStacked){
         isSuccesfull = this.netClient.Write(id, req);
-      }
-      else{
-        isSuccesfull = false;
       }
       
       return isSuccesfull;

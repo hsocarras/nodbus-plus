@@ -6,9 +6,9 @@
 */
 
 
-const ModbusDevice = require('./modbus_device');
-const BooleanRegister = require('./boolean_register');
-const WordRegister = require('./word_register');
+const ModbusDevice = require('../protocol/modbus_device');
+const BooleanRegister = require('../protocol/boolean_register');
+const WordRegister = require('../protocol/word_register');
 
 
 /**

@@ -7,7 +7,7 @@
 *@param objeto pdu
 */
 
-var PDU = require('../pdu');
+var PDU = require('../../protocol/frame/pdu');
 
 var PresetMultipleRegister = function (pdu) {
 

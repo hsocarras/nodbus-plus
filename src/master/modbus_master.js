@@ -6,7 +6,7 @@
 */
 
 
-const ModbusDevice = require('./modbus_device');
+const ModbusDevice = require('../protocol/modbus_device');
 
 
 /**
@@ -213,14 +213,15 @@ class ModbusMaster extends ModbusDevice {
     /**
     * extract data for a slave response
     * @param {string} id reference of device.
-    * @param {Buffer} respADU
+    * @param {Buffer} rawResp
     * @fires ModbusMaster#raw_data {buffer} response frame
     * @fires ModbusMaster#data {object} map object whit pair register:values
     * @fires ModbusMaster#error {object}
     */
-    ProcessResponse(id, respADU){
+    ProcessResponse(id, rawResp){
 
-      let slave = this.slaveList.get(id);
+      let slavesIDs = this.connTable.get(id)
+      let slave = null;
       var self = this;
       
       /**
@@ -228,36 +229,44 @@ class ModbusMaster extends ModbusDevice {
      * @event ModbusMaster#raw_data
      * @type {object}
      */
-      this.emit('raw_data',id, respADU);
+      this.emit('raw_data',id, rawResp);
       var respStack = [];
-      if(slave.type == 'tcp'){
-        var respStack = self.SplitTCPFrame(respADU)
-      }
-      else{
-        respStack[0]= respADU;
-      }      
+      
+      // a tcp modus protocol can receive several modbus response in the same tcp package      
+      respStack = self._GetResponseStack(rawResp);
+      
       
       respStack.forEach(function(element, index, array){
-              
-        if(slave.requestStack.size > 0){ 
-                  
-          try{            
-            var resp = self.ParseResponse(slave, element); 
-            if(slave.type == 'tcp'){
-              var req = slave.SearchRequest(resp.id);
+        
+          try{
+            
+            var resp = self.ParseResponse(element);
+            
+            if(slavesIDs.length == 1){
+              slave = self.slaveList.get(slavesIDs[0]);
             }
             else{
-              req = slave.SearchRequest(self.reqCounter-1);
+              let respModbusAddress = resp.adu.adrress;
+              slavesIDs.forEach(function(id){                
+                if(respModbusAddress == self.slaveList.get(id).address){
+                  slave = self.slaveList.get(id);
+                }
+              })
+
             }
             
             
-            if(resp){              
+            if(resp != null & slave != null){ 
+              
+              var req = slave.SearchRequest(resp.id);             
               resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-              resp.timestamp = Date.now();
+              resp.connectionID = slave.id
+              resp.timestamp = Date.now();                       
               req.StopTimer();
 
               //in exception case
               if(resp.data.has('exception')){
+                
                 switch(resp.data.get('exception')){
                   case 1:
                     this.emit('modbus_exception', resp.connectionID, 'Illegal Function');  
@@ -307,6 +316,7 @@ class ModbusMaster extends ModbusDevice {
                 }  
               }
               else{
+                
                 /**
                 * data event.
                 * @event ModbusMaster#data
@@ -319,7 +329,7 @@ class ModbusMaster extends ModbusDevice {
                 * @event ModbusMaster#data
                 * @type {object}
                 */
-                self.emit('response', resp);
+                self.emit('response',slave.id, resp);
     
                 //elimino la query activa.
                 self._currentRequest = null; 
@@ -331,7 +341,7 @@ class ModbusMaster extends ModbusDevice {
           catch (err){                   
             self.emit('error',id, err);
           }
-        }
+        
       })  
     }
 

@@ -1,15 +1,16 @@
 /*
 *@author Hector E. Socarras
 *@brief
-*Se implementa la funcion 0x04 del protocolo de modbus.
+*Se implementa la funcion 0x03 del protocolo de modbus.
 *Debuelve un objeto pdu con el valor de los registros solicitados.
 *
 *@param objeto pdu
 */
 
-var PDU = require('../pdu');
+var PDU = require('../../protocol/frame/pdu');
 
-var ReadInputRegister = function (pdu) {
+
+var ReadHoldingRegister = function (pdu) {
 
     var respPDU = new PDU();
 
@@ -17,7 +18,7 @@ var ReadInputRegister = function (pdu) {
     var initRegister = pdu.modbus_data.readUInt16BE(0);
 
     //Verificando q el registro solicitado exista
-    if(initRegister >= this.inputRegisters.size){
+    if(initRegister >= this.holdingRegisters.size){
         //Creando exception 0x02
         respPDU.modbus_function = pdu.modbus_function | 0x80;
         respPDU.modbus_data[0] = 0x02;
@@ -33,11 +34,11 @@ var ReadInputRegister = function (pdu) {
 
 
         respPDU.modbus_data = Buffer.alloc(byte_count+1);
-        respPDU.modbus_function = 0x04;
+        respPDU.modbus_function = 0x03;
         respPDU.modbus_data[0]=byte_count;
 
         for(var i = 0; i < numberOfRegisters; i++){
-          this.inputRegisters.EncodeRegister(initRegister + i).copy(respPDU.modbus_data, 1 + 2*i)
+          this.holdingRegisters.EncodeRegister(initRegister + i).copy(respPDU.modbus_data, 1 + 2*i)
         }
 
 
@@ -48,5 +49,4 @@ var ReadInputRegister = function (pdu) {
 
 }
 
-
-module.exports = ReadInputRegister;
+module.exports = ReadHoldingRegister;

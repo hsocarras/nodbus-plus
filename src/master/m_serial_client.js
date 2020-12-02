@@ -5,12 +5,13 @@
 * @version 0.6.0
 */
 
-const ModbusMaster = require('../protocol/modbus_master');
+const ModbusMaster = require('./modbus_master');
 const TcpClient = require('../net/tcpclient');
 const UdpClient = require('../net/udpclient');
+const SerialClient = require('../net/serialport_client');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
-const Slave = require('../protocol/slave_endpoint');
+const Slave = require('./endpoint/serial_endpoint');
 
 
 /**
@@ -19,9 +20,9 @@ const Slave = require('../protocol/slave_endpoint');
 */
 class ModbusSerialClient extends  ModbusMaster {
   /**
-  * Create a Modbus Serial over Tcp Client.
+  * Create a Modbus Serial.
   */
-    constructor(tp = 'tcp'){
+    constructor(tp = 'tcp', port){
         super();
 
         var self = this;
@@ -45,12 +46,22 @@ class ModbusSerialClient extends  ModbusMaster {
         case 'udp6':
           this.netClient = new UdpClient('udp6');
           break;
+        case 'serial':
+          this.netClient = new SerialClient(port);
+          break;
+        case 'serie':
+          this.netClient = new SerialClient(port);
+          break;
         default:
           this.netClient = new TcpClient();
       }
 
+      //map indicating wich slaves belong to a given tcp socket
+      this.connTable = this.netClient.ipMap;
+
         //asociando el evento data del netClient con la funcion ProcessResponse
         this.netClient.onData = this.ProcessResponse.bind(this);
+
 
         /**
         * Emit connect and ready events
@@ -67,8 +78,9 @@ class ModbusSerialClient extends  ModbusMaster {
         * @fires ModbusSerialClient#disconnect {object}
         */
         function EmitDisconnect(id, had_error){
+          
           let slave = this.slaveList.get(id);
-
+          
             /**
            * disconnect event.
            * @event ModbusSerialClient#disconnect
@@ -135,15 +147,13 @@ class ModbusSerialClient extends  ModbusMaster {
      * @param {Object} slave: Object {ip, port, timeout, address}
      */
     AddSlave(id, slave){
-      let slaveDevice = new Slave();
-      slaveDevice.id = id;
-      slaveDevice.type = slave.type || 'rtu';
-      slaveDevice.address = slave.address || 247;  
-      
+      let slaveDevice = new Slave(slave.type);
+      slaveDevice.id = id;      
+      slaveDevice.address = slave.address || 247;
       slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
       slaveDevice.ip = slave.ip || '127.0.0.1';      
       slaveDevice.port = slave.port || 502;     
-      slaveDevice.maxRetries = slave.maxRetries || 1;  
+      slaveDevice.maxRetries = slave.maxRetries || 0;  
       slaveDevice.maxRequests = 1; 
       
 
@@ -184,16 +194,21 @@ class ModbusSerialClient extends  ModbusMaster {
     * @fires ModbusSerialClient#modbus_exception {object}
     * @fires ModbusSerialClient#error {object}
     */
-    ParseResponse(slave, aduBuffer) {
+    ParseResponse(aduBuffer) {
 
-      let resp = new Response(slave.type);
+      let type = 'rtu';
+
+      if(Response.isAsciiAdu(aduBuffer)){
+        type = 'ascii';
+      }
+      
+      let resp = new Response(type);
       resp.adu.aduBuffer = aduBuffer;
       
       
       try{
         resp.adu.ParseBuffer();        
         resp.id = this.resCounter;        
-        resp.connectionID = slave.id;
         return resp;
       }
       catch(err){        
@@ -207,6 +222,9 @@ class ModbusSerialClient extends  ModbusMaster {
 
     }
 
+    _GetResponseStack(rawResp){
+      return [rawResp];
+    }
 
     Start(id){
       
@@ -215,10 +233,10 @@ class ModbusSerialClient extends  ModbusMaster {
 
       if(id){
         let slave = self.slaveList.get(id);
-        if(slave.isReady){
+        if(slave.isReady){          
           return Promise.resolve(id);
         }
-        else{          
+        else{             
           return self.netClient.Connect(slave);
         }
       }
@@ -277,13 +295,13 @@ class ModbusSerialClient extends  ModbusMaster {
     
     //if is enable and there are no active request
      if(slave.isConnected && this._currentRequest == null){            
-          let isSuccesfull
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(1, startCoil, coilQuantity);
           var req = this.CreateRequest(id, pdu);
-          slave.AddRequest(req); 
-          this._currentRequest = req;           
-          
-          isSuccesfull = this.netClient.Write(id, req);
+          if(slave.AddRequest(req)){
+            this._currentRequest = req;
+            isSuccesfull = this.netClient.Write(id, req);
+          }
           
           return isSuccesfull;
       }
@@ -311,11 +329,10 @@ class ModbusSerialClient extends  ModbusMaster {
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(2, startInput, inputQuantity);
             var req = this.CreateRequest(id, pdu);
-            slave.AddRequest(req);       
-            this._currentRequest = req     
-            
-            isSuccesfull = this.netClient.Write(id, req);
-                 
+            if(slave.AddRequest(req)){              
+              this._currentRequest = req;
+              isSuccesfull = this.netClient.Write(id, req);
+            }    
             
             return isSuccesfull;
         }
@@ -344,9 +361,10 @@ class ModbusSerialClient extends  ModbusMaster {
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(3, startRegister, registerQuantity);
             var req = this.CreateRequest(id, pdu);
-            slave.AddRequest(req);            
-            this._currentRequest = null
-            isSuccesfull = this.netClient.Write(id, req);
+            if(slave.AddRequest(req)){
+              this._currentRequest = req;
+              isSuccesfull = this.netClient.Write(id, req);
+            }
             
             return isSuccesfull;
         }
@@ -375,10 +393,10 @@ class ModbusSerialClient extends  ModbusMaster {
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(4, startRegister, registerQuantity);
             var req = this.CreateRequest(id, pdu);
-            let isRequestStacked = slave.AddRequest(req); 
-            this._currentRequest = req;           
-            
-            isSuccesfull = this.netClient.Write(id, req);
+            if(slave.AddRequest(req)){
+              this._currentRequest = req;
+              isSuccesfull = this.netClient.Write(id, req);
+            }
                         
             return isSuccesfull;
         }
@@ -412,10 +430,10 @@ class ModbusSerialClient extends  ModbusMaster {
             let isSuccesfull;
             var pdu = this.CreateRequestPDU(5, startCoil, 1, bufferValue);            
             var req = this.CreateRequest(id, pdu);
-            slave.AddRequest(req);   
-            this._currentRequest = req;         
-            
-            isSuccesfull = this.netClient.Write(id, req);
+            if(slave.AddRequest(req)){
+              this._currentRequest = req;
+              isSuccesfull = this.netClient.Write(id, req);
+            }
            
             return isSuccesfull;
         }
@@ -448,13 +466,13 @@ class ModbusSerialClient extends  ModbusMaster {
 
       if(slave.isConnected && this._currentRequest == null){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(6, startRegister, 1, val);
           var req = this.CreateRequest(id, pdu);
-          slave.AddRequest(req);  
-          this._currentRequest = req;          
-          
-          isSuccesfull = this.netClient.Write(id, req);
+          if(slave.AddRequest(req)){
+            this._currentRequest = req;
+            isSuccesfull = this.netClient.Write(id, req);
+          }
                     
           return isSuccesfull;
       }
@@ -493,13 +511,13 @@ class ModbusSerialClient extends  ModbusMaster {
 
         if(slave.isConnected && this._currentRequest == null){
             //si estoy conectado
-            let isSuccesfull
+            let isSuccesfull = false;
             var pdu = this.CreateRequestPDU(15, startCoil, coilQuantity, valueBuffer);
             var req = this.CreateRequest(id, pdu);
-            slave.AddRequest(req);   
-            this._currentRequest = req;         
-            
-            isSuccesfull = this.netClient.Write(id, req);            
+            if(slave.AddRequest(req)){
+              this._currentRequest = req;
+              isSuccesfull = this.netClient.Write(id, req);
+            }         
             
             return isSuccesfull;
         }
@@ -555,13 +573,13 @@ class ModbusSerialClient extends  ModbusMaster {
 
       if(slave.isConnected && this._currentRequest == null){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(16, startRegister, registerQuantity, valueBuffer);
           var req = this.CreateRequest(id, pdu);
-          slave.AddRequest(req);   
-          this._currentRequest = req;         
-            
-          isSuccesfull = this.netClient.Write(id, req);
+          if(slave.AddRequest(req)){
+            this._currentRequest = req;
+            isSuccesfull = this.netClient.Write(id, req);
+          }
             
           return isSuccesfull;
       }
@@ -617,14 +635,13 @@ class ModbusSerialClient extends  ModbusMaster {
 
       if(slave.isConnected && this._currentRequest == null){
           //si estoy conectado
-          let isSuccesfull;
+          let isSuccesfull = false;
           var pdu = this.CreateRequestPDU(22, startRegister, 1, val);
           var req = this.CreateRequest(id, pdu);
-          slave.AddRequest(req);
-          this._currentRequest = req            
-          
-          isSuccesfull = this.netClient.Write(id, req);
-          
+          if(slave.AddRequest(req)){
+            this._currentRequest = req;
+            isSuccesfull = this.netClient.Write(id, req);
+          }
           
           return isSuccesfull;
       }

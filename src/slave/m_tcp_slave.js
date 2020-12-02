@@ -1,33 +1,30 @@
 /**
-* Modbus Serial encapsulated on Tcp server module.
-* @module server/m_stcp_server.
+* Modbus Tcp server module.
+* @module server/m_tcp_server.
 * @author Hector E. Socarras.
 * @version 0.4.0
 */
 
-const ModbusSlave = require('../protocol/modbus_slave');
+const ModbusSlave = require('./modbus_slave');
 const tcpServer = require('../net/tcpserver');
 const udpServer = require('../net/udpserver');
 const Request = require('../protocol/request');
 const Response = require('../protocol/response');
-const ASCII_ADU = require('../protocol/ascii_adu');
+
+
 
 /**
- * Class representing a modbus serial over tcp server.
+ * Class representing a modbus tcp server.
  * @extends ModbusSlave
 */
-class ModbusSerialServer extends ModbusSlave {
+class ModbusTCPServer extends ModbusSlave {
   /**
   * Create a Modbus Tcp Server.
   * @param {number} p Port to listen.
   * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
-  * @param {number} modbusAddress. address based on modbus protocol
-  * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'auto' (default) both mode
   */
-    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'auto'){
+    constructor(p=502, tp = 'tcp', modbusAddress = 1){
       super(modbusAddress);
-
-      var self = this;
 
       var transportProtocol
       if(typeof tp == 'string'){
@@ -37,11 +34,14 @@ class ModbusSerialServer extends ModbusSlave {
         throw new TypeError('transport protocol should be a string')
       }
 
+      var self = this;
+
       /**
       * network layer
       * @type {object}
       */
-      switch(transportProtocol){
+     switch(transportProtocol){
+
         case 'udp4':
           this.netServer = new udpServer(p, 'udp4');
           break;
@@ -50,10 +50,10 @@ class ModbusSerialServer extends ModbusSlave {
           break;
         default:
             this.netServer = new tcpServer(p);
-      }
+     }
       
-      //Adding listeners to netServer events
 
+      //Adding listeners to netServer events
       this.netServer.onData = this.ProcessModbusIndication.bind(this);
 
       /**
@@ -85,6 +85,7 @@ class ModbusSerialServer extends ModbusSlave {
        */
           this.emit('connection-closed', socket)
       }.bind(this);
+
       
       /**
       * Event listening
@@ -92,10 +93,10 @@ class ModbusSerialServer extends ModbusSlave {
       * @see https://nodejs.org/api/net.html
       * @fires ModbusnetServer#listening
       */
-      this.netServer.onListening  = function EmitListening(port){
+      this.netServer.onListening  = function EmitListening(){
         /**
        * listening event.
-       * @event ModbusnetServer#listening
+       * @event ModbusNetServer#listening
        * @type {number}
        */
         this.emit('listening',self.port);
@@ -110,7 +111,7 @@ class ModbusSerialServer extends ModbusSlave {
       this.netServer.onServerClose = function EmitClosed(){
         /**
        * closed event.
-       * @event ModbusnetServer#closed
+       * @event ModbusNetServer#closed
        */
         this.emit('closed');
       }.bind(this);
@@ -118,12 +119,12 @@ class ModbusSerialServer extends ModbusSlave {
       /**
       * Event error
       * Emited when error hapen
-      * @fires ModbusnetServer#error
+      * @fires ModbusNetServer#error
       */
       this.netServer.onError = function EmitError(err){
         /**
        * error event.
-       * @event ModbusnetServer#error
+       * @event ModbusNetServer#error
        */
         this.emit('error', err);
       }.bind(this);
@@ -145,7 +146,7 @@ class ModbusSerialServer extends ModbusSlave {
       /**
       * Event client disconnect
       * Emited when client send fin packet
-      * @fires ModbusnetServer#client-disconnect
+      * @fires ModbusNetServer#client-disconnect
       */
       this.netServer.onClientEnd = function EmitClientDisconnect(socket){
         /**
@@ -153,20 +154,14 @@ class ModbusSerialServer extends ModbusSlave {
        * @event ModbusnetServer#client-disconnect
        */
         this.emit('client-disconnect',socket);
-      }       
-
+      }
+      
       /**
-      * mode
-      * @type {string}
-      */
-      this.mode = mode;
-
-      /**
-       * current req 
-       * If another req arrive while the current req is not null, exepction 5 should be sended
-       * @type {Array}
-       */
-      this.currentRequest = null;  
+      * max client
+      * @type {number}
+      * @public
+      */         
+      this.maxConnections = 12;
 
       //Sellando el netServer
       Object.defineProperty(self, 'netServer', {
@@ -176,22 +171,22 @@ class ModbusSerialServer extends ModbusSlave {
       })
       
     }
+    
+    /**
+      * Getter listening status
+      */
+    get isListening(){
+      return this.netServer.isListening;
+    }
 
     get maxConnections(){
       return this.netServer.maxConnections;
     }
 
     set maxConnections(max){
-      this.netServer.maxConnections = 1;
+      this.netServer.maxConnections = max;
     }
-
-    /**
-      * Getter listening status
-      */
-     get isListening(){
-      return this.netServer.isListening;
-    }
-
+    
     get port(){
       return this.netServer.port
     }
@@ -216,114 +211,81 @@ class ModbusSerialServer extends ModbusSlave {
 
     /**
     * Function to execute when data are recive
-    * @param {Buffer} aduBuffer frame received by server
+    * @param {Buffer} dataFrame frame received by server
     * @return {Buffer} response;
     * @fires ModbusnetServer#indication {Buffer}
     */
     ProcessModbusIndication(connectionID, dataFrame){
-
       var self = this;
       let socket = this.netServer.activeConnections[connectionID];
+      
 
       /**
      * indication event.
      * @event ModbusnetServer#indication
      */
       this.emit('indication', socket, dataFrame);
+      let indicationStack = self.SplitTCPFrame(dataFrame)
 
-      let req;
+      indicationStack.forEach(function(element, index, array){
+        let req = new Request('tcp');
+        req.adu.aduBuffer = element;
+        req.slaveID = self.address;
 
-      if(this.mode == 'auto'){        
-          (ASCII_ADU.isAsciiAdu(dataFrame)) ? req = new Request('ascii') : req = new Request('rtu');;
-      }
-      else{
-        req = new Request(self.mode);
-      }
-
-      req.adu.aduBuffer = dataFrame;
-      req.slaveID = self.address;
-
-      try{
-        req.adu.ParseBuffer();
-      }
-      catch(e){
-        if(typeof e == 'string') {
-          this.emit('modbus_exception', req.slaveID, "CHEKSUM ERROR");
+        try {
+          req.adu.ParseBuffer();
         }
-        else{
+        catch(e){
           self.emit('error', e);
+          return
         }
-        return
-      }
-      
-      
 
-        //checking adu
-        if (this.AnalizeADU(req.adu)){
-                     
-            return;
-        }
-        else{          
-            //add req to request stack
-            self.reqCounter++;     
-            
-            req.id = self.reqCounter;
-            self.emit('request', socket, req);
+        req.id = req.adu.mbap.transactionID;
+        self.emit('request', socket, req);
+
+          if(self.AnalizeADU(req.adu)){
+            return
+          }
+          else{
+
+            //add reqest counter
+            self.reqCounter++;
 
             //creando la respuesta
-            let resp = new Response(req.type);
+            let resp = new Response('tcp');
             resp.connectionID = connectionID;
-            resp.adu.address = self.address;
+            resp.adu.address = req.adu.mbap.unitID;
+            resp.adu.transactionCounter = req.adu.mbap.transactionID;
+            resp.id = req.id;
 
-            if(this.currentRequest == null){
-              //if requestStack is not full
-
-              self.currentRequest = req;             
-
-              try{                
-                resp.adu.pdu = self.BuildResponse(req.adu.pdu);  
-                
-              }
-              catch(e){
-                //slave failure exeption
-                self.emit('error', e)
-                resp.adu.pdu = self.CreatePDU();
-                resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
-                resp.adu.pdu.modbus_data[0] = 4;
+            try{
+              resp.adu.pdu = self.BuildResponse(req.adu.pdu);              
+            }
+            catch(e){
+               //slave failure exeption
+               self.emit('error', e)
+               resp.adu.pdu = self.CreatePDU();
+               resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
+               resp.adu.pdu.modbus_data[0] = 4;
+               resp.adu.MakeBuffer();
+               this.emit('modbus_exception', 'Slave Device Failure');
+            }
+            finally{
+              if(resp.adu.pdu != null){
                 resp.adu.MakeBuffer();
-                this.emit('modbus_exception', 'Slave Device Failure');
-              }
-              finally{
-                //response
-                if(resp.adu.pdu != null){ 
-                  resp.adu.MakeBuffer();
-                  if(req.address != 0){
-                    resp.timeStamp = Date.now();
-                    resp.id = self.resCounter;
-                    resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                    self.resCounter++; 
-                    //removing req from req stak
-                    self.currentRequest = null;
-                    self.netServer.Write(connectionID, resp); 
+                if(req.address != 0){
+                  resp.timeStamp = Date.now();
+                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+                  self.resCounter++;
+                  
+                  self.netServer.Write(connectionID, resp); 
                     
-                  }
                 }
               }
             }
-            else{
-              //response modbus exeption 6 slave Busy
-              resp.adu.pdu = this.CreatePDU();
-              resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80
-              resp.adu.pdu.modbus_data[0] = 6;
-              resp.adu.MakeBuffer();
-              resp.timeStamp = Date.now();
-              resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-              self.netServer.Write(connectionID, resp); 
-            }
-
-        }
+          }               
+      })    
     }
-
 
     /**
     * Make the response modbus tcp header
@@ -332,17 +294,52 @@ class ModbusSerialServer extends ModbusSlave {
     * @fires ModbusnetServer#error {object}
     */
     AnalizeADU(adu){
-        
-        if (adu.address == this.address){
-            //address ok
-            return 0;
+              
+        if (adu.mbap.protocolID != 0){
+            //si el protocolo no es modbus standard
+            this.emit('modbus_exeption','Protocol not Suported');
+            return 1;
+        }
+        else if (adu.mbap.length != adu.aduBuffer.length-6){
+            //Verificando el campo length
+            this.emit('modbus_exeption','ByteCount error');
+            return 1;
         }
         else{
-          //address mistmatch
-          return 1;
+          return 0;
         }
       
     }
+
+    /**
+     * Split the input buffer in several indication buffer baset on length property
+     * of modbus tcp header. The goal of this funcion is suport several modbus indication
+     * on same tcp frame
+     * @param {Buffer Object} dataFrame 
+     * @return {Buffer array}
+     */
+    SplitTCPFrame(dataFrame){
+      //get de first tcp header length
+      let indicationsList = [];
+      let expectedlength = dataFrame.readUInt16BE(4);
+      let indication = Buffer.alloc(expectedlength + 6);
+
+      if(dataFrame.length <= expectedlength + 6){
+        dataFrame.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        return indicationsList;
+      }
+      else{
+        dataFrame.copy(indication,  0, 0, expectedlength + 6);
+        indicationsList.push(indication);
+        let otherIndication = dataFrame.slice(expectedlength + 6);
+        let other = this.SplitTCPFrame(otherIndication);
+        indicationsList = indicationsList.concat(other)
+        return indicationsList;
+      }      
+    }
+
+    
 }
 
-module.exports = ModbusSerialServer;
+module.exports = ModbusTCPServer;
