@@ -9,7 +9,7 @@
 const ModbusDevice = require('./modbus_device');
 const BooleanRegister = require('./boolean_register');
 const WordRegister = require('./word_register');
-
+const SlaveFunctions = require('./slave_functions/slave_functions');
 
 /**
  * Class representing a modbus slave.
@@ -19,7 +19,7 @@ class ModbusSlave extends ModbusDevice {
   /**
   * Create a Modbus Slave.
   */
-    constructor(address = 1){
+    constructor(address = 1, endianess = "LE"){
         super();
 
         var self = this;
@@ -28,7 +28,7 @@ class ModbusSlave extends ModbusDevice {
         *Suported functions
         * @type {number[]}
         */       
-        var supportedFunctions = [0x01,0x02,0x03,0x04,0x05,0x06,0x0F,0x10, 0x16];
+        var supportedFunctions = SlaveFunctions.SuportedFunctions;
 
         //Sellando esta propiedad
         Object.defineProperty(self, 'supportedModbusFunctions',{
@@ -57,6 +57,25 @@ class ModbusSlave extends ModbusDevice {
           }
         })
 
+        let _endianess = endianess;
+        Object.defineProperty(self, 'endianess',{
+          get: function(){
+            return _endianess;
+          },
+          set: function(endianess){
+            if(endianess == 'BE'){
+             _endianess = 'BE';
+             self.inputRegisters.endianess = _endianess;
+             self.holdingRegisters.endianess = _endianess;
+            }
+            else{
+              _endianess = 'LE';
+              self.inputRegisters.endianess = _endianess;
+              self.holdingRegisters.endianess = _endianess;
+            }
+          }
+        })
+
         /**
         * Inputs. Reference 1x;
         * @type {Object}
@@ -78,25 +97,17 @@ class ModbusSlave extends ModbusDevice {
         * @type {Object}
         * @public
         */
-        this.holdingRegisters =  new WordRegister();
+        this.holdingRegisters =  new WordRegister(2048, _endianess);
 
         /**
         * Registro inputs. Ocupan 2 Bytes. Se transmiten B y B+1 en ese orden
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = new WordRegister();
+        this.inputRegisters = new WordRegister(2048, _endianess);
 
 
-    }
-
-    Start(){
-
-    }
-
-    Stop(){
-
-    }
+    }    
 
     /**
     * Build a response PDU
@@ -112,69 +123,39 @@ class ModbusSlave extends ModbusDevice {
           
             switch( pdu.modbus_function ){
                 case 0x01:
-                    respPDU = this.ReadCoilStatus(pdu);
+                    respPDU = SlaveFunctions.ReadCoilStatus.call(self, pdu);
                 break;
                 case 0x02:
-                    respPDU = this.ReadInputStatus(pdu);
+                    respPDU = SlaveFunctions.ReadInputStatus.call(self, pdu);
                 break;
                 case 0x03:
-                    respPDU = this.ReadHoldingRegisters(pdu);
+                    respPDU = SlaveFunctions.ReadHoldingRegisters.call(self, pdu);
                 break;
                 case 0x04:
-                    respPDU = this.ReadInputRegisters(pdu);
+                    respPDU = SlaveFunctions.ReadInputRegisters.call(self, pdu);
                 break;
                 case 0x05:
-                    respPDU = this.ForceSingleCoil(pdu);
+                    respPDU = SlaveFunctions.ForceSingleCoil.call(self, pdu);
                 break;
                 case 0x06:
-                    respPDU = this.PresetSingleRegister(pdu);
+                    respPDU = SlaveFunctions.PresetSingleRegister.call(self, pdu);
                 break;
                 case 0x0F:
-                    respPDU = this.ForceMultipleCoils(pdu);
+                    respPDU = SlaveFunctions.ForceMultipleCoils.call(self, pdu);
                 break;
                 case 0x10:                    
-                    respPDU = this.PresetMultipleRegisters(pdu);
+                    respPDU = SlaveFunctions.PresetMultipleRegisters.call(self, pdu);
                     break;
                 case 0x16:                    
                     respPDU = this.MaskHoldingRegister(pdu);
                 break;
                 default:
                     //Exception ILLEGAL FUNCTION code 0x01
-                    respPDU.modbus_function = pdu.modbus_function | 0x80;
-                    respPDU.modbus_data[0] = 0x01;
+                    respPDU = SlaveFunctions.MakeModbusException(0x01);                    
                   break
             }
             
-            respPDU.MakeBuffer();
-
-            //emiting modbus-execption on slave
-            let data = this.ParseResponsePDU(respPDU, pdu);
-            switch(data.get('exception')){
-              case 1:
-                this.emit('modbus_exception', 'Illegal Function');  
-                break;
-              case 2:
-                  this.emit('modbus_exception', 'Illegal Data Address');
-                  break;
-              case 3:
-                  this.emit('modbus_exception', 'Illegal Data Value');
-                  break;
-              case 4:
-                  this.emit('modbus_exception', 'Slave Device Failure');
-                  break;
-              case 5:
-                  this.emit('modbus_exception', 'ACKNOWLEDGE');
-                  break;
-              case 6:
-                  this.emit('modbus_exception', 'SLAVE DEVICE BUSY');
-                  break;
-              case 7:
-                  this.emit('modbus_exception', 'NEGATIVE ACKNOWLEDGE');
-                  break;
-              case 8:
-                  this.emit('modbus_exception', 'MEMORY PARITY ERROR');
-                  break;
-            }
+            respPDU.MakeBuffer();            
             
             return respPDU;
         }        
@@ -248,7 +229,7 @@ class ModbusSlave extends ModbusDevice {
     * @example
     * SetRegisterValue(25.2, 'float', 'holding-register', 10);
     */
-    SetRegisterValue(value, area = 'holding-register', dataAddress = 0, dataType = 'uint'){
+    SetRegisterValue(value, area = 'holding-register', dataAddress = 0, dataType = 'uint16'){
       
       if(typeof value != 'number' && typeof value != 'boolean' ){
         throw new TypeError('Error  value argument must be a number');        
@@ -341,7 +322,7 @@ class ModbusSlave extends ModbusDevice {
     * //return 25.2
     * GetRegisterValue('4', 10, 'float');
     */
-    GetRegisterValue(area = 'holding-register', dataAddress = 0, dataType = 'uint'){
+    GetRegisterValue(area = 'holding-register', dataAddress = 0, dataType = 'uint16'){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
@@ -415,60 +396,5 @@ class ModbusSlave extends ModbusDevice {
 
     }
 }
-
-/**
-* Procesesing modbus function 01 indication.
-* @private
-*/
-ModbusSlave.prototype.ReadCoilStatus = require('./functions/Read_Coil_Status');
-
-/**
-* Procesesing modbus function 02 indication.
-* @private
-*/
-ModbusSlave.prototype.ReadInputStatus = require('./functions/Read_Input_Status');
-
-/**
-* Procesesing modbus function 03 indication.
-* @private
-*/
-ModbusSlave.prototype.ReadHoldingRegisters = require('./functions/Read_Holding_Registers');
-
-/**
-* Procesesing modbus function 04 indication.
-* @private
-*/
-ModbusSlave.prototype.ReadInputRegisters = require('./functions/Read_Input_Registers');
-
-/**
-* Procesesing modbus function 05 indication.
-* @private
-*/
-ModbusSlave.prototype.ForceSingleCoil = require('./functions/Force_Single_Coil');
-
-/**
-* Procesesing modbus function 06 indication.
-* @private
-*/
-ModbusSlave.prototype.PresetSingleRegister = require('./functions/Preset_Single_Register');
-
-/**
-* Procesesing modbus function 15 indication.
-* @private
-*/
-ModbusSlave.prototype.ForceMultipleCoils = require('./functions/Force_Multiple_Coils');
-
-/**
-* Procesesing modbus function 16 indication.
-* @private
-*/
-ModbusSlave.prototype.PresetMultipleRegisters = require('./functions/Preset_Multiple_Registers');
-
-/**
-* Procesesing modbus function 22 indication.
-* @private
-*/
-ModbusSlave.prototype.MaskHoldingRegister = require('./functions/Mask_Holding_Register');
-
 
 module.exports = ModbusSlave;

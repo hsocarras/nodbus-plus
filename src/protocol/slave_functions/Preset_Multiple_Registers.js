@@ -7,7 +7,8 @@
 *@param objeto pdu
 */
 
-var PDU = require('../pdu');
+const PDU = require('../pdu');
+const MakeModbusException = require('./Make_modbus_exception');
 
 var PresetMultipleRegister = function (pdu) {
 
@@ -18,10 +19,7 @@ var PresetMultipleRegister = function (pdu) {
 
    if (initRegister > this.holdingRegisters.size){
         //Creando exception 0x02
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x02;
-
-        //this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        respPDU = MakeModbusException(0x02);
     }
     else {
         let values = new Map();

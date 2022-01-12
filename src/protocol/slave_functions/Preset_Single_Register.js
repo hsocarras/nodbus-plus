@@ -7,7 +7,8 @@
 *@param objeto pdu
 */
 
-var PDU = require('../pdu');
+const PDU = require('../pdu');
+const MakeModbusException = require('./Make_modbus_exception');
 
 var PresetSingleRegister = function (pdu){
 
@@ -18,8 +19,7 @@ var PresetSingleRegister = function (pdu){
 
      if (targetRegister > this.holdingRegisters.size){
         //Creando exception 0x02
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x02;
+        respPDU = MakeModbusException(0x02);
         
     }
     else {

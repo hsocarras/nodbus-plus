@@ -62,19 +62,19 @@ modbusTCPServer.SetRegisterValue(1, 'coils', 6);
 modbusTCPServer.SetRegisterValue(1, 'coils', 9);
 modbusTCPServer.SetRegisterValue(1, 'coils', 15);
 
-modbusTCPServer.SetRegisterValue(59, 'holding', 0, 'uint');
-modbusTCPServer.SetRegisterValue(-358, 'holding', 2, 'int');
+modbusTCPServer.SetRegisterValue(59, 'holding', 0, 'uint16');
+modbusTCPServer.SetRegisterValue(-358, 'holding', 2, 'int16');
 modbusTCPServer.SetRegisterValue(3.14, 'holding', 3, 'float');
 modbusTCPServer.SetRegisterValue(0x12, 'holding', 5);
 modbusTCPServer.SetRegisterValue(0x9E36, 'holding', 6);
 modbusTCPServer.SetRegisterValue(3598.59, 'holding', 9, 'double');
 
-modbusTCPServer.SetRegisterValue(-27, 'inputs-registers', 1, 'int');
+modbusTCPServer.SetRegisterValue(-27, 'inputs-registers', 1, 'int16');
 modbusTCPServer.SetRegisterValue(-34752648, 'inputs-registers', 2, 'int32');
 modbusTCPServer.SetRegisterValue(123456789, 'inputs-registers', 5, 'uint32');
 
-console.log(modbusTCPServer.GetRegisterValue('holding',0,'uint'));
-console.log(modbusTCPServer.GetRegisterValue('holding',2,'int'));
+console.log(modbusTCPServer.GetRegisterValue('holding',0,'uint16'));
+console.log(modbusTCPServer.GetRegisterValue('holding',2,'int16'));
 console.log(modbusTCPServer.GetRegisterValue('holding',3,'float'));
 console.log(modbusTCPServer.GetRegisterValue('holding',9,'double'));
 console.log(modbusTCPServer.GetRegisterValue(3,2,'int32'));

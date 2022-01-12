@@ -68,7 +68,7 @@ class BooleanRegister {
 
   /**
   *function to decode a register receive through a stream.
-  * protocol send in BE; register are store in LE
+  * protocol send 
   *@param {buffer} frame
   *@param {number} number_of_points amount to points encode on buffer, It's necesary because last
   *values can be 0 filled acording to modbus spec
@@ -103,7 +103,7 @@ class BooleanRegister {
 * @param {number} dataAddress address of register
 * @return {boolean}
 */
-  GetValue(dataAddress = 0, datatype = 'bool'){
+  GetValue(dataAddress = 0, dataType = 'bool'){
     if(dataAddress <= this.size){
 
       let Byte = this.registerBuffer[Math.floor(dataAddress/8)];
@@ -124,7 +124,7 @@ class BooleanRegister {
 * @param {number} dataAddress address of register
 * @return {boolean} true if success
 */
-  SetValue(value, dataAddress = 0, datatype = 'bool'){
+  SetValue(value, dataAddress = 0, dataType = 'bool'){
 
     if(dataAddress <= this.size){
       if(typeof value == 'number' || typeof value == 'boolean'){
@@ -144,11 +144,11 @@ class BooleanRegister {
         return true;
       }
       else{
-        throw new TypeError('Value must be a number or boolean');
+        return false;
       }
     }
     else{
-      throw new RangeError('Invalid register. Consider Resize de register');
+      return false;
     }
   }
 
@@ -161,7 +161,7 @@ class BooleanRegister {
     if(typeof newSize == 'number'){      
       if(newSize > this.size){
         let expandBuffer = Buffer.alloc(newSize - this.size);
-        his.registerBuffer = Buffer.concat([this.registerBuffer, expandBuffer], newSize)
+        this.registerBuffer = Buffer.concat([this.registerBuffer, expandBuffer], newSize)
         this.size = newSize        
       } 
     }

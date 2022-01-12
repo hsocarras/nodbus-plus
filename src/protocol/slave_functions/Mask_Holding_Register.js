@@ -7,7 +7,8 @@
 * @param objeto pdu
 */
 
-var PDU = require('../pdu');
+const PDU = require('../pdu');
+const MakeModbusException = require('./Make_modbus_exception');
 
 var MaskHoldingRegister = function (pdu){
 
@@ -18,10 +19,7 @@ var MaskHoldingRegister = function (pdu){
 
      if (targetRegister > this.holdingRegisters.size){
         //Creando exception 0x02
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x02;
-
-        //this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        respPDU = MakeModbusException(0x02);
     }
     else {
         let values = new Map();
@@ -37,10 +35,10 @@ var MaskHoldingRegister = function (pdu){
         //Devolviendo un eco de la pdu.
         respPDU = pdu
         values.set(targetRegister, this.holdingRegisters.GetValue(targetRegister));
-        this.emit('values', '4x', values);
-        return respPDU;
+        this.emit('values', '4x', values);       
 
     }
+    return respPDU;
 }
 
 module.exports = MaskHoldingRegister;

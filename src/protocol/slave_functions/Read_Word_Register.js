@@ -1,28 +1,19 @@
-/*
-*@author Hector E. Socarras
-*@brief
-*Se implementa la funcion 0x04 del protocolo de modbus.
-*Debuelve un objeto pdu con el valor de los registros solicitados.
-*
-*@param objeto pdu
-*/
+
 
 var PDU = require('../pdu');
+const MakeModbusException = require('./Make_modbus_exception');
 
-var ReadInputRegister = function (pdu) {
+var ReadWordRegister = function (pdu, wordRegister) {
 
     var respPDU = new PDU();
 
     //registro inicial ejemplo el registro 10 direccionado como 0x09 (9)
     var initRegister = pdu.modbus_data.readUInt16BE(0);
-
+    var wordRegister = wordRegister;
     //Verificando q el registro solicitado exista
-    if(initRegister >= this.inputRegisters.size){
+    if(initRegister >= wordRegister.size){
         //Creando exception 0x02
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x02;
-
-        //this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        respPDU = MakeModbusException(0x02);
     }
     else{
         //cantidad de registros a leer
@@ -33,11 +24,11 @@ var ReadInputRegister = function (pdu) {
 
 
         respPDU.modbus_data = Buffer.alloc(byte_count+1);
-        respPDU.modbus_function = 0x04;
+        respPDU.modbus_function = 0x03;
         respPDU.modbus_data[0]=byte_count;
 
         for(var i = 0; i < numberOfRegisters; i++){
-          this.inputRegisters.EncodeRegister(initRegister + i).copy(respPDU.modbus_data, 1 + 2*i)
+          wordRegister.EncodeRegister(initRegister + i).copy(respPDU.modbus_data, 1 + 2*i)
         }
 
 
@@ -48,5 +39,4 @@ var ReadInputRegister = function (pdu) {
 
 }
 
-
-module.exports = ReadInputRegister;
+module.exports = ReadWordRegister;

@@ -7,7 +7,8 @@
 *@param objeto pdu
 */
 
-var PDU = require('../pdu');
+const PDU = require('../pdu');
+const MakeModbusException = require('./Make_modbus_exception');
 
 var ForceSingleCoil = function (pdu){
 
@@ -22,20 +23,14 @@ var ForceSingleCoil = function (pdu){
     if(targetCoil >= this.coils.size){
         //Verificando q la coil solicitada exista
         //Creando exception 0x02
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x02;
-
-        //this.emit('modbus_exception','ILLEGAL DATA ADDRESS');
+        respPDU = MakeModbusException(0x02);
 
         return respPDU;
     }
     else if (value != 0x0000 & value != 0xFF00 ) {
         //verificando el campo valor sea valido
         //Creando exception 0x03
-        respPDU.modbus_function = pdu.modbus_function | 0x80;
-        respPDU.modbus_data[0] = 0x03;
-
-        this.emit('modbus_exception','ILLEGAL VALUE');
+        respPDU = MakeModbusException(0x03);
 
         return respPDU;
     }
