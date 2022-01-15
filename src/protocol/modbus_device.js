@@ -13,24 +13,24 @@ const PDU = require('./pdu');
  * @extends EventEmitter
 */
 class ModbusDevice extends EventEmitter {
-	/**
-  * Create a Modbus Device.
-  */
-	constructor(){
-      super();
-      var self = this;
-      
-      /**
-      * number of valid request sended for a master or received for a slave
-      * @type {number}
-      */ 
-      this.reqCountValue = 0;
-      
-      /**
-      * counter of response sended for a slave or received for a master
-      * @type {number}
-      */
-      this.resCountValue = 0;
+    /**
+    * Create a Modbus Device.
+    */
+    constructor(){
+        super();
+        var self = this;
+        
+        /**
+        * number of valid request sended for a master or received for a slave
+        * @type {number}
+        */ 
+        this.reqCountValue = 0;
+        
+        /**
+        * counter of response sended for a slave or received for a master
+        * @type {number}
+        */
+        this.resCountValue = 0;
     }
 
     get reqCounter(){

@@ -6,10 +6,10 @@
 */
 
 const ModbusSlave = require('../protocol/modbus_slave');
-const tcpServer = require('../net/tcpserver');
-const udpServer = require('../net/udpserver');
-const Request = require('../protocol/request');
-const Response = require('../protocol/response');
+const tcpServer = require('./net/tcpserver');
+const udpServer = require('./net/udpserver');
+const Request = require('../common/request');
+const Response = require('../common/response');
 
 
 
@@ -31,7 +31,7 @@ class ModbusTCPServer extends ModbusSlave {
         transportProtocol = tp
       }
       else{
-        throw new TypeError('transport protocol should be a string')
+        throw new TypeError('transport protocol should be a string', 'm_tcp_server.js', '34');
       }
 
       var self = this;
@@ -212,7 +212,7 @@ class ModbusTCPServer extends ModbusSlave {
     /**
     * Function to execute when data are recive
     * @param {Buffer} dataFrame frame received by server
-    * @return {Buffer} response;
+    * @return {bool} true if success;
     * @fires ModbusnetServer#indication {Buffer}
     */
     ProcessModbusIndication(connectionID, dataFrame){
@@ -232,83 +232,42 @@ class ModbusTCPServer extends ModbusSlave {
         req.adu.aduBuffer = element;
         req.slaveID = self.address;
 
-        try {
-          req.adu.ParseBuffer();
-        }
-        catch(e){
-          self.emit('error', e);
-          return
-        }
-
-        req.id = req.adu.mbap.transactionID;
-        self.emit('request', socket, req);
-
-          if(self.AnalizeADU(req.adu)){
-            return
-          }
-          else{
+        
+        let reqADUParsedOk =  req.adu.ParseBuffer();
+        if(reqADUParsedOk){
+            
+            req.id = req.adu.mbapHeader.transactionID;
+            self.emit('request', socket, req);
 
             //add reqest counter
             self.reqCounter++;
 
-            //creando la respuesta
-            let resp = new Response('tcp');
-            resp.connectionID = connectionID;
-            resp.adu.address = req.adu.mbap.unitID;
-            resp.adu.transactionCounter = req.adu.mbap.transactionID;
-            resp.id = req.id;
-
-            try{
-              resp.adu.pdu = self.BuildResponse(req.adu.pdu);              
-            }
-            catch(e){
-               //slave failure exeption
-               self.emit('error', e)
-               resp.adu.pdu = self.CreatePDU();
-               resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
-               resp.adu.pdu.modbus_data[0] = 4;
-               resp.adu.MakeBuffer();
-               this.emit('modbus_exception', 'Slave Device Failure');
-            }
-            finally{
-              if(resp.adu.pdu != null){
+            //creating Response
+            let respADU = self.CreateRespTcpADU(req.adu);
+            if(respADU != null){
+                var resp = new Response('tcp');
+                resp.connectionID = connectionID;
+                resp.adu = respADU;
+                resp.id = req.id;
                 resp.adu.MakeBuffer();
-                if(req.address != 0){
-                  resp.timeStamp = Date.now();
-                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                  self.resCounter++;
+                resp.timeStamp = Date.now();
+                resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+                self.resCounter++;
                   
-                  self.netServer.Write(connectionID, resp); 
-                    
-                }
-              }
+                self.netServer.Write(connectionID, resp); 
+                return true;
             }
-          }               
-      })    
-    }
-
-    /**
-    * Make the response modbus tcp header
-    * @param {buffer} adu frame off modbus indication
-    * @return {number} error code. 1- error, 0-no errror
-    * @fires ModbusnetServer#error {object}
-    */
-    AnalizeADU(adu){
-              
-        if (adu.mbap.protocolID != 0){
-            //si el protocolo no es modbus standard
-            this.emit('modbus_exeption','Protocol not Suported');
-            return 1;
-        }
-        else if (adu.mbap.length != adu.aduBuffer.length-6){
-            //Verificando el campo length
-            this.emit('modbus_exeption','ByteCount error');
-            return 1;
+            else {
+                return false;
+            }
+            
         }
         else{
-          return 0;
+          self.emit('modbus_exeption','Error parsing request');
+          return false;
         }
-      
+                         
+      })    
     }
 
     

@@ -19,7 +19,7 @@ var PresetMultipleRegister = function (pdu) {
 
    if (initRegister > this.holdingRegisters.size){
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(16, 2);
     }
     else {
         let values = new Map();

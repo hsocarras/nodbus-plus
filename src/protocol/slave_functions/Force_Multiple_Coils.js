@@ -1,7 +1,7 @@
 /*
 *@author Hector E. Socarras
 *@brief
-*Se implementa la funcion 05 del protocolo de modbus.
+*Se implementa la funcion 15 del protocolo de modbus.
 *Debuelve un objeto pdu con el echo del request.
 *
 *@param objeto pdu
@@ -22,7 +22,7 @@ var ForceMultipleCoils = function (pdu){
      if (startCoil >= this.coils.size){
         //Verificando q la coil solicitada exista
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(15, 2);
 
         return respPDU;
     }
@@ -44,7 +44,7 @@ var ForceMultipleCoils = function (pdu){
 
         if( (forceData[forceData.length] & filletMask[number_points%8]) != 0x00){
             //Creando exception 0x03
-            respPDU = MakeModbusException(0x03);
+            respPDU = MakeModbusException(15, 3);
             return respPDU;
 
         }

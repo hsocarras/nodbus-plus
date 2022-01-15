@@ -19,7 +19,7 @@ var PresetSingleRegister = function (pdu){
 
      if (targetRegister > this.holdingRegisters.size){
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(6, 2);
         
     }
     else {

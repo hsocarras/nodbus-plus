@@ -6,7 +6,7 @@
 */
 
 const ADU = require('./adu');
-const MBAP = require('./mbap');
+const MBAP_Header = require('./mbap_header');
 
 /**
  * Class representing a modbus tcp aplication data unit.
@@ -26,7 +26,7 @@ class TcpADU extends ADU {
     * Header of frame modbus tcp
     * @type {object}
     */
-    this.mbap = new MBAP();
+    this.mbapHeader = new MBAP_Header();
   }
 
 /**
@@ -38,15 +38,15 @@ class TcpADU extends ADU {
       this.pdu.MakeBuffer();
 
       //creando en buffer del mbap
-      this.mbap.transactionID = this.transactionCounter;
-      this.mbap.protocolID = 0;
-      this.mbap.length = this.pdu.pduBuffer.length+1;
-      this.mbap.unitID = this.address;
-      this.mbap.MakeBuffer();
+      this.mbapHeader.transactionID = this.transactionCounter;
+      this.mbapHeader.protocolID = 0;
+      this.mbapHeader.length = this.pdu.pduBuffer.length+1;
+      this.mbapHeader.unitID = this.address;
+      this.mbapHeader.MakeBuffer();
 
-      var buff = Buffer.alloc(this.pdu.pduBuffer.length+this.mbap.mbapBuffer.length);
+      var buff = Buffer.alloc(this.pdu.pduBuffer.length+this.mbapHeader.mbHeaderBuffer.length);
 
-      this.mbap.mbapBuffer.copy(buff);
+      this.mbapHeader.mbHeaderBuffer.copy(buff);
       this.pdu.pduBuffer.copy(buff,7);
 
       this.aduBuffer = buff;
@@ -54,26 +54,25 @@ class TcpADU extends ADU {
 
   /**
   *function to parse the adu buffer to make MBAP and PDU object
-  * @throws {string}
+  * @return {bool} True if success
   */
   ParseBuffer() {
 
       if(this.aduBuffer.length > 7) {
-        try {
-          this.mbap.mbapBuffer = this.aduBuffer.slice(0,7);
-          this.mbap.ParseBuffer();          
-          this.address = this.mbap.unitID;
-          this.pdu.pduBuffer = this.aduBuffer.slice(7, 6 + this.mbap.length);
-          this.pdu.ParseBuffer();
-          
-        }
-        catch(err)
-        {
-          throw err;
-        }
+
+          let mbapHeaderOK
+          let pduOK
+        
+          this.mbapHeader.mbHeaderBuffer = this.aduBuffer.slice(0,7);
+          mbapHeaderOK = this.mbapHeader.ParseBuffer();          
+          this.address = this.mbapHeader.unitID;
+          this.pdu.pduBuffer = this.aduBuffer.slice(7, 6 + this.mbapHeader.length);
+          pduOK = this.pdu.ParseBuffer();
+        
+          return mbapHeaderOK & pduOK;  
       }
       else {
-          throw new Error('adu buffer not contain a valid frame');
+          return false;
       }
 
   }

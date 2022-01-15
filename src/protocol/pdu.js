@@ -49,20 +49,28 @@ class PDU {
 
   /**
   *function to parse the pdu buffer to extract function and data fields
-  * @throws {Error}
+  * @returns {bool} true if success
   */
   ParseBuffer(){
-      if(this.pduBuffer.length >= 2){
 
-        this.modbus_function = this.pduBuffer[0];
+      this.modbus_function = this.pduBuffer[0];
 
-        //creando el buffer de datos
-        this.modbus_data = Buffer.alloc(this.pduBuffer.length-1);
-        this.pduBuffer.copy(this.modbus_data,0,1);
+      //creando el buffer de datos
+      if(this.pduBuffer.length > 1){
+          this.modbus_data = Buffer.alloc(this.pduBuffer.length-1);
+          this.pduBuffer.copy(this.modbus_data,0,1);
+          return true;
+      }
+      else if (this.pduBuffer.length == 1){
+          this.modbus_data = Buffer.alloc(0);
+          return true;
       }
       else{
-        throw new Error('wrong pdu buffer');
+        return false;
       }
+      
+      
+     
   }
 
 }

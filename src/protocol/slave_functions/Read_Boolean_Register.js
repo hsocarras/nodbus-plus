@@ -18,7 +18,7 @@ var ReadBoolRegisterStatus = function (pdu, boolean_register) {
     //Verificando q la coil solicitada exista
     if(initRegister >= boolean_register.size){
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(pdu.modbus_function, 0x02);
     }
     else {
         //registers to read

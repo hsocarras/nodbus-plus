@@ -5,46 +5,45 @@
 * @version 0.9.0
 */
 
-const TCPAdu = require('./tcp_adu');
-const RTUAdu = require('./rtu_adu');
-const ASCIIAdu = require('./ascii_adu');
+const TcpADU = require('../protocol/tcp_adu');
+const SerialADU = require('../protocol/serial_adu');
 
 class Response {
-    constructor(type){
+    constructor(trans_mode){
         var self = this;
 
         /**
          * type
          * @type {string} Indicate if is a tcp or serial request
          */
-        self.type = type;
+        self.transmition_mode = trans_mode;
 
         /**
          * adu
          * @type {ADU Object} Protocol aplication data unit 
          */
         self.adu;
-        switch(type){
+        switch(transmition_mode){
             case 'tcp':
-                self.adu = new TCPAdu();
+                self.adu = new TcpADU('tcp');
                 break;
             case 'TCP':
-                self.adu = new TCPAdu();
+                self.adu = new TcpADU('tcp');
                 break;
             case 'rtu':
-                self.adu = new RTUAdu();
+                self.adu = new SerialADU('rtu');
                 break;
             case 'RTU':
-                self.adu = new RTUAdu();
+                self.adu = new SerialADU('rtu');
                 break;
             case 'ascii':
-                self.adu = new ASCIIAdu();
+                self.adu = new SerialADU('ascii');
                 break;
             case 'ASCII':
-                self.adu = new ASCIIAdu();
-                break;             
+                self.adu = new SerialADU('ascii');
+                break;
             default:
-                throw new TypeError('type must be a string whit a valid modbus frame type')
+                throw new TypeError('transmition_mode must be a string whit a valid modbus frame transmition mode', 'request.js', '46')
         }
 
         /**

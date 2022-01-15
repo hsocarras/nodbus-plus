@@ -15,7 +15,9 @@ const PDU = require('./pdu');
    * Create a ADU.
    * @param {Buffer} aduRaw Frame modbus.
    */
-    constructor(aduRaw = Buffer.alloc(1)){
+    constructor(trans_mode = "tcp", aduRaw = Buffer.alloc(1)){
+      var self = this;
+
       /**
       *Frame
       *@type {Buffer}
@@ -23,10 +25,34 @@ const PDU = require('./pdu');
       this.aduBuffer = aduRaw;
 
       /**
+      * modbus transmision mode
+      * @type {string}
+      */
+      this.transmision_mode = trans_mode;
+
+      /**
       *modbus address
       *@type {number}
       */
-      this.address = 247;
+      /**
+        * modbus address. Value between 1 and 247
+        * @type {number}
+        ** @throws {RangeError}
+        */
+       let mAddress = 247;
+       Object.defineProperty(self, 'address',{
+         get: function(){
+           return mAddress;
+         },
+         set: function(address){
+           if(address >= 0 && address <= 255){
+             mAddress = address
+           }
+           else{
+             throw new RangeError('Address must be a value fron 1 to 247', 'modbus_slave.js', '55');
+           }
+         }
+       })
 
       /**
       *Protocol data unit object

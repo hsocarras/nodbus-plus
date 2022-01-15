@@ -13,7 +13,7 @@ var ReadWordRegister = function (pdu, wordRegister) {
     //Verificando q el registro solicitado exista
     if(initRegister >= wordRegister.size){
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(pdu.modbus_function, 0x02);
     }
     else{
         //cantidad de registros a leer

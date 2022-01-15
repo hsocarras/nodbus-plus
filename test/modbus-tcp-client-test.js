@@ -6,7 +6,7 @@ var value;
 
 
 modbusTCPClient.AddSlave ('plc1', {port:502, ip:'127.0.0.1', timeout:50, address:10});
-modbusTCPClient.AddSlave ('plc2', {port:500, ip:'127.0.0.1', timeout:100, address:15});
+//modbusTCPClient.AddSlave ('plc2', {port:500, ip:'127.0.0.1', timeout:100, address:15});
 //modbusTCPClient.AddSlave ('plc3', {port:505, ip:'127.0.0.1', timeout:50, modbusAddress:12});
 //modbusTCPClient.AddSlave ('plc4', {port:506, ip:'127.0.0.1', timeout:100, modbusAddress:17});
 //modbusTCPClient.AddSlave ('plc5', {port:507, ip:'127.0.0.1', timeout:100, modbusAddress:19});

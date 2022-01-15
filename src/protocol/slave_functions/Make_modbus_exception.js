@@ -3,12 +3,12 @@
 var PDU = require('../pdu');
 
 
-var MakeModbusException = function (exception_code) {
+var MakeModbusException = function (modbus_function, exception_code) {
 
     var excPDU = new PDU();
 
     //setting modbus function to exception
-    excPDU.modbus_function = 0x80;
+    excPDU.modbus_function = modbus_function | 0x80;
     //setting exeption code
     excPDU.modbus_data[0] = exception_code;
     

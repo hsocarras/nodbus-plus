@@ -6,11 +6,11 @@
 */
 
 const ModbusSlave = require('../protocol/modbus_slave');
-const tcpServer = require('../net/tcpserver');
-const udpServer = require('../net/udpserver');
-const Request = require('../protocol/request');
-const Response = require('../protocol/response');
-const ASCII_ADU = require('../protocol/ascii_adu');
+const tcpServer = require('./net/tcpserver');
+const udpServer = require('./net/udpserver');
+const Request = require('../common/request');
+const Response = require('../common/response');
+
 
 /**
  * Class representing a modbus serial over tcp server.
@@ -24,7 +24,7 @@ class ModbusSerialServer extends ModbusSlave {
   * @param {number} modbusAddress. address based on modbus protocol
   * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'auto' (default) both mode
   */
-    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'auto'){
+    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'rtu'){
       super(modbusAddress);
 
       var self = this;
@@ -231,118 +231,56 @@ class ModbusSerialServer extends ModbusSlave {
      */
       this.emit('indication', socket, dataFrame);
 
-      let req;
-
-      if(this.mode == 'auto'){        
-          (ASCII_ADU.isAsciiAdu(dataFrame)) ? req = new Request('ascii') : req = new Request('rtu');;
-      }
-      else{
-        req = new Request(self.mode);
-      }
-
+      let req = new Request(self.mode);
       req.adu.aduBuffer = dataFrame;
       req.slaveID = self.address;
 
-      try{
-        req.adu.ParseBuffer();
-      }
-      catch(e){
-        if(typeof e == 'string') {
-          this.emit('modbus_exception', req.slaveID, "CHEKSUM ERROR");
-        }
-        else{
-          self.emit('error', e);
-        }
-        return
-      }
-      
-      
+      let reqADUParsedOk =  req.adu.ParseBuffer();
+      if(reqADUParsedOk){
 
-        //checking adu
-        if (this.AnalizeADU(req.adu)){
-                     
-            return;
-        }
-        else{          
-            //add req to request stack
-            self.reqCounter++;     
-            
-            req.id = self.reqCounter;
-            self.emit('request', socket, req);
+          //add req to request stack
+          self.reqCounter++;
+          req.id = self.reqCounter;
+          self.emit('request', socket, req);
 
-            //creando la respuesta
-            let resp = new Response(req.type);
-            resp.connectionID = connectionID;
-            resp.adu.address = self.address;
+          //creating Response 
+          var resp = new Response(self.mode);
+          if(this.currentRequest == null){
 
-            if(this.currentRequest == null){
-              //if requestStack is not full
+              let respADU = self.CreateRespSerialADU(req.adu);
+              if(respADU != null){
+                  
+                  resp.connectionID = connectionID;
 
-              self.currentRequest = req;             
-
-              try{                
-                resp.adu.pdu = self.BuildResponse(req.adu.pdu);  
-                
-              }
-              catch(e){
-                //slave failure exeption
-                self.emit('error', e)
-                resp.adu.pdu = self.CreatePDU();
-                resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80;
-                resp.adu.pdu.modbus_data[0] = 4;
-                resp.adu.MakeBuffer();
-                this.emit('modbus_exception', 'Slave Device Failure');
-              }
-              finally{
-                //response
-                if(resp.adu.pdu != null){ 
+                  self.currentRequest = req;
+                  resp.adu = self.CreateRespSerialADU(req.adu);
+                  resp.id = self.resCounter;
                   resp.adu.MakeBuffer();
-                  if(req.address != 0){
-                    resp.timeStamp = Date.now();
-                    resp.id = self.resCounter;
-                    resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                    self.resCounter++; 
-                    //removing req from req stak
-                    self.currentRequest = null;
-                    self.netServer.Write(connectionID, resp); 
-                    
-                  }
-                }
+                  resp.timeStamp = Date.now();
+                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+                  self.resCounter++;
+                  //removing req from req stak
+                  self.currentRequest = null;
+                  self.netServer.Write(connectionID, resp);
               }
-            }
-            else{
+          }
+          else{
               //response modbus exeption 6 slave Busy
-              resp.adu.pdu = this.CreatePDU();
-              resp.adu.pdu.modbus_function = req.adu.pdu.modbus_function | 0x80
-              resp.adu.pdu.modbus_data[0] = 6;
+              resp.adu.pdu = self.MakeModbusException(req.adu.pdu, 6);              
               resp.adu.MakeBuffer();
               resp.timeStamp = Date.now();
               resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
+              self.resCounter++
               self.netServer.Write(connectionID, resp); 
-            }
-
-        }
-    }
-
-
-    /**
-    * Make the response modbus tcp header
-    * @param {buffer} adu frame off modbus indication
-    * @return {number} error code. 1- error, 0-no errror
-    * @fires ModbusnetServer#error {object}
-    */
-    AnalizeADU(adu){
+          }
+            return true;
+      }
+      else {
+          return false;
+      }
         
-        if (adu.address == this.address){
-            //address ok
-            return 0;
-        }
-        else{
-          //address mistmatch
-          return 1;
-        }
-      
     }
+    
 }
 
 module.exports = ModbusSerialServer;

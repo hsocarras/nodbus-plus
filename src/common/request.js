@@ -5,46 +5,46 @@
 * @version 0.9.0
 */
 
-const TCPAdu = require('./tcp_adu');
-const RTUAdu = require('./rtu_adu');
-const ASCIIAdu = require('./ascii_adu');
+const TcpADU = require('../protocol/tcp_adu');
+const SerialADU = require('../protocol/serial_adu');
+
 
 class Request {
-    constructor(type){
+    constructor(trans_mode = 'tcp'){
         var self = this;
 
         /**
          * type
          * @type {string} Indicate if is a tcp or serial request
          */
-        self.type = type;
+        self.transmition_mode = trans_mode;
 
         /**
          * adu
          * @type {ADU Object} Protocol aplication data unit 
          */
         self.adu;
-        switch(type){
+        switch(this.transmition_mode){
             case 'tcp':
-                self.adu = new TCPAdu();
+                self.adu = new TcpADU('tcp');
                 break;
             case 'TCP':
-                self.adu = new TCPAdu();
+                self.adu = new TcpADU('tcp');
                 break;
             case 'rtu':
-                self.adu = new RTUAdu();
+                self.adu = new SerialADU('rtu');
                 break;
             case 'RTU':
-                self.adu = new RTUAdu();
+                self.adu = new SerialADU('rtu');
                 break;
             case 'ascii':
-                self.adu = new ASCIIAdu();
+                self.adu = new SerialADU('ascii');
                 break;
             case 'ASCII':
-                self.adu = new ASCIIAdu();
+                self.adu = new SerialADU('ascii');
                 break;
             default:
-                throw new TypeError('type must be a string whit a valid modbus frame type')
+                throw new TypeError('transmition_mode must be a string whit a valid modbus frame transmition mode', 'request.js', '47')
         }
 
         /**
@@ -54,7 +54,7 @@ class Request {
         self.slaveID = null;
 
         /**
-         * On master this field indicate of id on req stack, it match with transactionID
+         * On master this field indicate the id on req stack, it match with transactionID
          * On slave has no use, take the value of reqest counter
          */
         self.id = 0;

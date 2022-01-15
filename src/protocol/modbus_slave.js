@@ -9,6 +9,8 @@
 const ModbusDevice = require('./modbus_device');
 const BooleanRegister = require('./boolean_register');
 const WordRegister = require('./word_register');
+const TcpADU = require('../protocol/tcp_adu');
+const SerialADU = require('../protocol/serial_adu');
 const SlaveFunctions = require('./slave_functions/slave_functions');
 
 /**
@@ -28,9 +30,7 @@ class ModbusSlave extends ModbusDevice {
         *Suported functions
         * @type {number[]}
         */       
-        var supportedFunctions = SlaveFunctions.SuportedFunctions;
-
-        //Sellando esta propiedad
+        const supportedFunctions = SlaveFunctions.SuportedFunctions;        
         Object.defineProperty(self, 'supportedModbusFunctions',{
           get: function(){
             return supportedFunctions;
@@ -114,12 +114,14 @@ class ModbusSlave extends ModbusDevice {
     * @param {Object} PDU protocol data unit
     * @return {Object} PDU protocol data unit
     */
-    BuildResponse(pdu) {
+    ExecRequestPDU(pdu) {
       
         let respPDU = this.CreatePDU();
 
+        let pduErrorCheck = this.AnalizePDU(pdu)
+
         /** Valid PDU*/
-        if(this.AnalizePDU(pdu) == 0){
+        if(pduErrorCheck == 0){
           
             switch( pdu.modbus_function ){
                 case 0x01:
@@ -153,16 +155,16 @@ class ModbusSlave extends ModbusDevice {
                     //Exception ILLEGAL FUNCTION code 0x01
                     respPDU = SlaveFunctions.MakeModbusException(0x01);                    
                   break
-            }
-            
-            respPDU.MakeBuffer();            
-            
-            return respPDU;
+            }   
         }        
-        /** Bad PDU*/
-        else{
-          return null
+        /** Error in PDU*/
+        if (pduErrorCheck == 1){
+            //Exception ILLEGAL FUNCTION code 0x01
+            respPDU = SlaveFunctions.MakeModbusException(0x03); 
         }
+
+        respPDU.MakeBuffer(); 
+        return respPDU;
 
     }
 
@@ -173,50 +175,178 @@ class ModbusSlave extends ModbusDevice {
     * @fires ModbusSlave#modbus_exeption
     */
     AnalizePDU(pdu){
-
-        var tempPDU = this.CreatePDU();
-
        
-            if(pdu.modbus_data.length < 4){
-              return 1;
-            }
-            else if (pdu.modbus_function == 15 || pdu.modbus_function == 16) {
-              let byteCount = pdu.modbus_data.readUInt8(4);
-              if(pdu.modbus_data.length-5 === byteCount){
-                return 0;
-              }
-              else{
-                return 1;
-              }
-            }
-            else if (pdu.modbus_function == 1 || pdu.modbus_function == 2) {
-              let numberPoints = pdu.modbus_data.readUInt16BE(2);
-              if(numberPoints < 2040 ){
-                return 0
-              }
-              else{
-                //can't send more digital value than 2040 because it will need more than 255 bytes and only 
-                //have 1 byte for the bytecount
-                return 1
-              }
-            }
-            else if (pdu.modbus_function == 3 || pdu.modbus_function == 4) {
-              let numberPoints = pdu.modbus_data.readUInt16BE(2);
-              if(numberPoints < 128 ){
-                return 0
-              }
-              else{
-                //can't send more registers than 127 because it will need more than 255 bytes and only 
-                //have 1 byte for the bytecount
-                return 1
-              }
-            }
-            /** Valid PDU. */
-            else{
-              return 0;
-            }
+        if(pdu.modbus_data.length < 4){
+          return 1;
+        }
+        else if (pdu.modbus_function == 15 || pdu.modbus_function == 16) {
+          let byteCount = pdu.modbus_data.readUInt8(4);
+          if(pdu.modbus_data.length-5 === byteCount){
+            return 0;
+          }
+          else{
+            return 1;
+          }
+        }
+        else if (pdu.modbus_function == 1 || pdu.modbus_function == 2) {
+          let numberPoints = pdu.modbus_data.readUInt16BE(2);
+          if(numberPoints < 2040 ){
+            return 0
+          }
+          else{
+            //can't send more digital value than 2040 because it will need more than 255 bytes and only 
+            //have 1 byte for the bytecount
+            return 1
+          }
+        }
+        else if (pdu.modbus_function == 3 || pdu.modbus_function == 4) {
+          let numberPoints = pdu.modbus_data.readUInt16BE(2);
+          if(numberPoints < 128 ){
+            return 0
+          }
+          else{
+            //can't send more registers than 127 because it will need more than 255 bytes and only 
+            //have 1 byte for the bytecount
+            return 1
+          }
+        }
+        /** Valid PDU. */
+        else{
+          return 0;
+        }
         
 
+    }
+
+    /**
+    * Create a response adu on for modbus serial protocol
+    * @param {object} reqADU the request SerialADU object.
+    * @return {object} a SerialADU object with server response if was succesfull created otherwise reutrn null;    
+    */
+    CreateRespSerialADU(reqADU){
+
+        if(reqADU.transmision_mode == 'ascii'){
+            var respADU = new SerialADU('ascii');
+        }
+        else{
+            respADU = new SerialADU('rtu');
+        }
+        
+        respADU.address = this.address;
+
+        let reqADUParsedOk = reqADU.ParseBuffer();
+        if(reqADUParsedOk){
+            if(this.AnalizeSerialADU(reqADU) == 0){
+                respADU.pdu = self.ExecRequestPDU(reqADU.pdu); 
+                //broadcast address require no response
+                if(reqADU.address != 0){
+                    respADU.MakeBuffer();
+                    return respADU;
+                }
+                else{
+                    return null;
+                }
+            }
+            else{
+
+            }            
+        }
+        else{
+          return null;
+        }
+          
+        
+    }
+
+    /**
+    * Make the response modbus tcp header
+    * @param {buffer} adu frame off modbus indication
+    * @return {number} error code. 1- error, 0-no errror
+    * @fires ModbusnetServer#error {object}
+    */
+    AnalizeSerialADU(adu){
+        
+      var calcErrorCheck = 0;
+
+        if(adu.transmision_mode == 'ascii'){
+            calcErrorCheck = adu.GetLRC();
+        }
+        else{
+            calcErrorCheck = adu.GetCRC();
+        }
+
+        if (adu.address == this.address || adu.address == 0 ){            
+            //cheking checsum
+            if(calcErrorCheck == adu.errorCheck){
+                return 0;
+            }
+            else{
+              this.emit('modbus_exeption',"CHEKSUM ERROR");
+              return 1;
+            }
+        }
+        else{
+          //address mistmatch
+          return 1;
+        }
+    
+    }
+
+    /**
+    * Create a response adu on for modbus tco protocol
+    * @param {object} reqADU the request TcpADU object.
+    * @return {object} a TcpADU object with server response if was succesfull created otherwise reutrn null;    
+    */
+    CreateRespTcpADU(reqADU){
+      
+        var respADU = new TcpADU('tcp');    
+        respADU.address = this.address;
+
+        let reqADUParsedOk = reqADU.ParseBuffer();
+        if(reqADUParsedOk){
+          if(this.AnalizeTCPADU == 0){
+              respADU.pdu = self.ExecRequestPDU(reqADU.pdu); 
+              respADU.transactionCounter = reqADU.mbap.transactionID;
+              //broadcast address require no response
+              if(reqADU.address != 0){
+                  respADU.MakeBuffer();
+                  return respADU;
+              }
+              else{
+                  return null;
+              }
+          }
+          else{
+              return null;
+          } 
+        }
+        else{
+          return null;
+        }
+    }
+
+    /**
+    * Make the response modbus tcp header
+    * @param {buffer} adu frame off modbus indication
+    * @return {number} error code. 1- error, 0-no errror
+    * @fires ModbusnetServer#error {object}
+    */
+    AnalizeTCPADU(adu){
+                
+        if (adu.mbap.protocolID != 0){
+            //si el protocolo no es modbus standard
+            this.emit('modbus_exeption','Protocol not Suported. Check MBAP Header');
+            return 1;
+        }
+        else if (adu.mbap.length != adu.aduBuffer.length-6){
+            //Verificando el campo length
+            this.emit('modbus_exeption','ByteCount error');
+            return 1;
+        }
+        else{
+          return 0;
+        }
+    
     }
 
     /**
@@ -396,5 +526,7 @@ class ModbusSlave extends ModbusDevice {
 
     }
 }
+
+ModbusSlave.prototype.MakeModbusException = SlaveFunctions.MakeModbusException;
 
 module.exports = ModbusSlave;

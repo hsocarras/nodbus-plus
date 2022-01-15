@@ -23,14 +23,14 @@ var ForceSingleCoil = function (pdu){
     if(targetCoil >= this.coils.size){
         //Verificando q la coil solicitada exista
         //Creando exception 0x02
-        respPDU = MakeModbusException(0x02);
+        respPDU = MakeModbusException(5, 2);
 
         return respPDU;
     }
     else if (value != 0x0000 & value != 0xFF00 ) {
         //verificando el campo valor sea valido
         //Creando exception 0x03
-        respPDU = MakeModbusException(0x03);
+        respPDU = MakeModbusException(5, 3);
 
         return respPDU;
     }

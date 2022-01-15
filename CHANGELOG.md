@@ -38,3 +38,7 @@ Add suport for multiple simultaneus modbus-tcp indication due to tcp coalesing
 ## Version 0.10.0
 
 All devices get suport for udp transport layer.
+
+## Version 0.12.0
+
+Refactoring the code.

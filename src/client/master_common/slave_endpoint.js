@@ -2,7 +2,7 @@ const EventEmitter = require('events');
 
 
 class SlaveEndPoint extends EventEmitter {
-    constructor(){
+    constructor(transmision_mode = 'tcp'){
         super();
         var self = this;
 
@@ -12,7 +12,7 @@ class SlaveEndPoint extends EventEmitter {
          * type of slave. tcp, rtu or ascii
          * @type {string}
          */
-        this.type = null;
+        this.transmision_mode = null;
 
         /**
          * ip address of slave

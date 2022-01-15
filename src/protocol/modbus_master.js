@@ -7,6 +7,8 @@
 
 
 const ModbusDevice = require('./modbus_device');
+const TcpADU = require('../protocol/tcp_adu');
+const SerialADU = require('../protocol/serial_adu');
 
 
 /**
@@ -14,456 +16,180 @@ const ModbusDevice = require('./modbus_device');
  * @extends ModbusDevice
 */
 class ModbusMaster extends ModbusDevice {
-  /**
-  * Create a Modbus Master.
-  */
+    /**
+    * Create a Modbus Master.
+    */
     constructor(){
         super();
-        var self = this;
-        
-        /**
-        * map with slave's 
-        * @type {Map}
+        var self = this; 
+         /**
+        * number of transaction
+        * @type {number}
         */
-        this.slaveList = new Map();
-        
-    }
-
-    _EmitTimeout(id, req){
-
-      let slave = this.slaveList.get(id);
-
-      if(slave.maxRetries == req._retriesNumber){
-        slave.RemoveRequest(req)
-        /**
-        * timeout event.
-        * @event ModbusClient#timeout
-        */
-        this.emit('timeout', id, req);        
-      }
-      else{
-        this.netClient.Write(id, req);
-        req._retriesNumber++;
-      }
-    }
-
-    _EmitConnect(id){
-      let slave = this.slaveList.get(id);
-      slave.isConnected = true;
-
-        /**
-       * connect event.
-       * @event ModbusTCPClient#connect
-       * @type {object}
-       */
-        this.emit('connect',id);       
-    }
-
-   
-    /**
-     * 
-     * @param {string} id 
-     */
-    RemoveSlave(id){
-      if(this.slaveList.has(id)){
-        this.slaveList.delete(id);      
-      }      
-    }
-
-    isSlaveReady(id){
-      if(this.slaveList.has(id)){
-        let slave = this.slaveList.get(id);
-        return slave.isConnected;
-      }
-      else return false;      
-    }
+        var transactionCountValue = 1;
+        Object.defineProperty(self, 'transactionCounter', {
+            get: function(){
+                return transactionCountValue;
+            },
+            set: function(value){
+                if(value <= 0xFFFF ){
+                if(value = transactionCountValue + 1){
+                    transactionCountValue = value;
+                }                    
+                }
+                else{
+                    transactionCountValue = 1;
+                }
+            },
+            enumerable: false,
+            configurable: false
+        } ) 
+    }  
 
     /**
     * Build a request PDU
     * @param {number} modbusFunction modbus function
     * @param {startAddres} startAddres starting at 0 address
     * @param {pointsQuantity} pointsQuantity
-    * @param {number|Buffer} values values to write
+    * @param {Buffer} values values to write
     * @return {Object} PDU object
     */
     CreateRequestPDU(modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values) {
-        
         var self = this;
 
-        //chequeando el argumento values
-        if(typeof(values) == 'number'){
-
-            let valueBuffer = Buffer.alloc(2);
-            valueBuffer.writeUInt16BE(values);
-
-            values = valueBuffer;
-        }
-
         //creando la pdu del request
-        var request = self.CreatePDU();
+        var request = self.CreatePDU();        
+        //chequeando el argumento values
+        
 
         switch(modbusFunction){
-          case 1:
-              //funcion 01 read coils status
-              request.modbus_function = 0x01;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 2:
-              //funcion 02 read inputs status
-              request.modbus_function = 0x02;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 3:
-              //funcion 0x03 leer holdings registers
-              request.modbus_function = 0x03;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 4:
-               //funcion 0x04 read input registers
-              request.modbus_function = 0x04;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 5:
-               //funcion 05 write single coil
-              request.modbus_function = 0x05;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              if (values.readUInt16BE(0) == 0xFF00 || values.readUInt16BE(0) == 0x00 ) {
-                values.copy(request.modbus_data,2);
-              }
-              else {
-                  this.emit('modbus_exception',id, 'Illegal value on query');
-              }
-              request.MakeBuffer();
-              return request;
-              break;
-          case 6:
-              //creando la pdu del request
-              var request = this.CreatePDU();
-              //funcion 06 PresetSingleRegister
-              request.modbus_function = 0x06;
-              request.modbus_data = Buffer.alloc(4);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              values.copy(request.modbus_data,2);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 15:
-              //function 15 force multiples coils
-              request.modbus_function = 0x0F;
-              //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
-              request.modbus_data = Buffer.alloc(5 + values.length);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.modbus_data[4]= values.length;
-              values.copy(request.modbus_data,5);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 16:
-              //function 16 write multiples coils
-              request.modbus_function = 0x10;
-              //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
-              request.modbus_data = Buffer.alloc(5 + pointsQuantity*2);
-              request.modbus_data.writeUInt16BE(startAddres,0);
-              request.modbus_data.writeUInt16BE(pointsQuantity,2);
-              request.modbus_data[4]= values.length;
-              values.copy(request.modbus_data,5);
-              request.MakeBuffer();
-              return request;
-              break;
-          case 22:
-              //function 22 mask holding register
-              request.modbus_function = 0x16;              
-              request.modbus_data = Buffer.alloc(6);
-              request.modbus_data.writeUInt16BE(startAddres,0);              
-              values.copy(request.modbus_data,2);              
-              request.MakeBuffer();
-              return request;
-              break;
-        }
-    }
-
-    CreateRequest(id, pdu){
-      //function to be redefined in tcp or serial client
-      return pdu
-    }
-
-    //function to redefine on childs class
-    ParseResponse(slave, respAdu){ }
-
-    
-
-    /**
-    * extract data for a slave response
-    * @param {string} id reference of device.
-    * @param {Buffer} respADU
-    * @fires ModbusMaster#raw_data {buffer} response frame
-    * @fires ModbusMaster#data {object} map object whit pair register:values
-    * @fires ModbusMaster#error {object}
-    */
-    ProcessResponse(id, respADU){
-
-      let slave = this.slaveList.get(id);
-      var self = this;
-      
-      /**
-     * raw_data event.
-     * @event ModbusMaster#raw_data
-     * @type {object}
-     */
-      this.emit('raw_data',id, respADU);
-      var respStack = [];
-      if(slave.type == 'tcp'){
-        var respStack = self.SplitTCPFrame(respADU)
-      }
-      else{
-        respStack[0]= respADU;
-      }      
-      
-      respStack.forEach(function(element, index, array){
-              
-        if(slave.requestStack.size > 0){ 
-                  
-          try{            
-            var resp = self.ParseResponse(slave, element); 
-            if(slave.type == 'tcp'){
-              var req = slave.SearchRequest(resp.id);
-            }
-            else{
-              req = slave.SearchRequest(self.reqCounter-1);
-            }
-            
-            
-            if(resp){              
-              resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-              resp.timestamp = Date.now();
-              req.StopTimer();
-
-              //in exception case
-              if(resp.data.has('exception')){
-                switch(resp.data.get('exception')){
-                  case 1:
-                    this.emit('modbus_exception', resp.connectionID, 'Illegal Function');  
-                    break;
-                  case 2:
-                      this.emit('modbus_exception', resp.connectionID, 'Illegal Data Address');
-                      break;
-                  case 3:
-                      this.emit('modbus_exception', resp.connectionID, 'Illegal Data Value');
-                      break;
-                  case 4:
-                      this.emit('modbus_exception', resp.connectionID, 'Slave Device Failure');
-                      break;
-                  case 5:
-                      this.emit('modbus_exception', resp.connectionID, 'ACKNOWLEDGE');
-                      break;
-                  case 6:
-                      this.emit('modbus_exception', resp.connectionID, 'SLAVE DEVICE BUSY');
-                      break;
-                  case 7:
-                      this.emit('modbus_exception', resp.connectionID, 'NEGATIVE ACKNOWLEDGE');
-                      break;
-                  case 8:
-                      this.emit('modbus_exception', resp.connectionID, 'MEMORY PARITY ERROR');
-                      break;
-                }
-                if(resp.data.get('exception') == 5){
-                  //Error code 5 send a retry attemp after 1 second
-                  if(req._retriesNumber < slave.maxRetries){            
-                    setTimeout(function(){
-                      self.netClient.Write(slave.id, req);
-                      req._retriesNumber++;
-                    }, 1000)
-                  }
-                  else{
-                    //discart request
-                    self.emit('response', resp);
-                    //elimino la query activa.
-                    slave.RemoveRequest(req);
-                  }
-                }
-                else{
-                  //discart request
-                  self.emit('response', resp);
-                  //elimino la query activa.
-                  slave.RemoveRequest(req);
-                }  
-              }
-              else{
-                /**
-                * data event.
-                * @event ModbusMaster#data
-                * @type {object}
-                */
-                self.emit('data',id, resp.data);
-
-                /**
-                * response event.
-                * @event ModbusMaster#data
-                * @type {object}
-                */
-                self.emit('response', resp);
-    
-                //elimino la query activa.
-                self._currentRequest = null; 
-                slave.RemoveRequest(req);    
-                                               
-              }
-            }  
-          }
-          catch (err){                   
-            self.emit('error',id, err);
-          }
-        }
-      })  
-    }
-
-    /**
-    * Make a modbus indication from query object.
-    *@param {string} id
-    *@param {Object} query    
-    *@fires ModbusTCPClient#modbus_exception
-    */
-    Poll(id, query){
-      /*
-      let ModbusFunction = 3;
-
-      switch(area){
-        case 'holding-registers':
-          if(itemsValues == null){
-              ModbusFunction = 3;
-          }
-          else{
-            if(numberItems == 1){
-              ModbusFunction = 6;
-            }
-            else{
-              ModbusFunction = 16;
-            }
-          }
-          break;
-        case 'holding':
-          if(itemsValues == null){
-              ModbusFunction = 3;
-          }
-          else{
-            if(numberItems == 1){
-              ModbusFunction = 6;
-            }
-            else{
-              ModbusFunction = 16;
-            }
-          }
-          break;
-        case 4:
-          if(itemsValues == null){
-              ModbusFunction = 3;
-          }
-          else{
-            if(numberItems == 1){
-              ModbusFunction = 6;
-            }
-            else{
-              ModbusFunction = 16;
-            }
-          }
-          break;
-        case 'inputs-registers':
-            ModbusFunction = 3;
-          break;
-        case 3:
-            ModbusFunction = 3;
-          break;
-        case 'inputs':
-          ModbusFunction = 2;
-          break;
         case 1:
-          ModbusFunction = 2;
-          break;
-        case 'coils':
-          if(itemsValues == null){
-              ModbusFunction = 1;
-          }
-          else{
-            if(numberItems == 1){
-              ModbusFunction = 5;
-            }
-            else{
-              ModbusFunction = 15;
-            }
-          }
-          break;
-        case 0:
-          if(itemsValues == null){
-              ModbusFunction = 1;
-          }
-          else{
-            if(numberItems == 1){
-              ModbusFunction = 5;
-            }
-            else{
-              ModbusFunction = 15;
-            }
-          }
-          break;
-      }
-
-      switch (ModbusFunction) {
-        case 1:
-          this.ReadCoilStatus(id, startItem, numberItems);
-          break;
+            //funcion 01 read coils status
+            request.modbus_function = 0x01;
+            request.modbus_data = Buffer.alloc(4);
+            request.modbus_data.writeUInt16BE(startAddres,0);
+            request.modbus_data.writeUInt16BE(pointsQuantity,2);
+            request.MakeBuffer();
+            return request;
+            break;
         case 2:
-          this.ReadInputStatus(id, startItem, numberItems);
-          break;
+            //funcion 02 read inputs status
+            request.modbus_function = 0x02;
+            request.modbus_data = Buffer.alloc(4);
+            request.modbus_data.writeUInt16BE(startAddres,0);
+            request.modbus_data.writeUInt16BE(pointsQuantity,2);
+            request.MakeBuffer();
+            return request;
+            break;
         case 3:
-          this.ReadHoldingRegisters(id, startItem, numberItems);
-          break;
+            //funcion 0x03 leer holdings registers
+            request.modbus_function = 0x03;
+            request.modbus_data = Buffer.alloc(4);
+            request.modbus_data.writeUInt16BE(startAddres,0);
+            request.modbus_data.writeUInt16BE(pointsQuantity,2);
+            request.MakeBuffer();
+            return request;
+            break;
         case 4:
-          this.ReadInputRegisters(id, startItem, numberItems);
-          break;
+                //funcion 0x04 read input registers
+            request.modbus_function = 0x04;
+            request.modbus_data = Buffer.alloc(4);
+            request.modbus_data.writeUInt16BE(startAddres,0);
+            request.modbus_data.writeUInt16BE(pointsQuantity,2);
+            request.MakeBuffer();
+            return request;
+            break;
         case 5:
-          this.ForceSingleCoil(itemsValues, address, tartItem);
-          break;
+            //funcion 05 write single coil            
+            if(values instanceof Buffer){
+                request.modbus_function = 0x05;
+                request.modbus_data = Buffer.alloc(4);
+                request.modbus_data.writeUInt16BE(startAddres,0);
+                values.copy(request.modbus_data,2);          
+                request.MakeBuffer();
+                return request;
+                break;
+            }            
+            else{
+                throw new TypeError('Error, values must be a Buffer', "modbus_master.js", 114);
+                break;
+            }            
         case 6:
-          this.PresetSingleRegister(itemsValues, address, tartItem);
-          break;
+            if(values instanceof Buffer){
+                //creando la pdu del request
+                var request = this.CreatePDU();
+                //funcion 06 PresetSingleRegister
+                request.modbus_function = 0x06;
+                request.modbus_data = Buffer.alloc(4);
+                request.modbus_data.writeUInt16BE(startAddres,0);
+                values.copy(request.modbus_data,2);
+                request.MakeBuffer();
+                return request;
+            }            
+            else{
+                throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 130);
+                break;
+            }
         case 15:
-          this.ForceMultipleCoils(itemsValues, address, startItem);
-          break;
+            //function 15 force multiples coils
+            if(values instanceof Buffer){
+                request.modbus_function = 0x0F;
+                //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
+                request.modbus_data = Buffer.alloc(5 + values.length);
+                request.modbus_data.writeUInt16BE(startAddres,0);
+                request.modbus_data.writeUInt16BE(pointsQuantity,2);
+                request.modbus_data[4]= values.length;
+                values.copy(request.modbus_data,5);
+                request.MakeBuffer();
+                return request;
+            }
+            else{
+                throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 148);
+                break;
+            }
         case 16:
-          this.PresetMultipleRegisters(itemsValues, address, startItem);
-          break;
+            //function 16 write multiples coils
+            if(values instanceof Buffer){
+                request.modbus_function = 0x10;
+                //el tamaño del buffer de datos se calcula a partir de la cantidad de coils a escribir
+                request.modbus_data = Buffer.alloc(5 + pointsQuantity*2);
+                request.modbus_data.writeUInt16BE(startAddres,0);
+                request.modbus_data.writeUInt16BE(pointsQuantity,2);
+                request.modbus_data[4]= values.length;
+                values.copy(request.modbus_data,5);
+                request.MakeBuffer();
+                return request;
+            }
+            else{
+                throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 164);
+                break;
+            }
+        case 22:
+            //function 22 mask holding register
+            if(values instanceof Buffer){
+                request.modbus_function = 0x16;              
+                request.modbus_data = Buffer.alloc(6);
+                request.modbus_data.writeUInt16BE(startAddres,0);              
+                values.copy(request.modbus_data,2);              
+                request.MakeBuffer();
+                return request;
+            }
+            else{
+                throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 178);
+                break;
+            }
         default:
-          return false;
-          break;
-
-      }
-      */
+            throw new Error('Error, modbus function not supported', 'modbus_master.js', 1482);
+        }
+        
+        
     }
-
+    
     /**
     * extract data for a slave response.
     * @param {object} responsePDU PDU received
     * @param {object} reqPDU  PDU sended
     * @return {Object} map Object whit register:value pairs
-    * @fires ModbusMaster#modbus_exception {object}
     */
     ParseResponsePDU(responsePDU, reqPDU){
 
@@ -579,6 +305,357 @@ class ModbusMaster extends ModbusDevice {
     }
     
     return data;
+    }
+
+    /**
+    * function to create a rtu adu
+    * @param {number} address: Modbus slave's address 
+    * @param {number} modbusFunction: Modbus function to execute.
+    * @param {number} startAddres: Initial Register, Starting at 0.
+    * @param {number} pointsQuantity: Register's number to read or write.
+    * @param {Buffer} values values to write 
+    * @return {object} serial adu.
+    */
+    CreateReqRtuADU(address = 1, modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values){
+        let reqADU = new SerialADU('rtu');
+        if(address >= 1 && address <= 247){            
+            reqADU.address = address;
+            try{
+                reqADU.pdu = this.CreateRequestPDU(modbusFunction, startAddres, pointsQuantity, values);
+                reqADU.MakeBuffer();
+            }
+            catch(e){
+                throw e;
+            }
+        }
+        else{
+            throw new RangeError('Address must be a value fron 1 to 247', 'modbus_master_serial.js', '48');
+        }
+
+      return reqADU
+    }
+
+    /**
+    * function to create a rtu adu
+    * @param {number} address: Modbus slave's address 
+    * @param {number} modbusFunction: Modbus function to execute.
+    * @param {number} startAddres: Initial Register, Starting at 0.
+    * @param {number} pointsQuantity: Register's number to read or write.
+    * @param {Buffer} values values to write 
+    * @return {object} serial adu.
+    */
+    CreateReqAsciiADU(address = 1, modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values){
+        let reqADU = new SerialADU('ascii');
+        if(address >= 1 && address <= 247){            
+            reqADU.address = address;
+            try{
+                reqADU.pdu = this.CreateRequestPDU(modbusFunction, startAddres, pointsQuantity, values);
+                reqADU.MakeBufferASCII();
+            }
+            catch(e){
+                throw e;
+            }
+        }
+        else{
+            throw new RangeError('Address must be a value fron 1 to 247', 'modbus_master_serial.js', '48');
+        }
+
+        return reqADU
+    }
+
+    /**
+    * function to create a rtu adu
+    * @param {number} address: Modbus slave's address 
+    * @param {number} modbusFunction: Modbus function to execute.
+    * @param {number} startAddres: Initial Register, Starting at 0.
+    * @param {number} pointsQuantity: Register's number to read or write.
+    * @param {Buffer} values values to write 
+    * @return {object} serial adu.
+    */
+    CreateReqTCPADU(address = 1, modbusFunction = 3, startAddres = 0, pointsQuantity = 1, values){
+        let reqADU = new TcpADU();
+        if(address >= 1 && address <= 247){            
+            reqADU.address = address;
+            reqADU.transactionCounter = this.transactionCounter; 
+            try{
+                reqADU.pdu = this.CreateRequestPDU(modbusFunction, startAddres, pointsQuantity, values);
+                reqADU.MakeBuffer();
+                this.transactionCounter++;
+            }
+            catch(e){
+                throw e;
+            }
+        }
+        else{
+            throw new RangeError('Address must be a value fron 1 to 247', 'modbus_master_tcp.js', '72');
+        }
+
+        return reqADU
+    }
+
+    /**
+    * function 01 of modbus protocol
+    * @param {string} mode 'ascii', rtu or default 'tcp': Mode of transmision.
+    * @param {number} address reference of device.
+    * @param {number} startcoil first coil to read, start at 0.
+    * @param {number} coilQuantity number of coils to read
+    * @return {adu} 
+    */
+    CreateADUReadCoilStatus(mode = 'tcp', address = 1, startCoil = 0, coilQuantity = 1){
+        if(mode == "rtu"){
+            return this.CreateReqRtuADU(address, 1, startCoil, coilQuantity);
+        }
+        else if(mode == "ascii"){
+            return this.CreateReqAsciiADU(address, 1, startCoil, coilQuantity);
+        }
+        else{
+            return this.CreateReqTCPADU(address, 1, startCoil, coilQuantity); 
+        }
+    }
+
+    /**
+    * function 02 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.
+    * @param {number} startinput first input to read, start at 0.
+    * @param {number} inputQuantity number of inputs to read
+    * @return {adu} 
+    */
+    CreateADUReadInputStatus(mode = 'tcp', address = 1, startinput = 0, inputQuantity = 1){
+
+        if(mode == "rtu"){
+            return this.CreateReqRtuADU(address, 2, startinput, inputQuantity);
+        }
+        else if(mode == "ascii"){
+            return this.CreateReqAsciiADU(address, 2, startinput, inputQuantity);
+        }
+        else{
+            return this.CreateReqTCPADU(address, 2, startinput, inputQuantity);
+        }
+    }
+
+    /**
+    * function 03 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.
+    * @param {number} startRegister first holding register to read, start at 0.
+    * @param {number} registerQuantity number of holding register to read.
+    * @return {adu} 
+    */
+    CreateADUReadHoldingRegisters(mode = 'tcp', address = 1, startRegister = 0, registerQuantity = 1){
+
+        if(mode == "rtu"){
+            return this.CreateReqRtuADU(address, 3, startRegister, registerQuantity);
+        }
+        else if(mode == "ascii"){
+            return this.CreateReqAsciiADU(address, 3, startRegister, registerQuantity);
+        }
+        else{
+            return this.CreateReqTCPADU(address, 3, startRegister, registerQuantity);
+        }
+    }
+
+    /**
+    * function 04 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.
+    * @param {number} startRegister first input register to read, start at 0.
+    * @param {number} registerQuantity number of input register to read.
+    * @return {adu} 
+    */
+    CreateADUReadInputRegisters(mode = 'tcp', address = 1, startRegister = 0, registerQuantity = 1){
+
+        if(mode == "rtu"){
+            return this.CreateReqRtuADU(address, 4, startRegister, registerQuantity);
+        }
+        else if(mode == "ascii"){
+            return this.CreateReqAsciiADU(address, 4, startRegister, registerQuantity);
+        }
+        else{
+            return this.CreateReqTCPADU(address, 4, startRegister, registerQuantity);
+        }
+    }
+
+    /**
+    * function 05 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.
+    * @param {number} startcoil first coil to write, start at 0 coil
+    * @param {Buffer} value value to force
+    * @return {adu}
+    */
+    CreateADUForceSingleCoil(mode = 'tcp', address = 1, startCoil = 0, value){        
+        var reqAdu;
+        try{
+            if(mode == "rtu"){
+                reqAdu = this.CreateReqRtuADU(address, 5, startCoil, 1, value);
+            }
+            else if(mode == "ascii"){
+                reqAdu = this.CreateReqAsciiADU(address, 5, startCoil, 1, value);
+            }
+            else{
+                reqAdu = this.CreateReqTCPADU(address, 5, startCoil, 1, value);
+            }
+            return reqAdu;
+        }
+        catch(e){
+            throw e;
+        }
+        
+    }
+
+    /**
+    * function 06 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.
+    * @param {number} startRegister register to write.
+    * @param {Buffer} value value to force
+    * @return {adu}
+    */
+    CreateADUPresetSingleRegister(mode = 'tcp', address = 1, startRegister = 0, value){
+
+        var reqAdu;
+        try{
+            if(mode == "rtu"){
+                reqAdu = this.CreateReqRtuADU(address, 6, startRegister, 1, value);
+            }
+            else if(mode == "ascii"){
+                reqAdu = this.CreateReqAsciiADU(address, 6, startRegister, 1, value);
+            }
+            else{
+                reqAdu = this.CreateReqTCPADU(address, 6, startRegister, 1, value);
+            }
+            return reqAdu;
+        }
+        catch(e){
+            throw e;
+        }
+    }
+
+    /**
+    * function 15 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.    
+    * @param {number} startCoil first coil to write, start at 0 coil.
+    * @param {number} coilQuantity number of coils to read
+    * @param {Buffer} value value to force.
+    * @return {adu}
+    */
+    CreateADUForceMultipleCoils(mode = 'tcp', address = 1, startCoil = 0, coilQuantity, value){
+        var reqAdu;
+        try{
+            if(mode == "rtu"){
+                reqAdu = this.CreateReqRtuADU(address, 15, startCoil, coilQuantity, value);
+            }
+            else if(mode == "ascii"){
+                reqAdu = this.CreateReqAsciiADU(address, 15, startCoil, coilQuantity, value);
+            }
+            else{
+                reqAdu = this.CreateReqTCPADU(address, 15, startCoil, coilQuantity, value);
+            }
+            return reqAdu;
+        }
+        catch(e){
+            throw e;
+        }        
+
+    }
+
+    /**
+    * function 16 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.    
+    * @param {number} startRegister register to write.
+    * @param {number} registerQuantity number of holding register to read.
+    * @param {Buffer} value value to write.
+    * @return {adu}
+    */
+    CreateADUPresetMultipleRegisters(mode = 'tcp', address = 1, startRegister = 0, registerQuantity, value){
+        var reqAdu;
+        try{
+            if(mode == "rtu"){
+                reqAdu = this.CreateReqRtuADU(address, 16, startRegister, registerQuantity, value);
+            }
+            else if(mode == "ascii"){
+                reqAdu = this.CreateReqAsciiADU(address, 16, startRegister, registerQuantity, value);
+            }
+            else{
+                reqAdu = this.CreateReqTCPADU(address, 16, startRegister, registerQuantity, value);
+            }
+            return reqAdu;
+        }
+        catch(e){
+            throw e;
+        } 
+        
+    }
+
+    /**
+    * function 22 of modbus protocol
+    * @param {string} mode 'ascii' , rtu or default 'tcp': Mode of transmision.
+    * @param {string} address reference of device.    
+    * @param {number} startRegister register to write.    
+    * @param {Buffer} value value to write.
+    * @return {adu}
+    */
+    CreateADUMaskHoldingRegister(mode = 'tcp', address = 1, startRegister = 0, value){
+        var reqAdu;
+        try{
+            if(mode == "rtu"){
+                reqAdu = this.CreateReqRtuADU(address, 22, startRegister, 1, value);
+            }
+            else if(mode == "ascii"){
+                reqAdu = this.CreateReqAsciiADU(address, 22, startRegister, 1, value);
+            }
+            else{
+                reqAdu = this.CreateReqTCPADU(address, 22, startRegister, 1, value);
+            }
+            return reqAdu;
+        }
+        catch(e){
+            throw e;
+        } 
+
+    }
+
+    /**
+     * @brief This function calculate the necesary buffer to realize the desired mask function
+     * @param {int[]} valueArray: array with 1 in position that want to be true, 0 on position that
+    * want to be false and -1 in position that not to be modified.
+    * example register value is [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
+    *         desired value is  [1 0 0 1  -1 0 1 -1  -1 -1 0 0  1 1 -1 0]
+    *         result            [1 0 0 1   1 0 1 0    0 1 0 0   1 1 0 0] 0x3259
+    * @returns {Buffer}
+    */
+    CalcMaskRegisterBuffer(valueArray){
+
+    let value = Buffer.alloc(4);
+    let AND_Mask = 0x00;
+    let OR_Mask = 0xFFFF;
+    let tempMask = 1;
+
+    for (let i = 0; i <valueArray.length; i++){
+        
+        if(valueArray[i] == 1){
+        //AND_MASK = 0;
+        //OR_Mask = 1;        
+        }
+        else if(value[i] == 0){ 
+        //AND_MASK = 0;       
+        OR_Mask = OR_Mask  & (~tempMask); //OR_MASK = 0
+        }
+        else{
+        AND_Mask = AND_Mask | tempMask;
+        }
+        
+        tempMask = tempMask << 1; 
+    }   
+  
+    value.writeUInt16BE(AND_Mask);
+    value.writeUInt16BE(OR_Mask, 2);
+
+    return value;
+
     }
 
     
