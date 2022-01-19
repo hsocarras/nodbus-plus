@@ -12,7 +12,7 @@ class SlaveEndPoint extends EventEmitter {
          * type of slave. tcp, rtu or ascii
          * @type {string}
          */
-        this.transmision_mode = null;
+        this.transmisionMode = transmision_mode;
 
         /**
          * ip address of slave
@@ -29,8 +29,14 @@ class SlaveEndPoint extends EventEmitter {
         /**
          * modbus address
          * @type {number} modbus address a value between 1 and 247
-         */        
-        this.modbus_address = 1;
+         */ 
+        if(this.transmisionMode == 'tcp')  {
+            this.modbus_address = 255;
+        } 
+        else{
+            this.modbus_address = 1;
+        }    
+        
 
         this.timeout = 1000;
         
@@ -56,12 +62,23 @@ class SlaveEndPoint extends EventEmitter {
     }
 
     set address(newAddress){
-        if(newAddress > 0 & newAddress <= 247){
-            this.modbus_address = newAddress;
-        }
+        if(this.transmisionMode == 'tcp')  {
+            if(newAddress > 0 & newAddress <= 0xFF){
+                this.modbus_address = newAddress;
+            }
+            else{
+                throw new RangeError('modbus address number 1 - 255')
+            }
+        } 
         else{
-            throw new RangeError('modbus address number 1 - 247')
-        }
+            if(newAddress > 0 & newAddress <= 247){
+                this.modbus_address = newAddress;
+            }
+            else{
+                throw new RangeError('modbus address number 1 - 247')
+            }
+        } 
+       
     }
    
     AddRequest(req){

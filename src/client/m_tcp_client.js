@@ -204,7 +204,7 @@ class ModbusTCPClient extends  ModbusMaster {
 
         if(respADUParsedOk){
           
-          resp.id = resp.adu.mbap.transactionID;
+          resp.id = resp.adu.mbapHeader.transactionID;
           resp.connectionID = slave.id;
 
           //chekeo el transactionID
@@ -213,7 +213,7 @@ class ModbusTCPClient extends  ModbusMaster {
               return null;
           }
           else{ 
-            if((aduBuffer.length - 6) != resp.adu.mbap.length) {
+            if((aduBuffer.length - 6) != resp.adu.mbapHeader.length) {
               this.emit('modbus_exception',slave.id,  "Header ByteCount Mismatch");
               return null;
             }
@@ -252,6 +252,8 @@ class ModbusTCPClient extends  ModbusMaster {
               * @event ModbusTCPClient#ready
             */
             self.emit('ready');
+          },function(id, err){
+            self.emit('error', id, err);
           })
           return successPromise
         }
@@ -270,7 +272,9 @@ class ModbusTCPClient extends  ModbusMaster {
            * @event ModbusTCPClient#ready
          */
          self.emit('ready');
-       })
+       }, function(id, err){
+        self.emit('error', id, err);
+      })
         return successPromise;
       }
 		  

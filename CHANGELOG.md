@@ -42,3 +42,5 @@ All devices get suport for udp transport layer.
 ## Version 0.12.0
 
 Refactoring the code.
+Add suport for modbus function number 7.
+

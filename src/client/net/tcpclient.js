@@ -102,7 +102,7 @@ class TcpClient {
                 return
               }
               else{
-                reject(conn.slaveID);
+                reject(conn.slaveID,err);
               }              
             })
   
@@ -124,7 +124,7 @@ class TcpClient {
           }
           catch(e){
             self.onError(e);
-            reject(slave.id);
+            reject(slave.id, e);
           }
         })
 

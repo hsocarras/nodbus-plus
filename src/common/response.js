@@ -16,14 +16,14 @@ class Response {
          * type
          * @type {string} Indicate if is a tcp or serial request
          */
-        self.transmition_mode = trans_mode;
+        self.transmitionMode = trans_mode;
 
         /**
          * adu
          * @type {ADU Object} Protocol aplication data unit 
          */
         self.adu;
-        switch(transmition_mode){
+        switch(this.transmitionMode){
             case 'tcp':
                 self.adu = new TcpADU('tcp');
                 break;
@@ -43,7 +43,7 @@ class Response {
                 self.adu = new SerialADU('ascii');
                 break;
             default:
-                throw new TypeError('transmition_mode must be a string whit a valid modbus frame transmition mode', 'request.js', '46')
+                throw new TypeError('transmitionMode must be a string whit a valid modbus frame transmition mode', 'request.js', '46')
         }
 
         /**

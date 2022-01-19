@@ -115,7 +115,8 @@ class ModbusSlave extends ModbusDevice {
     * @return {Object} PDU protocol data unit
     */
     ExecRequestPDU(pdu) {
-      
+
+        let self = this;
         let respPDU = this.CreatePDU();
 
         let pduErrorCheck = this.AnalizePDU(pdu)
@@ -149,7 +150,7 @@ class ModbusSlave extends ModbusDevice {
                     respPDU = SlaveFunctions.PresetMultipleRegisters.call(self, pdu);
                     break;
                 case 0x16:                    
-                    respPDU = this.MaskHoldingRegister(pdu);
+                    respPDU = SlaveFunctions.MaskHoldingRegister.call(self, pdu);
                 break;
                 default:
                     //Exception ILLEGAL FUNCTION code 0x01
@@ -248,7 +249,7 @@ class ModbusSlave extends ModbusDevice {
                 }
             }
             else{
-
+              return null;
             }            
         }
         else{
@@ -299,20 +300,20 @@ class ModbusSlave extends ModbusDevice {
     */
     CreateRespTcpADU(reqADU){
       
-        var respADU = new TcpADU('tcp');    
-        respADU.address = this.address;
+        var respADU = new TcpADU('tcp');            
+        respADU.address = 0xFF; //tcp slaves are addresses by ip. modbus address has no meaning.
 
         let reqADUParsedOk = reqADU.ParseBuffer();
         if(reqADUParsedOk){
-          if(this.AnalizeTCPADU == 0){
-              respADU.pdu = self.ExecRequestPDU(reqADU.pdu); 
-              respADU.transactionCounter = reqADU.mbap.transactionID;
+          if(this.AnalizeTCPADU(reqADU) == 0){
+              respADU.pdu = this.ExecRequestPDU(reqADU.pdu); 
+              respADU.transactionCounter = reqADU.mbapHeader.transactionID;
               //broadcast address require no response
               if(reqADU.address != 0){
                   respADU.MakeBuffer();
                   return respADU;
               }
-              else{
+              else{  
                   return null;
               }
           }
@@ -331,14 +332,13 @@ class ModbusSlave extends ModbusDevice {
     * @return {number} error code. 1- error, 0-no errror
     * @fires ModbusnetServer#error {object}
     */
-    AnalizeTCPADU(adu){
-                
-        if (adu.mbap.protocolID != 0){
+    AnalizeTCPADU(adu){              
+        if (adu.mbapHeader.protocolID != 0){
             //si el protocolo no es modbus standard
             this.emit('modbus_exeption','Protocol not Suported. Check MBAP Header');
             return 1;
         }
-        else if (adu.mbap.length != adu.aduBuffer.length-6){
+        else if (adu.mbapHeader.length != adu.aduBuffer.length-6){
             //Verificando el campo length
             this.emit('modbus_exeption','ByteCount error');
             return 1;
@@ -347,7 +347,7 @@ class ModbusSlave extends ModbusDevice {
           return 0;
         }
     
-    }
+    }  
 
     /**
     * Write Data on slave memory from user app

@@ -243,17 +243,15 @@ class ModbusTCPServer extends ModbusSlave {
             self.reqCounter++;
 
             //creating Response
-            let respADU = self.CreateRespTcpADU(req.adu);
+            let respADU = self.CreateRespTcpADU(req.adu);                    
             if(respADU != null){
                 var resp = new Response('tcp');
                 resp.connectionID = connectionID;
                 resp.adu = respADU;
                 resp.id = req.id;
                 resp.adu.MakeBuffer();
-                resp.timeStamp = Date.now();
-                resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                self.resCounter++;
-                  
+                resp.timeStamp = Date.now();                
+                self.resCounter++;                  
                 self.netServer.Write(connectionID, resp); 
                 return true;
             }

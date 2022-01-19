@@ -20,7 +20,7 @@ module.exports.ProcessResponse = function ProcessResponse(id, respADU){
      */
     this.emit('raw_data',id, respADU);
     var respStack = [];
-    if(slave.transmision_mode == 'tcp'){
+    if(slave.transmisionMode == 'tcp'){
       var respStack = self.SplitTCPFrame(respADU)
     }
     else{
@@ -32,6 +32,7 @@ module.exports.ProcessResponse = function ProcessResponse(id, respADU){
       if(slave.requestStack.size > 0){                 
                    
           var resp = self.ParseResponse(slave, element); 
+          
           if(slave.type == 'tcp'){
             var req = slave.SearchRequest(resp.id);
           }
