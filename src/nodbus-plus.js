@@ -7,11 +7,11 @@
 
 
 const ModbusTcpServer = require('./server/m_tcp_server');
-const ModbusTcpClient = require('./client/m_tcp_client');
-const ModbusSerialServer = require('./server/m_serial_server');
-const ModbusSerialClient = require('./client/m_serial_client');
-const ModbusMaster = require('./protocol/modbus_master');
-const ModbusSlave = require('./protocol/modbus_slave');
+//const ModbusTcpClient = require('./client/m_tcp_client');
+//const ModbusSerialServer = require('./server/m_serial_server');
+//const ModbusSerialClient = require('./client/m_serial_client');
+//const ModbusMaster = require('./protocol/modbus_master');
+//const ModbusSlave = require('./protocol/modbus_slave');
 
 
 /**
@@ -26,35 +26,35 @@ module.exports.ModbusTcpServer = ModbusTcpServer;
  * @module nodbus/ModbusSerialServer
  */
 /** Constructor for ModbusSerialServer Class. */
-module.exports.ModbusSerialServer = ModbusSerialServer;
+//module.exports.ModbusSerialServer = ModbusSerialServer;
 
 /**
  * ModbusSlave.
  * @module nodbus/ModbusSlave
  */
 /** Constructor for ModbusSlave base Class. */
-module.exports.ModbusSlave = ModbusSlave;
+//module.exports.ModbusSlave = ModbusSlave;
 
 /**
  * ModbusTcpClient.
  * @module nodbus/ModbusTcpClient
  */
 /** Constructor for ModbusTcpClient Class. */
-module.exports.ModbusTcpClient = ModbusTcpClient;
+//module.exports.ModbusTcpClient = ModbusTcpClient;
 
 /**
  * ModbusSerialClient.
  * @module nodbus/ModbusSerialClient
  */
 /** Constructor for ModbusTcpClient Class. */
-module.exports.ModbusSerialClient = ModbusSerialClient;
+//module.exports.ModbusSerialClient = ModbusSerialClient;
 
 /**
  * ModbusMaster.
  * @module nodbus/ModbusMaster
  */
 /** Constructor for ModbusMaster Class. */
-module.exports.ModbusMaster = ModbusMaster;
+//module.exports.ModbusMaster = ModbusMaster;
 
 /**
 * Create a Slave instance

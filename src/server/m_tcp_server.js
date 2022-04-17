@@ -5,7 +5,7 @@
 * @version 0.4.0
 */
 
-const ModbusSlave = require('../protocol/modbus_slave');
+const ModbusSlave = require('../protocol/modbus_server_tcp');
 const tcpServer = require('./net/tcpserver');
 const udpServer = require('./net/udpserver');
 const Request = require('../common/request');
@@ -20,22 +20,16 @@ const Response = require('../common/response');
 class ModbusTCPServer extends ModbusSlave {
   /**
   * Create a Modbus Tcp Server.
-  * @param {number} p Port to listen.
-  * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
+  * @param {object} config object.
+  * 
   */
-    constructor(p=502, tp = 'tcp', modbusAddress = 1){
-      super(modbusAddress);
-
-      var transportProtocol
-      if(typeof tp == 'string'){
-        transportProtocol = tp
-      }
-      else{
-        throw new TypeError('transport protocol should be a string', 'm_tcp_server.js', '34');
-      }
-
+    constructor(mb_tcp_server_cfg){
+      super(mb_tcp_server_cfg);
       var self = this;
 
+      var transportProtocol = mb_tcp_server_cfg.transportProtocol || 'tcp';
+      
+     
       /**
       * network layer
       * @type {object}
@@ -43,23 +37,31 @@ class ModbusTCPServer extends ModbusSlave {
      switch(transportProtocol){
 
         case 'udp4':
-          this.netServer = new udpServer(p, 'udp4');
+          this.netServer = new udpServer(mb_tcp_server_cfg.net, 'udp4');
           break;
         case 'udp6':
-          this.netServer = new udpServer(p, 'udp6');
+          this.netServer = new udpServer(mb_tcp_server_cfg.net, 'udp6');
           break;
         default:
-            this.netServer = new tcpServer(p);
+            this.netServer = new tcpServer(mb_tcp_server_cfg.net);
      }
       
 
       //Adding listeners to netServer events
-      this.netServer.onData = this.ProcessModbusIndication.bind(this);
+      this.netServer.onData = function EmitData(socket, dataFrame){
+          /**
+          * indication event.
+          * @event ModbusnetServer#indication
+          */
+          this.emit('indication', socket, dataFrame);
+      }.bind(this);
+
+      this.netServer.onMessage = this.ProcessModbusIndication.bind(this);
 
       /**
       * @fires ModbusnetServer#connection
       */
-       this.netServer.onConnection = function EmitConnection (socket) {
+       this.netServer.onConnectionAccepted = function EmitConnection (socket) {
           /**
          * connection event.
          * Emited when new connecton is sablished
@@ -143,19 +145,7 @@ class ModbusTCPServer extends ModbusSlave {
         this.resCounter++;
       }.bind(this);
 
-      /**
-      * Event client disconnect
-      * Emited when client send fin packet
-      * @fires ModbusNetServer#client-disconnect
-      */
-      this.netServer.onClientEnd = function EmitClientDisconnect(socket){
-        /**
-       * client-disconnect event.
-       * @event ModbusnetServer#client-disconnect
-       */
-        this.emit('client-disconnect',socket);
-      }
-      
+            
       /**
       * max client
       * @type {number}
@@ -169,6 +159,12 @@ class ModbusTCPServer extends ModbusSlave {
         writable:false,
         configurable:false
       })
+
+      this.acceptedCallback = function(message){
+
+        this.emit('message', message);
+        let request = this.BuildRequestObject(message);
+      }
       
     }
     
@@ -210,38 +206,22 @@ class ModbusTCPServer extends ModbusSlave {
     }
 
     /**
-    * Function to execute when data are recive
+    * Function to execute when data are receive
     * @param {Buffer} dataFrame frame received by server
     * @return {bool} true if success;
     * @fires ModbusnetServer#indication {Buffer}
     */
-    ProcessModbusIndication(connectionID, dataFrame){
-      var self = this;
-      let socket = this.netServer.activeConnections[connectionID];
-      
-
-      /**
-     * indication event.
-     * @event ModbusnetServer#indication
-     */
-      this.emit('indication', socket, dataFrame);
-      let indicationStack = self.SplitTCPFrame(dataFrame)
-
-      indicationStack.forEach(function(element, index, array){
-        let req = new Request('tcp');
-        req.adu.aduBuffer = element;
-        req.slaveID = self.address;
-
+    ProcessModbusIndication(connectionID, message){
+        var self = this;
         
-        let reqADUParsedOk =  req.adu.ParseBuffer();
-        if(reqADUParsedOk){
+        this.CheckModbusADU(connectionID, message);
+        
+        
             
-            req.id = req.adu.mbapHeader.transactionID;
+           
             self.emit('request', socket, req);
 
-            //add reqest counter
-            self.reqCounter++;
-
+           
             //creating Response
             let respADU = self.CreateRespTcpADU(req.adu);                    
             if(respADU != null){
@@ -257,15 +237,24 @@ class ModbusTCPServer extends ModbusSlave {
             }
             else {
                 return false;
-            }
-            
-        }
-        else{
-          self.emit('modbus_exeption','Error parsing request');
-          return false;
-        }
-                         
-      })    
+            }         
+         
+    }
+
+    /**
+    * Function to build the request object from a valid modbus message
+    * @param {Buffer} message frame received by server    
+    * @emit request
+    */
+    BuildRequestObject(message){
+
+        //building Request Object
+        let req = new Request('tcp');
+        req.adu.aduBuffer = message;
+        req.slaveID = 255;
+        req.id = req.adu.mbapHeader.transactionID;
+
+
     }
 
     

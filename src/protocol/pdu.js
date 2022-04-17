@@ -25,7 +25,7 @@ class PDU {
     *modbus function
     *@type {number}
     */
-    this.modbus_function = 0;
+    this.modbus_function = null;
 
     /**
     *Frame data segment
@@ -73,6 +73,15 @@ class PDU {
      
   }
 
+  /**
+  *function to claculate the pdu buffer length based on data property
+  * @returns {number} the length  calculate for pdu buffer
+  */
+  GetLength(){
+    return this.modbus_data.length + 1;
+  }
+
+  static MaxLength = 253;
 }
 
 module.exports = PDU

@@ -37,11 +37,8 @@ class TcpADU extends ADU {
       //creando el buffer de la pdu
       this.pdu.MakeBuffer();
 
-      //creando en buffer del mbap
-      this.mbapHeader.transactionID = this.transactionCounter;
-      this.mbapHeader.protocolID = 0;
-      this.mbapHeader.length = this.pdu.pduBuffer.length+1;
-      this.mbapHeader.unitID = this.address;
+      //creando en buffer del mbap     
+      this.mbapHeader.length = this.pdu.pduBuffer.length+1;      
       this.mbapHeader.MakeBuffer();
 
       var buff = Buffer.alloc(this.pdu.pduBuffer.length+this.mbapHeader.mbHeaderBuffer.length);

@@ -6,75 +6,59 @@
 */
 
 
-const ModbusDevice = require('./modbus_device');
-const BooleanRegister = require('./boolean_register');
-const WordRegister = require('./word_register');
-const TcpADU = require('../protocol/tcp_adu');
-const SerialADU = require('../protocol/serial_adu');
-const SlaveFunctions = require('./slave_functions/slave_functions');
+const EventEmitter = require('events');
+const PDU = require('./pdu');
+const BooleanRegister = require('./server_utils/boolean_register');
+const WordRegister = require('./server_utils/word_register');
+const TcpADU = require('./tcp_adu');
+const SerialADU = require('./serial_adu');
+const Utils = require('./server_utils/util');
+const SlaveFunctions = require('./server_utils/slave_functions');
 
 /**
  * Class representing a modbus slave.
  * @extends ModbusDevice
 */
-class ModbusSlave extends ModbusDevice {
+class ModbusSlave extends EventEmitter {
   /**
   * Create a Modbus Slave.
   */
-    constructor(address = 1, endianess = "LE"){
+    constructor(mode = 'rtu', mb_server_cfg){
         super();
 
         var self = this;
 
-        /**
-        *Suported functions
-        * @type {number[]}
-        */       
-        const supportedFunctions = SlaveFunctions.SuportedFunctions;        
-        Object.defineProperty(self, 'supportedModbusFunctions',{
-          get: function(){
-            return supportedFunctions;
-          }
-        });
+        const _TransmitionMode = mode;
+        Object.defineProperty(self, 'transmitionMode',{
+            get: function(){
+              return  _TransmitionMode;
+            }
+        })
 
         /**
-        * modbus address. Value between 1 and 247
-        * @type {number}
-        ** @throws {RangeError}
+        * server's modbus functions code supported 
+        * @type {set object}
+        *
         */
-        let mAddress = address;
-        Object.defineProperty(self, 'address',{
-          get: function(){
-            return mAddress;
-          },
-          set: function(address){
-            if(address >= 1 && address <= 247){
-              mAddress = address
-            }
-            else{
-              throw new RangeError('Address must be a value fron 1 to 247', 'modbus_slave.js', '55');
-            }
-          }
-        })
+        this.supportedFunctionsCode = SlaveFunctions.GetSuportedMBFunctionscode(_TransmitionMode);
 
-        let _endianess = endianess;
-        Object.defineProperty(self, 'endianess',{
+        this.localProcessingService = mb_server_cfg.localProcessingService || this.supportedFunctionsCode;
+
+        let _endianness 
+        Object.defineProperty(self, 'endianness',{
           get: function(){
-            return _endianess;
+            return _endianness;
           },
-          set: function(endianess){
-            if(endianess == 'BE'){
-             _endianess = 'BE';
-             self.inputRegisters.endianess = _endianess;
-             self.holdingRegisters.endianess = _endianess;
+          set: function(endianness){
+            if(endianness == 'BE'){
+             _endianness = 'BE';             
             }
             else{
-              _endianess = 'LE';
-              self.inputRegisters.endianess = _endianess;
-              self.holdingRegisters.endianess = _endianess;
+              _endianness = 'LE';              
             }
           }
         })
+        this.endianness = mb_server_cfg.endianness || "LE";
 
         /**
         * Inputs. Reference 1x;
@@ -97,126 +81,191 @@ class ModbusSlave extends ModbusDevice {
         * @type {Object}
         * @public
         */
-        this.holdingRegisters =  new WordRegister(2048, _endianess);
+        this.holdingRegisters =  new WordRegister(2048, _endianness);
 
         /**
         * Registro inputs. Ocupan 2 Bytes. Se transmiten B y B+1 en ese orden
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = new WordRegister(2048, _endianess);
+        this.inputRegisters = new WordRegister(2048, _endianness);       
 
 
-    }    
+    }  
+    
+    /**
+     * Function to check if modbus function code is supported
+     * @param {object} mb_req_pdu 
+     * @return true if does otherwise false
+     */
+    ValidateRequestPDU(mb_req_pdu){
+
+      //Validating Max length of pdu
+      if(mb_req_pdu.pduBuffer.length <= PDU.MaxLength){
+          //Validating restricted function code
+          if(mb_req_pdu.modbus_function > 0 && mb_req_pdu.modbus_function <= 127){
+              //validating function code
+              if(this.supportedFunctionsCode.has(mb_req_pdu.modbus_function)){
+                  return true
+              }              
+              else{                                  
+                  return false;
+              }
+          }
+          else{
+              return false;
+          }
+      }
+      else {
+        return false;
+      }
+    }
 
     /**
-    * Build a response PDU
-    * @param {Object} PDU protocol data unit
+    * Implement activity diagram service processing 
+    * See Modbus Message implementation Guide v1.0b InterfaceIndicationMsg Fig 17
+    * @param {Object PDU} mb_req_pdu protocol data unit    
+    * @return {Promise}  that resolve with PDU response
+    */
+    MBServiceProcessing(mb_req_pdu){
+        var self = this;
+
+        let respPDU
+
+        if(this.localProcessingService.has(mb_req_pdu.modbus_function)){
+            //local processing
+            return new Promise((resolve, reject) => {
+              respPDU = self.BuildResponsePDULocal(mb_req_pdu);
+              resolve(respPDU);
+            })
+        }
+        else{
+            //remote processing
+        }
+    }
+
+    /**
+    * Build a response PDU with local processing
+    * @param {Object PDU} mb_req_pdu protocol data unit
+    * @fires  ModbusSlave#mb_exception
+    * @fires  ModbusSlave#mb_register_writed
     * @return {Object} PDU protocol data unit
     */
-    ExecRequestPDU(pdu) {
+    BuildResponsePDULocal(mb_req_pdu) {
 
         let self = this;
-        let respPDU = this.CreatePDU();
+        let rspPDU = new PDU();
+            
+        if(this.ValidateRequestPDU(mb_req_pdu)){
+            switch( mb_req_pdu.modbus_function ){
+              case 0x01:
+                  respPDU = SlaveFunctions.ReadCoilStatus.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x02:
+                  respPDU = SlaveFunctions.ReadInputStatus.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x03:
+                  respPDU = SlaveFunctions.ReadHoldingRegisters.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x04:
+                  respPDU = SlaveFunctions.ReadInputRegisters.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x05:
+                  respPDU = SlaveFunctions.ForceSingleCoil.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x06:
+                  respPDU = SlaveFunctions.PresetSingleRegister.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x0F:
+                  respPDU = SlaveFunctions.ForceMultipleCoils.call(self, mb_req_pdu.modbus_data);
+              break;
+              case 0x10:                    
+                  respPDU = SlaveFunctions.PresetMultipleRegisters.call(self, mb_req_pdu.modbus_data);
+                  break;
+              case 0x16:                    
+                  respPDU = SlaveFunctions.MaskHoldingRegister.call(self, mb_req_pdu.modbus_data);
+              break;
+              default:
+                  respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
+                  rspPDU.MakeBuffer(); 
+                  return rspPDU;                                                              
+                
+            }
 
-        let pduErrorCheck = this.AnalizePDU(pdu)
-
-        /** Valid PDU*/
-        if(pduErrorCheck == 0){
-          
-            switch( pdu.modbus_function ){
-                case 0x01:
-                    respPDU = SlaveFunctions.ReadCoilStatus.call(self, pdu);
-                break;
-                case 0x02:
-                    respPDU = SlaveFunctions.ReadInputStatus.call(self, pdu);
-                break;
-                case 0x03:
-                    respPDU = SlaveFunctions.ReadHoldingRegisters.call(self, pdu);
-                break;
-                case 0x04:
-                    respPDU = SlaveFunctions.ReadInputRegisters.call(self, pdu);
-                break;
-                case 0x05:
-                    respPDU = SlaveFunctions.ForceSingleCoil.call(self, pdu);
-                break;
-                case 0x06:
-                    respPDU = SlaveFunctions.PresetSingleRegister.call(self, pdu);
-                break;
-                case 0x0F:
-                    respPDU = SlaveFunctions.ForceMultipleCoils.call(self, pdu);
-                break;
-                case 0x10:                    
-                    respPDU = SlaveFunctions.PresetMultipleRegisters.call(self, pdu);
-                    break;
-                case 0x16:                    
-                    respPDU = SlaveFunctions.MaskHoldingRegister.call(self, pdu);
-                break;
-                default:
-                    //Exception ILLEGAL FUNCTION code 0x01
-                    respPDU = SlaveFunctions.MakeModbusException(0x01);                    
-                  break
-            }   
-        }        
-        /** Error in PDU*/
-        if (pduErrorCheck == 1){
-            //Exception ILLEGAL FUNCTION code 0x01
-            respPDU = SlaveFunctions.MakeModbusException(0x03); 
+            rspPDU.MakeBuffer(); 
+            return rspPDU;
         }
-
-        respPDU.MakeBuffer(); 
-        return respPDU;
+        //reply modbus exception 1
+        else{ 
+            respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
+            rspPDU.MakeBuffer(); 
+            return rspPDU;
+        }
 
     }
 
     /**
-    * Chech PDU
-    * @param {Object} PDU protocol data unit
-    * @return {number} Error code. 0-no error, 1-modbus exception, 2-error
-    * @fires ModbusSlave#modbus_exeption
+    * Build a response PDU with remote processing
+    * @param {Object PDU} mb_req_pdu protocol data unit
+    * @fires  ModbusSlave#mb_exception
+    * @fires  ModbusSlave#mb_register_writed
+    * @return {Object} PDU protocol data unit
     */
-    AnalizePDU(pdu){
-       
-        if(pdu.modbus_data.length < 4){
-          return 1;
-        }
-        else if (pdu.modbus_function == 15 || pdu.modbus_function == 16) {
-          let byteCount = pdu.modbus_data.readUInt8(4);
-          if(pdu.modbus_data.length-5 === byteCount){
-            return 0;
-          }
-          else{
-            return 1;
-          }
-        }
-        else if (pdu.modbus_function == 1 || pdu.modbus_function == 2) {
-          let numberPoints = pdu.modbus_data.readUInt16BE(2);
-          if(numberPoints < 2040 ){
-            return 0
-          }
-          else{
-            //can't send more digital value than 2040 because it will need more than 255 bytes and only 
-            //have 1 byte for the bytecount
-            return 1
-          }
-        }
-        else if (pdu.modbus_function == 3 || pdu.modbus_function == 4) {
-          let numberPoints = pdu.modbus_data.readUInt16BE(2);
-          if(numberPoints < 128 ){
-            return 0
-          }
-          else{
-            //can't send more registers than 127 because it will need more than 255 bytes and only 
-            //have 1 byte for the bytecount
-            return 1
-          }
-        }
-        /** Valid PDU. */
-        else{
-          return 0;
-        }
+    BuildResponsePDUExtern(mb_req_pdu) {
+
+      let self = this;
+      let rspPDU = new PDU();        
+    
+      switch( mb_req_pdu.modbus_function ){
+          case 0x01:
+              
+          break;
+          case 0x02:
+              
+          break;
+          case 0x03:
+              
+          break;
+          case 0x04:
+              
+          break;
+          case 0x05:
+              
+          break;
+          case 0x06:
+              
+          break;
+          case 0x0F:
+              
+          break;
+          case 0x10:                    
+          
+              break;
+          case 0x16:                    
+             
+          break;
+          default:
+              respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
+              rspPDU.MakeBuffer(); 
+              return rspPDU;                                                              
+            
         
 
+        rspPDU.MakeBuffer(); 
+        return rspPDU;
+      }
+
+    }
+    
+    /**
+    * Build a modbus exception response PDU
+    * @param {number} modbus_function modbus function code
+    * @param {number} exception_code code of modbus exception
+    * @fires  ModbusSlave#mb_exception
+    * @return {Object} PDU protocol data unit
+    */
+    BuildModbusException(modbus_function, exception_code){
+      return SlaveFunctions.MakeModbusException.call(this, modbus_function, exception_code);
     }
 
     /**
@@ -294,152 +343,63 @@ class ModbusSlave extends ModbusDevice {
     }
 
     /**
-    * Create a response adu on for modbus tco protocol
-    * @param {object} reqADU the request TcpADU object.
-    * @return {object} a TcpADU object with server response if was succesfull created otherwise reutrn null;    
-    */
-    CreateRespTcpADU(reqADU){
-      
-        var respADU = new TcpADU('tcp');            
-        respADU.address = 0xFF; //tcp slaves are addresses by ip. modbus address has no meaning.
-
-        let reqADUParsedOk = reqADU.ParseBuffer();
-        if(reqADUParsedOk){
-          if(this.AnalizeTCPADU(reqADU) == 0){
-              respADU.pdu = this.ExecRequestPDU(reqADU.pdu); 
-              respADU.transactionCounter = reqADU.mbapHeader.transactionID;
-              //broadcast address require no response
-              if(reqADU.address != 0){
-                  respADU.MakeBuffer();
-                  return respADU;
-              }
-              else{  
-                  return null;
-              }
-          }
-          else{
-              return null;
-          } 
-        }
-        else{
-          return null;
-        }
-    }
-
-    /**
-    * Make the response modbus tcp header
-    * @param {buffer} adu frame off modbus indication
-    * @return {number} error code. 1- error, 0-no errror
-    * @fires ModbusnetServer#error {object}
-    */
-    AnalizeTCPADU(adu){              
-        if (adu.mbapHeader.protocolID != 0){
-            //si el protocolo no es modbus standard
-            this.emit('modbus_exeption','Protocol not Suported. Check MBAP Header');
-            return 1;
-        }
-        else if (adu.mbapHeader.length != adu.aduBuffer.length-6){
-            //Verificando el campo length
-            this.emit('modbus_exeption','ByteCount error');
-            return 1;
-        }
-        else{
-          return 0;
-        }
-    
-    }  
-
-    /**
     * Write Data on slave memory from user app
-    * @param {number} value value to be write
+    * @param {number | string} value value to be write
     * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
-    * @param {number} offset number of register;
-    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
-    * @throws {String} description of error
+    * @param {number} offset number of register;    
+    * @return {bool} true if success
     * @example
-    * SetRegisterValue(25.2, 'float', 'holding-register', 10);
+    * SetRegisterValue(25.2, 'holding-register', 10);
     */
-    SetRegisterValue(value, area = 'holding-register', dataAddress = 0, dataType = 'uint16'){
+    SetRegisterValue(value, area = 'holding-register', dataAddress = 0){
       
-      if(typeof value != 'number' && typeof value != 'boolean' ){
-        throw new TypeError('Error  value argument must be a number');        
-      }
-
+      
       let memoryArea = null;
-
-      let buff32 = Buffer.alloc(4);
-      let buff64 = Buffer.alloc(8);
+      let registerValue;
 
       switch(area){
         case 'holding-registers':
-          memoryArea = this.holdingRegisters;
-          if(dataType == 'bool'){
-            dataType = 'uint8';
-          }
+          memoryArea = this.holdingRegisters;          
           break;
         case 'holding':
-          memoryArea = this.holdingRegisters;
-          if(dataType == 'bool'){
-            dataType = 'uint8';
-          }
+          memoryArea = this.holdingRegisters;          
           break;
         case 4:
-          memoryArea = this.holdingRegisters;
-          if(dataType == 'bool'){
-            dataType = 'uint8';
-          }
+          memoryArea = this.holdingRegisters;          
           break;
         case 'inputs-registers':
-          memoryArea = this.inputRegisters;
-          if(dataType == 'bool'){
-            dataType = 'uint8';
-          }
+          memoryArea = this.inputRegisters;          
           break;
         case 3:
-          memoryArea = this.inputRegisters;
-          if(dataType == 'bool'){
-            dataType = 'uint8';
-          }
+          memoryArea = this.inputRegisters;          
           break;
         case 'inputs':
-          memoryArea = this.inputs;
-          if(dataType != 'bool'){
-            dataType = 'bool';
-            value > 0 ? value = true : value = false;
-          }
+          memoryArea = this.inputs;          
           break;
         case 1:
-          memoryArea = this.inputs;
-          if(dataType != 'bool'){
-            dataType = 'bool';
-            value > 0 ? value = true : value = false;
-          }
+          memoryArea = this.inputs;          
           break;
         case 'coils':
-          memoryArea = this.coils;
-          if(dataType != 'bool'){
-            dataType = 'bool';
-            value > 0 ? value = true : value = false;
-          }
+          memoryArea = this.coils;          
           break;
         case 0:
-          memoryArea = this.coils;
-          if(dataType != 'bool'){
-            dataType = 'bool';
-            value > 0 ? value = true : value = false;
-          }
+          memoryArea = this.coils;          
           break;
           default:
-            throw 'invalid address'
+            return false;
             break;
       }
 
-      try{
-        memoryArea.SetValue(value, dataAddress, dataType);
+      registerValue = Utils.GetBufferFromValue(value, this.endianness);
+      
+      if(registerValue){
+          return memoryArea.SetValue(registerValue, dataAddress);
       }
-      catch(e){
-        this.emit('error', e)
+      else {
+          return false;
       }
+      
+     
 
     }
 
@@ -447,22 +407,20 @@ class ModbusSlave extends ModbusDevice {
     * Read Data on slave memory    *
     * @param {string|number} area modbus registers. Suppoting values: holding-register, holding, 4, inputs-registers, 3, inputs, 1, coils, 0;
     * @param {number} offset number of register;
-    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, int,  int32, float,  double.
+    * @param {string} dataType value format. Suppoting format: bool, uint,  uint32, uint64, int,  int32, int64, float,  double and string.
     * @example
     * //return 25.2
     * GetRegisterValue('4', 10, 'float');
     */
-    GetRegisterValue(area = 'holding-register', dataAddress = 0, dataType = 'uint16'){
+    GetRegisterValue(area = 'holding-register', dataAddress = 0, dataType = 'uint16', strLength = 10){
       /*
       *@param {number or array} value values to write in server memory for use app
       */
 
       let memoryArea = null;
-      let value = null;
-
-      let buff32 = Buffer.alloc(4);
-      let buff64 = Buffer.alloc(8);
-
+      let buffValue = null;
+      
+            
       switch(area){
         case 'holding-registers':
           memoryArea = this.holdingRegisters;
@@ -520,11 +478,38 @@ class ModbusSlave extends ModbusDevice {
           break;
       }
 
-      value = memoryArea.GetValue(dataAddress, dataType)
+      switch(dataType){ 
+        case 'int32':
+            buffValue = memoryArea.GetValue(dataAddress, 2);
+            break; 
+        case 'uint32':
+            buffValue = memoryArea.GetValue(dataAddress, 2); 
+            break;
+        case 'int64':
+            buffValue = memoryArea.GetValue(dataAddress, 4); 
+            break;
+        case 'uint64':
+            buffValue = memoryArea.GetValue(dataAddress, 4);
+            break;         
+        case 'float':
+            buffValue = memoryArea.GetValue(dataAddress, 2);
+            break;
+        case 'double':
+            buffValue = memoryArea.GetValue(dataAddress, 4);
+            break;
+      case 'string':
+            let registerCount = Math.ceil(strLength/2); 
+            buffValue = memoryArea.GetValue(dataAddress, registerCount);
+            buffValue = buffValue.slice(0,strLength);
+            break;
+      default:
+          buffValue = memoryArea.GetValue(dataAddress, 1);              
+      }
 
-      return value;
+      return Utils.GetValueFromBuffer(buffValue, dataType, this.endianness);
 
     }
+    
 }
 
 ModbusSlave.prototype.MakeModbusException = SlaveFunctions.MakeModbusException;

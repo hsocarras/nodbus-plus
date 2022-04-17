@@ -2,11 +2,12 @@
 ** Modbus Master Base Class module.
 * @module protocol/modbus-master
 * @author Hector E. Socarras.
-* @version 0.8.0
+* @version 0.12.0
 */
 
 
-const ModbusDevice = require('./modbus_device');
+const EventEmitter = require('events');
+const PDU = require('./pdu');
 const TcpADU = require('../protocol/tcp_adu');
 const SerialADU = require('../protocol/serial_adu');
 
@@ -15,7 +16,7 @@ const SerialADU = require('../protocol/serial_adu');
  * Class representing a modbus master.
  * @extends ModbusDevice
 */
-class ModbusMaster extends ModbusDevice {
+class ModbusMaster extends EventEmitter {
     /**
     * Create a Modbus Master.
     */

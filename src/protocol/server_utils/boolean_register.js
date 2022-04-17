@@ -5,31 +5,42 @@
 * @version 0.4.0
 */
 
+const MAX_ITEM_NUMBER = 65535;
+
 /**
  * Class representing a boolean memory area.
 */
 class BooleanRegister {
   /**
   * Create a bolean register.
+  * @param {number} primary_table 1 for coils 2 for inpusts.
   * @param {number} size total amount of references (inputs or coils).
   */
-  constructor(size = 1024){
+  constructor(primary_table, size = MAX_ITEM_NUMBER){
 
     /**
     *Implementation of modbus register
     *@type {Buffer}
     */
     let buffer_size = 1;
-    if(size > 8){
-      (size % 8) ? buffer_size = size/8 + 1: buffer_size = size/8;
+    if(size < MAX_ITEM_NUMBER){
+      (size % 8) ? buffer_size = Math.ceil(size/8) : buffer_size = size/8;
+      this.size = size;
     }
+    else{
+      buffer_size = 8192;
+      this.size = MAX_ITEM_NUMBER;
+    } 
+
     this.registerBuffer = Buffer.alloc(buffer_size);
 
-    /**
-    *@type {number}
-    */
-    this.size = size;
-
+    if(primary_table == 0){
+        this.reference = 0; //reference for coils
+    }
+    else{
+      this.reference = 1; //  //reference for inputs
+    }
+    
 
   }
 
@@ -74,14 +85,16 @@ class BooleanRegister {
   *values can be 0 filled acording to modbus spec
   *@param {number} dataAddress address of register
   */
-  DecodeRegister(frame, number_of_points, dataAddress = 0){
+  DecodeRegister(frame,  dataAddress, number_of_points = 1){
+
     if(frame instanceof Buffer && typeof number_of_points == 'number' && typeof dataAddress == 'number'){
       if(dataAddress + number_of_points <= this.size){
 
         let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+        let value = Bufer.alloc(1);
 
         for(let i=0; i< number_of_points; i++){
-          let value = frame[Math.floor(i/8)] & masks[i%8];          
+          value[0]= frame[Math.floor(i/8)] & masks[i%8];          
           this.SetValue(value, dataAddress + i);
         }
 
@@ -101,39 +114,42 @@ class BooleanRegister {
 * function to get the register value from user app.
 * The register are encoding usin litle endian
 * @param {number} dataAddress address of register
-* @return {boolean}
+* @return {buffer} buffValue buffer with requested register or null if register does not exits
 */
-  GetValue(dataAddress = 0, dataType = 'bool'){
+  GetValue(dataAddress = 0, registerCount = 1){
+
     if(dataAddress <= this.size){
 
       let Byte = this.registerBuffer[Math.floor(dataAddress/8)];
       let offset = dataAddress%8;
       let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+      let buffValue = Buffer.alloc(1);
 
-      return ((Byte & masks[offset]) > 0 ) ? true : false;
+      ((Byte & masks[offset]) > 0 ) ? buffValue[0] = 0x01 : buffValue[0] = 0x00;
+      return buffValue;
 
     }
     else{
-      throw new RangeError('Invalid register. Consider Resize de register');
+      return null;
     }
   }
 
   /**
 * function to write the register from user app
-* @param {number or boolean} value value to write
+* @param {buffer} value value to write. if buffer[0] > 1 write true else write false
 * @param {number} dataAddress address of register
 * @return {boolean} true if success
 */
-  SetValue(value, dataAddress = 0, dataType = 'bool'){
+  SetValue(value, dataAddress = 0){
 
     if(dataAddress <= this.size){
-      if(typeof value == 'number' || typeof value == 'boolean'){
+      if( value instanceof Buffer){
 
         let newByte = 0x00;
-        let Byte = this.registerBuffer[Math.floor(dataAddress/8)];
+        let Byte = this.registerBuffer[Math.floor(dataAddress/8)];  //get byte were the boolean register are
         let offset = dataAddress%8;
         let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-        if(value == true || value > 0){
+        if(value[0] > 0){
           newByte = Byte | masks[offset];
         }
         else {
@@ -150,23 +166,7 @@ class BooleanRegister {
     else{
       return false;
     }
-  }
-
-  /**
-   * function to rezise the buffer of register
-   * @param {number} newSise
-   * @return {number} the actual size of register
-   */
-  ReSize(newSize){
-    if(typeof newSize == 'number'){      
-      if(newSize > this.size){
-        let expandBuffer = Buffer.alloc(newSize - this.size);
-        this.registerBuffer = Buffer.concat([this.registerBuffer, expandBuffer], newSize)
-        this.size = newSize        
-      } 
-    }
-    return this.size
-  }
+  }  
 
 }
 
