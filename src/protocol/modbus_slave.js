@@ -88,7 +88,15 @@ class ModbusSlave extends EventEmitter {
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = new WordRegister(2048, _endianness);       
+        this.inputRegisters = new WordRegister(2048, _endianness);  
+        
+        /**
+         * hook functions to remote service procesing
+         */
+        this.readCoilsHook = null;                //hok function for modbus function 1
+        this.readInputsHook = null;               //hok function for modbus function 2
+        this.readHoldingRegisterHook = null;      //hok function for modbus function 3
+        this.readInputRegisterHook = null;        //hok function for modbus function 3
 
 
     }  
@@ -134,14 +142,15 @@ class ModbusSlave extends EventEmitter {
 
         if(this.localProcessingService.has(mb_req_pdu.modbus_function)){
             //local processing
-            return new Promise((resolve, reject) => {
-              respPDU = self.BuildResponsePDULocal(mb_req_pdu);
-              resolve(respPDU);
-            })
+            respPDU = self.BuildResponsePDULocal(mb_req_pdu);
+            
         }
         else{
             //remote processing
+            respPDU = self.BuildResponsePDURemote(mb_req_pdu);            
         }
+
+        return respPDU;
     }
 
     /**
@@ -211,49 +220,71 @@ class ModbusSlave extends EventEmitter {
     * @fires  ModbusSlave#mb_register_writed
     * @return {Object} PDU protocol data unit
     */
-    BuildResponsePDUExtern(mb_req_pdu) {
+    async BuildResponsePDURemote(mb_req_pdu) {
 
-      let self = this;
-      let rspPDU = new PDU();        
-    
-      switch( mb_req_pdu.modbus_function ){
-          case 0x01:
-              
-          break;
-          case 0x02:
-              
-          break;
-          case 0x03:
-              
-          break;
-          case 0x04:
-              
-          break;
-          case 0x05:
-              
-          break;
-          case 0x06:
-              
-          break;
-          case 0x0F:
-              
-          break;
-          case 0x10:                    
-          
-              break;
-          case 0x16:                    
-             
-          break;
-          default:
-              respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
-              rspPDU.MakeBuffer(); 
-              return rspPDU;                                                              
+        let self = this;
+        let rspPDU = new PDU();
             
-        
+        if(this.ValidateRequestPDU(mb_req_pdu)){
+            switch( mb_req_pdu.modbus_function ){
+              case 0x01:
+                  if(this.readCoilsHook instanceof Function){
 
-        rspPDU.MakeBuffer(); 
-        return rspPDU;
-      }
+                    let startingAddress = mb_req_pdu.modbus_data.readUInt16BE(0);
+                    let numberOfCoils =   mb_req_pdu.modbus_data.readUInt16BE(2);
+                    //return promise that resolve with object {error: 0, data: buffer}
+                    let respUserApp =  await this.readCoilsHook(startingAddress, numberOfCoils);
+                    if(respUserApp.error == 0){
+                        respPDU.modbus_function =  mb_req_pdu.modbus_function;
+                        respPDU.modbus_data = respUserApp.data;
+                    }
+                    else{
+                      respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, respUserApp.data[0]);
+                    }
+                  }
+                  else{
+                    respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1);
+                  }                  
+                  break;
+              case 0x02:
+                    
+                  break;
+              case 0x03:
+                    
+                  break;
+              case 0x04:
+                  
+                  break;
+              case 0x05:
+                  
+                  break;
+              case 0x06:
+                  
+                  break;
+              case 0x0F:
+                 
+                  break;
+              case 0x10:                    
+                  
+                  break;
+              case 0x16:                    
+                 
+                  break;
+              default:
+                  respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
+                  rspPDU.MakeBuffer(); 
+                  return rspPDU;                                                              
+                
+            }
+            rspPDU.MakeBuffer(); 
+            return rspPDU;
+        }
+        //reply modbus exception 1
+        else{ 
+            respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
+            rspPDU.MakeBuffer(); 
+            return rspPDU;
+        }
 
     }
     

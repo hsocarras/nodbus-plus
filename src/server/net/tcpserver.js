@@ -106,20 +106,20 @@ class TCPServer {
     this.onWrite = undefined;
 
     this.tcpServer.on('error', (e) => {
-        if(self.onError != undefined && (self.onError instanceof Function)){
+        if(self.onError instanceof Function){
             self.onError(e);
         }
     });
 
     this.tcpServer.on('close', function(){
       connections = [];
-      if(self.onServerClose != undefined && (self.onServerClose instanceof Function)){
+      if(self.onServerClose instanceof Function){
         self.onServerClose();
       }      
     });
 
     this.tcpServer.on('listening', () => {
-      if(self.onListening != undefined && (self.onListening instanceof Function)){
+      if(self.onListening instanceof Function){
         self.onListening();
       }
     });
@@ -128,7 +128,7 @@ class TCPServer {
 
       function AceptConnection(socket){
 
-          if(self.onConnectionAccepted != undefined && (self.onConnectionAccepted instanceof Function)){
+          if(self.onConnectionAccepted instanceof Function){
             self.onConnectionAccepted(socket);
           }
 
@@ -142,14 +142,14 @@ class TCPServer {
 
             let index = connections.indexOf(socket);
 
-            if(self.onData != undefined && (self.onData instanceof Function)){
+            if(self.onData instanceof Function){
                 self.onData(index, data);
             }
 
             let messages = self.SplitTCPFrame(data);
 
             messages.forEach((message) => {
-                if(self.onMessage != undefined && (self.onMessage  instanceof Function)){
+                if(self.onMessage  instanceof Function){
                   self.onMessage(index, message);
                 }
             })
@@ -157,7 +157,7 @@ class TCPServer {
           });
 
           socket.on('error', (e) => {
-            if(self.onError != undefined && (self.onError instanceof Function)){
+            if(self.onError instanceof Function){
                 self.onError(e);
             }
           });
@@ -168,7 +168,7 @@ class TCPServer {
             //deleting socket from pool
             connections.splice(index,1);
 
-            if(self.onConnectionClose != undefined && (self.onConnectionClose instanceof Function)){
+            if(self.onConnectionClose instanceof Function){
               self.onConnectionClose(had_error);
             }
           });
@@ -203,6 +203,10 @@ class TCPServer {
   get isListening(){
     return this.tcpServer.listening;
   }
+
+  GetSocket(socket_index){
+      return this.activeConnections[socket_index];
+  }
   
   /**
   * Start the tcp server
@@ -233,12 +237,12 @@ class TCPServer {
   * @param {number} socketIndex. Index to socket in connections array
   * @param {buffer} data
   */
-  Write (socketIndex, resp){
+  Write (socketIndex, message_frame){
     let self = this;
     let socket = self.activeConnections[socketIndex];
-    socket.write(resp.adu.aduBuffer, 'utf8', function(){
-      if(self.onWrite){
-        self.onWrite(resp);
+    socket.write(message_frame, 'utf8', function(){
+      if(self.onWrite instanceof Function){
+        self.onWrite(socket.remoteAddress, message_frame);
       }
     });
   }

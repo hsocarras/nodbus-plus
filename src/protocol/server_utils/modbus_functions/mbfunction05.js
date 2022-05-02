@@ -30,9 +30,9 @@ var ForceSingleCoil = function (pdu_req_data){
                 rspPDU.modbus_function = FUNCTION_CODE;
                 rspPDU.modbus_data = pdu_req_data;
                 //writing values on register
-                let val = Buffer.alloc(1);
-                (pdu_req_data.readUInt16BE(2) == 0xFF00) ? val[0] = 1 : val[0] = 0;
-                this.coils.SetValue(val, targetCoil);
+                let valBuffer = Buffer.alloc(1);
+                (pdu_req_data.readUInt16BE(2) == 0xFF00) ? valBuffer[0] = 1 : valBuffer[0] = 0;
+                this.coils.SetValue(valBuffer, targetCoil);
 
                 
                 //creating object of values writed

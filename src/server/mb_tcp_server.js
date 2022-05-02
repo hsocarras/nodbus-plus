@@ -1,23 +1,23 @@
 /**
-* Modbus Tcp server module.
+* A ready to use modbus tcp server.
 * @module server/m_tcp_server.
 * @author Hector E. Socarras.
-* @version 0.4.0
+* @version 0.14.0
 */
 
-const ModbusSlave = require('../protocol/modbus_server_tcp');
+const ModbusServer = require('../protocol/modbus_server_tcp');
 const tcpServer = require('./net/tcpserver');
 const udpServer = require('./net/udpserver');
-const Request = require('../common/request');
-const Response = require('../common/response');
+const Transaction = require('./utils/transaction_tcp');
+
 
 
 
 /**
  * Class representing a modbus tcp server.
- * @extends ModbusSlave
+ * @extends ModbusServer
 */
-class ModbusTCPServer extends ModbusSlave {
+class ModbusTCPServer extends ModbusServer {
   /**
   * Create a Modbus Tcp Server.
   * @param {object} config object.
@@ -56,7 +56,7 @@ class ModbusTCPServer extends ModbusSlave {
           this.emit('indication', socket, dataFrame);
       }.bind(this);
 
-      this.netServer.onMessage = this.ProcessModbusIndication.bind(this);
+      this.netServer.onMessage = this.ReceiveIndicationMessage.bind(this);
 
       /**
       * @fires ModbusnetServer#connection
@@ -136,15 +136,30 @@ class ModbusTCPServer extends ModbusSlave {
       * Emited when response is send to master
       * @fires ModbusnetServer#response
       */
-      this.netServer.onWrite = function EmitResponse(resp){
+      this.netServer.onWrite = function EmitWriteMessage(ip_address, message_frame){
         /**
        * response event.
        * @event ModbusnetServer#response
        */
-        this.emit('response', resp);
-        this.resCounter++;
+        this.emit('mb_response', ip_address, message_frame);
+       
       }.bind(this);
 
+      this.SendResponseMessage = this.netServer.Write;
+
+      this.on('transaction_acepted', function(transaction){
+          //building Request Object
+          let sock = self.netServer.GetSocket(transaction.connectionID);
+          let req = new Transaction(sock, transaction.request);
+          self.emit('request', req);
+      });
+
+      this.on('transaction_resolved', function(connection_id, mb_resp_adu){
+        //building Request Object
+        let sock = self.netServer.GetSocket(connection_id);
+        let resp = new Request(sock, mb_resp_adu);
+        self.emit('response', resp);
+      });
             
       /**
       * max client
@@ -160,12 +175,7 @@ class ModbusTCPServer extends ModbusSlave {
         configurable:false
       })
 
-      this.acceptedCallback = function(message){
-
-        this.emit('message', message);
-        let request = this.BuildRequestObject(message);
-      }
-      
+            
     }
     
     /**
@@ -195,6 +205,7 @@ class ModbusTCPServer extends ModbusSlave {
     * Function to start the server
     */
     Start(){
+      this.StartServer();
       this.netServer.Start();
     }
 
@@ -202,62 +213,11 @@ class ModbusTCPServer extends ModbusSlave {
     * Function to stop the server
     */
     Stop(){
+      this.StopServer();
       this.netServer.Stop();
     }
 
-    /**
-    * Function to execute when data are receive
-    * @param {Buffer} dataFrame frame received by server
-    * @return {bool} true if success;
-    * @fires ModbusnetServer#indication {Buffer}
-    */
-    ProcessModbusIndication(connectionID, message){
-        var self = this;
         
-        this.CheckModbusADU(connectionID, message);
-        
-        
-            
-           
-            self.emit('request', socket, req);
-
-           
-            //creating Response
-            let respADU = self.CreateRespTcpADU(req.adu);                    
-            if(respADU != null){
-                var resp = new Response('tcp');
-                resp.connectionID = connectionID;
-                resp.adu = respADU;
-                resp.id = req.id;
-                resp.adu.MakeBuffer();
-                resp.timeStamp = Date.now();                
-                self.resCounter++;                  
-                self.netServer.Write(connectionID, resp); 
-                return true;
-            }
-            else {
-                return false;
-            }         
-         
-    }
-
-    /**
-    * Function to build the request object from a valid modbus message
-    * @param {Buffer} message frame received by server    
-    * @emit request
-    */
-    BuildRequestObject(message){
-
-        //building Request Object
-        let req = new Request('tcp');
-        req.adu.aduBuffer = message;
-        req.slaveID = 255;
-        req.id = req.adu.mbapHeader.transactionID;
-
-
-    }
-
-    
 }
 
 module.exports = ModbusTCPServer;

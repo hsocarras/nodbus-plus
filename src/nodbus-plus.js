@@ -2,11 +2,11 @@
  * Nodbus module.
  * @module nodbus
  * @author Hector E. Socarras Cabrera
- * @version 0.10.0
+ * @version 0.14.0
 */
 
 
-const ModbusTcpServer = require('./server/m_tcp_server');
+const ModbusTcpServer = require('./server/mb_tcp_server');
 //const ModbusTcpClient = require('./client/m_tcp_client');
 //const ModbusSerialServer = require('./server/m_serial_server');
 //const ModbusSerialClient = require('./client/m_serial_client');

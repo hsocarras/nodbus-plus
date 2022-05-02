@@ -35,13 +35,13 @@ modbusTCPServer.on('client-disconnect', function(socket){
     console.log('Client ' + socket.remoteAddress + ' disconnected');
 });
 
-modbusTCPServer.on('indication', function(client, adubuffer){
+modbusTCPServer.on('message', function(client, adubuffer){
     console.log('Indication Recieved from' + client.remoteAddress);
     console.log(adubuffer);
 });
 
-modbusTCPServer.on('request', function(client, req){
-    console.log('Indication Recieved from' + client.remoteAddress);
+modbusTCPServer.on('request', function(req){
+    console.log('Indication Recieved from' + req.remoteAddress);
     console.log(req);
 });
 

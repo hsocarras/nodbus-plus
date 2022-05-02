@@ -70,9 +70,16 @@ class ModbusServerTcp extends ModbusSlave {
     * 
     */
     ReceiveIndicationMessage(connection_id, message_frame){
+        let self = this;
         //Starting server activity
         if(this.globalState){
-            this.CheckModbusADU(connection_id, message_frame);
+           let respPromise = this.CheckModbusADU(connection_id, message_frame);
+           respPromise.then(function(connection_id, mb_resp_adu){
+                self.emit('transaction_resolved',connection_id, mb_resp_adu);
+                self.SendResponseMessage(connection_id, mb_resp_adu);
+           },function(connection_id, message_frame){
+               self.emit('transaction_rejected',connection_id, message_frame);
+           });
         }
     }
 
@@ -81,6 +88,7 @@ class ModbusServerTcp extends ModbusSlave {
     * See Modbus Message implementation Guide v1.0b
     * @param {object} connection_id connection id used for user app to identificate a connection on tcp management layer.
     * @param {buffer} message_frame modbus indication's frame
+    * @fires ModbusServerTcp#transaction_acepted
     * @return {object} Adu  if success, otherwise null
     * 
     */
@@ -105,46 +113,52 @@ class ModbusServerTcp extends ModbusSlave {
                     connectionID:connection_id,
                     request: mbRequestADU                   
                 }
+                //response adu
+                let mbResponseAdu;
 
                 let transactionIndex = this.transactionStack.indexOf(null);
                 if(transactionIndex >= 0){
                     //means that somo index in transaction stack is empty(has a null value)
                     if(this.ValidateRequestPDU(mbRequestADU.pdu)){
                         //transaction accepted
-                        this.transactionStack[transactionIndex] = transaction;                                                
-                        
+                        this.transactionStack[transactionIndex] = transaction;
+                        this.emit('transaction_acepted', transaction);                                               
+                        return this.ResolveTransaction(transactionIndex);
                     }
                     else{
                         //transaction rejected. exception 1
                         let resPDU = this.BuilModbusException(mbRequestPDU.modbus_function, 1);
-                        let mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
+                        mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
     
-                        this.SendResponseMessage(connection_id, mbResponseAdu.buffer);
+                        return  Promise.resolve(connection_id, mbRequestPDU);
                     }
                 }
                 else{
                     //transaction rejected. exception 6
                     let resPDU = this.BuilModbusException(mbRequestPDU.modbus_function, 6);
-                    let mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
+                    mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
 
-                    this.SendResponseMessage(connection_id, mbResponseAdu.buffer);
+                    return  Promise.resolve(connection_id, mbRequestPDU);
 
                 }
             }
             
         }
+        return  Promise.reject(connection_id, message_frame);
         
     }  
 
-    async ResolveTransaction(transaction_index){
-
+    ResolveTransaction(transaction_index){
+        let self = this;
         let transaction = this.transactionStack[transaction_index];
         let reqHeader = transaction.request.header;
-        let resPDU = await this.MBServiceProcessing(transaction.request.pdu);
-        let mbResponseAdu = MakeResponse(reqHeader, resPDU);                   
 
-        this.SendResponseMessage(connection_id, mbResponseAdu.buffer);
-        this.transactionStack[transaction_index] = null;
+        let resPDU = this.MBServiceProcessing(transaction.request.pdu);
+        let mbResponseAdu = MakeResponse(reqHeader, resPDU);   
+        self.transactionStack[transaction_index] = null;
+
+        return new Promise.resolve(transaction.connectionID, mbResponseAdu);        
+        
     }
 
    MakeResponse(req_header, resp_pdu){
