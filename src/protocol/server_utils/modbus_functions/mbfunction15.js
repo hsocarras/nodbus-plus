@@ -20,10 +20,9 @@ var ForceMultipleCoils = function (pdu_req_data){
     let numberOfRegister =   pdu_req_data.readUInt16BE(2);
 
     //number of byte with forced values
-    var byteCount = pdu_req_data.readUInt8(5);
-
+    var byteCount = pdu_req_data.readUInt8(4);   
     //Validating Data Value. see Modbus Aplication Protocol V1.1b3 2006    
-    if(numberOfRegister >=1 && numberOfRegister <= 0x07B0 && byteCount == Math.ceil(numberOfRegister/8) && pdu_req_data.length < PDU.MaxLength){        
+    if(numberOfRegister >= 1 && numberOfRegister <= 0x07B0 && byteCount == Math.ceil(numberOfRegister/8) && pdu_req_data.length < PDU.MaxLength){        
         //initial register. Example coil 20 addressing as 0x13 (19)
         let startingAddress = pdu_req_data.readUInt16BE(0);      
         
@@ -43,7 +42,7 @@ var ForceMultipleCoils = function (pdu_req_data){
                 
                 //creating object of values writed
                 let values = new Map();
-                for(var i = 0; i < number_points; i++){                  
+                for(var i = 0; i < numberOfRegister; i++){                  
                 let val = this.coils.GetValue(startingAddress + i);                  
                 values.set(startingAddress + i, (val[0] > 0));
                 }               
@@ -54,7 +53,8 @@ var ForceMultipleCoils = function (pdu_req_data){
                 return rspPDU;
            }
            catch(e){
-            return MakeModbusException.call(this, FUNCTION_CODE, 4);
+                console.log(e)
+                return MakeModbusException.call(this, FUNCTION_CODE, 4);
            }
         }
         //Making modbus exeption 2

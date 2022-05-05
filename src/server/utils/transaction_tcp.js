@@ -7,7 +7,7 @@
 
 class MBTcpTransaction {
     constructor(socket, mb_adu){        
-
+        var self = this;
         /**
          * type
          * @type {string} Indicate is a tcp request

@@ -284,6 +284,80 @@ class ModbusServerSerial extends ModbusSlave {
         return lrc;
 
     }
+
+    /**
+    * Create a response adu on for modbus serial protocol
+    * @param {object} reqADU the request SerialADU object.
+    * @return {object} a SerialADU object with server response if was succesfull created otherwise reutrn null;    
+    */
+   CreateRespSerialADU(reqADU){
+
+    if(reqADU.transmision_mode == 'ascii'){
+        var respADU = new SerialADU('ascii');
+    }
+    else{
+        respADU = new SerialADU('rtu');
+    }
+    
+    respADU.address = this.address;
+
+    let reqADUParsedOk = reqADU.ParseBuffer();
+    if(reqADUParsedOk){
+        if(this.AnalizeSerialADU(reqADU) == 0){
+            respADU.pdu = self.ExecRequestPDU(reqADU.pdu); 
+            //broadcast address require no response
+            if(reqADU.address != 0){
+                respADU.MakeBuffer();
+                return respADU;
+            }
+            else{
+                return null;
+            }
+        }
+        else{
+          return null;
+        }            
+    }
+    else{
+      return null;
+    }
+      
+    
+}
+
+/**
+* Make the response modbus tcp header
+* @param {buffer} adu frame off modbus indication
+* @return {number} error code. 1- error, 0-no errror
+* @fires ModbusnetServer#error {object}
+*/
+AnalizeSerialADU(adu){
+    
+  var calcErrorCheck = 0;
+
+    if(adu.transmision_mode == 'ascii'){
+        calcErrorCheck = adu.GetLRC();
+    }
+    else{
+        calcErrorCheck = adu.GetCRC();
+    }
+
+    if (adu.address == this.address || adu.address == 0 ){            
+        //cheking checsum
+        if(calcErrorCheck == adu.errorCheck){
+            return 0;
+        }
+        else{
+          this.emit('modbus_exeption',"CHEKSUM ERROR");
+          return 1;
+        }
+    }
+    else{
+      //address mistmatch
+      return 1;
+    }
+
+}
    
 }
 

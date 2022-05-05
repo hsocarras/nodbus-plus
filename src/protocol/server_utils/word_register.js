@@ -16,7 +16,7 @@ class WordRegister {
     * @param {number} primary_table 3 for inputs 4 for holding registers.
     * @param {number} size total amount of references (inputs or holdings registers).
     */
-    constructor(primary_table, size = MAX_ITEM_NUMBER,){
+    constructor(primary_table, size = MAX_ITEM_NUMBER){
 
       
         if(size < MAX_ITEM_NUMBER){
@@ -34,7 +34,6 @@ class WordRegister {
         else{
           this.reference = 3; //  //reference for inputs
         }
-      
 
     }
 
@@ -55,18 +54,17 @@ class WordRegister {
   
         let buffRegister = Buffer.alloc(number_of_register*2);
 
-        for(let i = 0; i <= number_of_register; i+=2){
-          buffRegister[i] = this.registerBuffer[offset + i+1];
-          buffRegister[i + 1] = this.registerBuffer[offset + i];
-        }
-        
+        for(let i = 0; i <= number_of_register; i+=1){
+          buffRegister[2*i] = this.registerBuffer[offset + 2*i+1];
+          buffRegister[2*i + 1] = this.registerBuffer[offset + 2*i];          
+        } 
         return buffRegister;
       }
-      else{
+      else{        
         throw new RangeError('invalid register address or out of limit');
       }
     }
-    else{
+    else{      
       throw new TypeError('dataAddress and number of register must be a Number')
     }
     
@@ -79,12 +77,12 @@ class WordRegister {
   *@param {buffer} value
   *@param {number} dataAddress address of register
   */
-  DecodeRegister(frame, dataAddress = 0, number_of_points = 1){
+  DecodeRegister(frame, dataAddress = 0){
     if(frame instanceof Buffer && typeof dataAddress == 'number'){      
       if(dataAddress + frame.length/2 <= this.size && frame.length%2 == 0){
         let offset = dataAddress * 2;
         
-        for(let i = 0; i <= Math.floor(frame.length/2); i+=2){          
+        for(let i = 0; i <= frame.length; i+=2){          
           this.registerBuffer[offset + i] = frame[i+1];
           this.registerBuffer[offset + i+1] = frame[i];
         }        

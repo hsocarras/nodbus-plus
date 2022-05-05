@@ -20,15 +20,15 @@ var PresetMultipleRegister = function (pdu_req_data) {
     let numberOfRegister =   pdu_req_data.readUInt16BE(2);
 
     //number of byte with forced values
-    var byteCount = pdu_req_data.readUInt8(5);
+    var byteCount = pdu_req_data.readUInt8(4);
 
     //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
     if(numberOfRegister >=1 && numberOfRegister <= 0x007B && byteCount == numberOfRegister * 2 && pdu_req_data.length < PDU.MaxLength){        
         //initial register. Example coil 20 addressing as 0x13 (19)
-        let startingAddress = pdu_req_data.readUInt16BE(0);        
+        let startAddress = pdu_req_data.readUInt16BE(0);        
         
         //Validating data address
-        if(startingAddress + numberOfRegister < this.holdingRegisters.size ){     
+        if(startAddress + numberOfRegister < this.holdingRegisters.size ){     
            try{
                 rspPDU.modbus_function = FUNCTION_CODE;
                 rspPDU.modbus_data = Buffer.alloc(4);
@@ -40,9 +40,9 @@ var PresetMultipleRegister = function (pdu_req_data) {
                 
                 //creating object of values writed
                 let values = new Map();
-                for(var i= 0; i < numberOfRegisters; i++){                  
-                let val = this.holdingRegisters.GetValue(startAddress+i)                
-                values.set(startAddress+i, val.readUInt16BE());
+                for(var i= 0; i < numberOfRegister; i++){                  
+                let val = this.holdingRegisters.GetValue(startAddress + i)                
+                values.set(startAddress + i, val.readUInt16BE());
                 }
                 
                 //telling user app that some coils was writed
@@ -52,6 +52,7 @@ var PresetMultipleRegister = function (pdu_req_data) {
                 return rspPDU;
            }
            catch(e){
+            console.log(e)
             return MakeModbusException.call(this, FUNCTION_CODE, 4);
            }
         }

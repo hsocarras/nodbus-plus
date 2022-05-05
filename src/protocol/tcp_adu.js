@@ -18,9 +18,7 @@ class TcpADU extends ADU {
   * @param {Buffer} aduRaw Frame modbus.
   */
   constructor(aduRaw = Buffer.alloc(1)){
-    super(aduRaw);
-
-    this.transactionCounter = 0;
+    super(aduRaw);    
 
     /**
     * Header of frame modbus tcp

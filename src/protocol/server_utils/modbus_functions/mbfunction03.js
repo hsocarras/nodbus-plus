@@ -35,12 +35,12 @@ var ReadHoldingRegister = function (pdu_req_data) {
                 return MakeModbusException.call(this, FUNCTION_CODE, 4);
             }
         }
-        //Making modbus exeption 3
+        //Making modbus exeption 2
         else{
             return MakeModbusException.call(this, FUNCTION_CODE, 2);
         }
     }
-    //Making modbus exeption 2
+    //Making modbus exeption 3
     else{
         return MakeModbusException.call(this, FUNCTION_CODE, 3);
     }

@@ -238,7 +238,7 @@ class TCPServer {
   * @param {buffer} data
   */
   Write (socketIndex, message_frame){
-    let self = this;
+    let self = this;    
     let socket = self.activeConnections[socketIndex];
     socket.write(message_frame, 'utf8', function(){
       if(self.onWrite instanceof Function){

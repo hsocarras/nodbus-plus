@@ -11,15 +11,15 @@ var ReadBoolRegisterStatus = function (mb_rsp_pdu, boolean_register, starting_ad
 
     if(boolean_register.reference == 0){
         //if register reference is 0 (coils) function code is set to 1 else is set to 2
-        mb_rsp_pdu.mb_rsp_pdu.modbus_function = 0x01;
+        mb_rsp_pdu.modbus_function = 0x01;
     }
     else{
-        mb_rsp_pdu.mb_rsp_pdu.modbus_function = 0x02;
+        mb_rsp_pdu.modbus_function = 0x02;
     }
 
     //Calculando cantidad de bytes de la respuesta 12%8=1
     //ejemplo 12 coils necesitan 2 bytes
-    let byte_count= numberOfRegister % 8 ? Math.ceil(numberOfRegister/8):(numberOfRegister/8);
+    let byte_count = number_of_register % 8 ? Math.ceil(number_of_register/8):(number_of_register/8);
 
     
     mb_rsp_pdu.modbus_data = Buffer.alloc(byte_count+1);

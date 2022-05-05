@@ -3,7 +3,7 @@ var nodbus = require('..');
 var mbTcpServerCfg = {};
 
 
-var modbusTCPServer = new nodbus.ModbusTcpServer(mbTcpServerCfg);
+var modbusTCPServer = nodbus.CreateTcpServer(mbTcpServerCfg);
 
 
 modbusTCPServer.on('listening', function(port){
@@ -35,19 +35,20 @@ modbusTCPServer.on('client-disconnect', function(socket){
     console.log('Client ' + socket.remoteAddress + ' disconnected');
 });
 
-modbusTCPServer.on('message', function(client, adubuffer){
-    console.log('Indication Recieved from' + client.remoteAddress);
-    console.log(adubuffer);
-});
 
 modbusTCPServer.on('request', function(req){
-    console.log('Indication Recieved from' + req.remoteAddress);
-    console.log(req);
+    console.log('request recieved from ' + req.clientAddress);
+    //console.log(req);
 });
 
 modbusTCPServer.on('response', function(resp){
     console.log('Response:');
-    console.log(resp.adu.aduBuffer);
+    console.log(resp);
+});
+
+modbusTCPServer.on('sended_response', function(ip, resp){
+    console.log('Response to: ' + ip);
+    console.log(resp);
 });
 
 modbusTCPServer.on('modbus_exception', function(exc){

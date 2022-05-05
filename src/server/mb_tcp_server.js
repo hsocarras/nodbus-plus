@@ -141,11 +141,11 @@ class ModbusTCPServer extends ModbusServer {
        * response event.
        * @event ModbusnetServer#response
        */
-        this.emit('mb_response', ip_address, message_frame);
+        this.emit('sended_response', ip_address, message_frame);
        
       }.bind(this);
 
-      this.SendResponseMessage = this.netServer.Write;
+      this.SendResponseMessage = this.netServer.Write.bind(this.netServer);
 
       this.on('transaction_acepted', function(transaction){
           //building Request Object
@@ -156,8 +156,8 @@ class ModbusTCPServer extends ModbusServer {
 
       this.on('transaction_resolved', function(connection_id, mb_resp_adu){
         //building Request Object
-        let sock = self.netServer.GetSocket(connection_id);
-        let resp = new Request(sock, mb_resp_adu);
+        let sock = self.netServer.GetSocket(connection_id); 
+        let resp = new Transaction(sock, mb_resp_adu);
         self.emit('response', resp);
       });
             

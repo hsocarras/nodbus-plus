@@ -14,7 +14,7 @@ const FUNCTION_CODE = 22;
 
 var MaskHoldingRegister = function (pdu_req_data){
 
-    var respPDU = new PDU();
+    var rspPDU = new PDU();
 
     //initial register. Example coil 20 addressing as 0x13 (19)
     let targetRegister = pdu_req_data.readUInt16BE(0); 
@@ -33,8 +33,11 @@ var MaskHoldingRegister = function (pdu_req_data){
                 //writing values on register 
                 let currentValue = this.holdingRegisters.GetValue(targetRegister).readUInt16BE();               
                 let maskValue = (currentValue & AND_MASK) | (OR_MASK & ~AND_MASK );
-                currentValue.writeUInt16BE(maskValue);
-                this.holdingRegisters.SetValue(currentValue, targetRegister);
+                
+               
+                let bufferValue = Buffer.alloc(2);
+                bufferValue.writeUInt16BE(maskValue)                
+                this.holdingRegisters.SetValue(bufferValue, targetRegister);
                 
                 
                 //creating object of values writed
@@ -48,7 +51,8 @@ var MaskHoldingRegister = function (pdu_req_data){
                 return rspPDU;
            }
            catch(e){
-            return MakeModbusException.call(this, FUNCTION_CODE, 4);
+                console.log(e);
+                return MakeModbusException.call(this, FUNCTION_CODE, 4);
            }
         }
         //Making modbus exeption 3

@@ -19,7 +19,7 @@ const ModbusTcpServer = require('./server/mb_tcp_server');
  * @module nodbus/ModbusTcpServer
  */
 /** Constructor for ModbusTcpServer Class. */
-module.exports.ModbusTcpServer = ModbusTcpServer;
+//module.exports.ModbusTcpServer = ModbusTcpServer;
 
 /**
  * ModbusSerialServer.
@@ -64,61 +64,11 @@ module.exports.ModbusTcpServer = ModbusTcpServer;
 * @param {string} mode Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-module.exports.CreateSlave = function (port = 502, tp = 'tcp', modbusAddress = 1, mode = 'tcp'){
+module.exports.CreateTcpServer = function (server_cfg){
 
-  if(typeof port == 'number'){
-    
-    switch (tp){
-      case 'tcp':
-        if(mode == 'tcp'){
-          //si el modo no fue defnido es un esclavo modbustcp
-          return new ModbusTcpServer(port, 'tcp', modbusAddress);
-        }
-        else{
-          if(mode == 'auto' || mode == 'rtu' || mode == 'ascii'){
-            return new ModbusSerialServer(port, 'tcp', modbusAddress, mode);
-          }
-          else{
-            return new ModbusSerialServer(port, 'tcp', modbusAddress, 'auto');
-          }
-        }
-        break;
-      case 'udp4':
-          if(mode == undefined){
-            //si el modo no fue defnido es un esclavo modbustcp
-            return new ModbusTcpServer(port, 'udp4', modbusAddress);
-          }
-          else{
-            if(mode == 'auto' || mode == 'rtu' || mode == 'ascii'){
-              return new ModbusSerialServer(port, 'udp4', modbusAddress, mode);
-            }
-            else{
-              return new ModbusSerialServer(port, 'udp4', modbusAddress, 'auto');
-            }
-          }
-        break;
-      case 'udp6':
-          if(mode == undefined){
-            //si el modo no fue defnido es un esclavo modbustcp
-            return new ModbusTcpServer(port, 'udp6', modbusAddress);
-          }
-          else{
-            if(mode == 'aut' || mode == 'rtu' || mode == 'ascii'){
-              return new ModbusSerialServer(port, 'udp6', modbusAddress, mode);
-            }
-            else{
-              return new ModbusSerialServer(port, 'udp6', modbusAddress, 'auto');
-            }
-          }
-        break;
-      default:
-        throw new RangeError('transport layer not supported')
-
-    }
-  }  
-  else{
-    throw new TypeError('port must be a number')
-  }
+  var server = new ModbusTcpServer(server_cfg);
+  
+  return server;
 
 }
 

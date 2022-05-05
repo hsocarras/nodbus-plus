@@ -59,13 +59,13 @@ class BooleanRegister {
         let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
         
         let buffRegister = Buffer.alloc(byte_count);
-
-        for(let i = 0; i < number_of_points; i++){          
-          if(this.GetValue(dataAddress + i)){            
-            buffRegister[Math.floor(i/8)] = buffRegister[Math.floor(i/8)] | masks[i%8];
+        console.log(buffRegister) 
+        for(let i = 0; i < number_of_points; i++){                   
+          if(this.GetValue(dataAddress + i)[0] == 0x01){ 
+            buffRegister[Math.floor(i/8)] = buffRegister[Math.floor(i/8)] | masks[i%8];            
           }          
         }
-
+       
         return buffRegister;
       }
       else{
@@ -91,7 +91,7 @@ class BooleanRegister {
       if(dataAddress + number_of_points <= this.size){
 
         let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-        let value = Bufer.alloc(1);
+        let value = Buffer.alloc(1);
 
         for(let i=0; i< number_of_points; i++){
           value[0]= frame[Math.floor(i/8)] & masks[i%8];          
@@ -126,6 +126,7 @@ class BooleanRegister {
       let buffValue = Buffer.alloc(1);
 
       ((Byte & masks[offset]) > 0 ) ? buffValue[0] = 0x01 : buffValue[0] = 0x00;
+      
       return buffValue;
 
     }

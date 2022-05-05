@@ -40,9 +40,26 @@ class ModbusSlave extends EventEmitter {
         * @type {set object}
         *
         */
-        this.supportedFunctionsCode = SlaveFunctions.GetSuportedMBFunctionscode(_TransmitionMode);
+        const internalFunctionCode = SlaveFunctions.GetSuportedMBFunctionscode(_TransmitionMode);
+        Object.defineProperty(self, 'supportedFunctionsCode',{
+            get: function(){
+              return internalFunctionCode;
+            }
+        })
+        
+        /**
+        * server's local functions code 
+        * @type {set object}
+        *
+        */
+        this.localProcessingService = internalFunctionCode;
 
-        this.localProcessingService = mb_server_cfg.localProcessingService || this.supportedFunctionsCode;
+        /**
+        * server's extrenal functions code 
+        * @type {set object}
+        *
+        */
+        this.externalProcessingService = mb_server_cfg.externalProcessingService;
 
         let _endianness 
         Object.defineProperty(self, 'endianness',{
@@ -65,7 +82,7 @@ class ModbusSlave extends EventEmitter {
         * @type {Object}
         * @public
         */
-        this.inputs =  new BooleanRegister();
+        this.inputs =  new BooleanRegister(1);
 
         /**
         * Registro coils. En el primer byte se encuentran 0-7 en el segundo 8-14 etc;
@@ -73,7 +90,7 @@ class ModbusSlave extends EventEmitter {
         * @type {Object}
         * @public
         */
-        this.coils = new BooleanRegister();
+        this.coils = new BooleanRegister(0);
 
 
         /**
@@ -81,44 +98,47 @@ class ModbusSlave extends EventEmitter {
         * @type {Object}
         * @public
         */
-        this.holdingRegisters =  new WordRegister(2048, _endianness);
+        this.holdingRegisters =  new WordRegister(4, 2048);
 
         /**
         * Registro inputs. Ocupan 2 Bytes. Se transmiten B y B+1 en ese orden
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = new WordRegister(2048, _endianness);  
+        this.inputRegisters = new WordRegister(3, 2048);          
         
-        /**
-         * hook functions to remote service procesing
-         */
-        this.readCoilsHook = null;                //hok function for modbus function 1
-        this.readInputsHook = null;               //hok function for modbus function 2
-        this.readHoldingRegisterHook = null;      //hok function for modbus function 3
-        this.readInputRegisterHook = null;        //hok function for modbus function 3
-
 
     }  
     
     /**
      * Function to check if modbus function code is supported
      * @param {object} mb_req_pdu 
+     * @param {bool} local local processing, default true
      * @return true if does otherwise false
      */
-    ValidateRequestPDU(mb_req_pdu){
+    ValidateRequestPDU(mb_req_pdu, local = true){
 
       //Validating Max length of pdu
       if(mb_req_pdu.pduBuffer.length <= PDU.MaxLength){
           //Validating restricted function code
           if(mb_req_pdu.modbus_function > 0 && mb_req_pdu.modbus_function <= 127){
               //validating function code
-              if(this.supportedFunctionsCode.has(mb_req_pdu.modbus_function)){
-                  return true
-              }              
-              else{                                  
-                  return false;
+              if(local){
+                  if(this.localProcessingService.has(mb_req_pdu.modbus_function)){
+                    return true
+                  }
+                  else{                                  
+                    return false;
+                }
               }
+              else{
+                  if(this.externalProcessingService.has(mb_req_pdu.modbus_function)){
+                    return true
+                  }              
+                  else{                                  
+                      return false;
+                  }
+              }              
           }
           else{
               return false;
@@ -146,8 +166,8 @@ class ModbusSlave extends EventEmitter {
             
         }
         else{
-            //remote processing
-            respPDU = self.BuildResponsePDURemote(mb_req_pdu);            
+            //external processing
+            respPDU = self.BuildResponsePDUExternal(mb_req_pdu);            
         }
 
         return respPDU;
@@ -163,7 +183,7 @@ class ModbusSlave extends EventEmitter {
     BuildResponsePDULocal(mb_req_pdu) {
 
         let self = this;
-        let rspPDU = new PDU();
+        let respPDU = new PDU();
             
         if(this.ValidateRequestPDU(mb_req_pdu)){
             switch( mb_req_pdu.modbus_function ){
@@ -196,19 +216,19 @@ class ModbusSlave extends EventEmitter {
               break;
               default:
                   respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
-                  rspPDU.MakeBuffer(); 
+                  respPDU.MakeBuffer(); 
                   return rspPDU;                                                              
                 
             }
 
-            rspPDU.MakeBuffer(); 
-            return rspPDU;
+            respPDU.MakeBuffer(); 
+            return respPDU;
         }
         //reply modbus exception 1
         else{ 
             respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
-            rspPDU.MakeBuffer(); 
-            return rspPDU;
+            respPDU.MakeBuffer(); 
+            return respPDU;
         }
 
     }
@@ -220,70 +240,40 @@ class ModbusSlave extends EventEmitter {
     * @fires  ModbusSlave#mb_register_writed
     * @return {Object} PDU protocol data unit
     */
-    async BuildResponsePDURemote(mb_req_pdu) {
+    async BuildResponsePDUExternal(mb_req_pdu) {
 
         let self = this;
-        let rspPDU = new PDU();
-            
-        if(this.ValidateRequestPDU(mb_req_pdu)){
-            switch( mb_req_pdu.modbus_function ){
-              case 0x01:
-                  if(this.readCoilsHook instanceof Function){
 
-                    let startingAddress = mb_req_pdu.modbus_data.readUInt16BE(0);
-                    let numberOfCoils =   mb_req_pdu.modbus_data.readUInt16BE(2);
-                    //return promise that resolve with object {error: 0, data: buffer}
-                    let respUserApp =  await this.readCoilsHook(startingAddress, numberOfCoils);
-                    if(respUserApp.error == 0){
-                        respPDU.modbus_function =  mb_req_pdu.modbus_function;
-                        respPDU.modbus_data = respUserApp.data;
-                    }
-                    else{
-                      respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, respUserApp.data[0]);
-                    }
-                  }
-                  else{
-                    respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1);
-                  }                  
-                  break;
-              case 0x02:
-                    
-                  break;
-              case 0x03:
-                    
-                  break;
-              case 0x04:
-                  
-                  break;
-              case 0x05:
-                  
-                  break;
-              case 0x06:
-                  
-                  break;
-              case 0x0F:
-                 
-                  break;
-              case 0x10:                    
-                  
-                  break;
-              case 0x16:                    
-                 
-                  break;
-              default:
-                  respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
-                  rspPDU.MakeBuffer(); 
-                  return rspPDU;                                                              
-                
+        if(this.ValidateRequestPDU(mb_req_pdu, false)){
+
+            let respPDU = new PDU();
+            let computedHookFunctionName = "mbFunctionCode" + mb_req_pdu.modbus_function.toString() + "Hook";    
+
+            if(this[computedHookFunctionName] !== undefined && this[computedHookFunctionName] instanceof Function){
+
+              let startingAddress = mb_req_pdu.modbus_data.readUInt16BE(0);
+              let numberOfCoils =   mb_req_pdu.modbus_data.readUInt16BE(2);
+
+              //return promise that resolve with object {error: 0, data: buffer}
+              let respUserApp =  await this.readCoilsHook(startingAddress, numberOfCoils);
+
+              if(respUserApp.error == 0){
+                  respPDU.modbus_function =  mb_req_pdu.modbus_function;
+                  respPDU.modbus_data = respUserApp.data;
+              }
+              else{
+                respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, respUserApp.data[0]);
+              }
             }
-            rspPDU.MakeBuffer(); 
-            return rspPDU;
+            else{
+              respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1);
+            } 
         }
         //reply modbus exception 1
         else{ 
             respPDU = this.BuildModbusException(mb_req_pdu.modbus_function, 1); 
-            rspPDU.MakeBuffer(); 
-            return rspPDU;
+            respPDU.MakeBuffer(); 
+            return respPDU;
         }
 
     }
@@ -299,79 +289,7 @@ class ModbusSlave extends EventEmitter {
       return SlaveFunctions.MakeModbusException.call(this, modbus_function, exception_code);
     }
 
-    /**
-    * Create a response adu on for modbus serial protocol
-    * @param {object} reqADU the request SerialADU object.
-    * @return {object} a SerialADU object with server response if was succesfull created otherwise reutrn null;    
-    */
-    CreateRespSerialADU(reqADU){
-
-        if(reqADU.transmision_mode == 'ascii'){
-            var respADU = new SerialADU('ascii');
-        }
-        else{
-            respADU = new SerialADU('rtu');
-        }
-        
-        respADU.address = this.address;
-
-        let reqADUParsedOk = reqADU.ParseBuffer();
-        if(reqADUParsedOk){
-            if(this.AnalizeSerialADU(reqADU) == 0){
-                respADU.pdu = self.ExecRequestPDU(reqADU.pdu); 
-                //broadcast address require no response
-                if(reqADU.address != 0){
-                    respADU.MakeBuffer();
-                    return respADU;
-                }
-                else{
-                    return null;
-                }
-            }
-            else{
-              return null;
-            }            
-        }
-        else{
-          return null;
-        }
-          
-        
-    }
-
-    /**
-    * Make the response modbus tcp header
-    * @param {buffer} adu frame off modbus indication
-    * @return {number} error code. 1- error, 0-no errror
-    * @fires ModbusnetServer#error {object}
-    */
-    AnalizeSerialADU(adu){
-        
-      var calcErrorCheck = 0;
-
-        if(adu.transmision_mode == 'ascii'){
-            calcErrorCheck = adu.GetLRC();
-        }
-        else{
-            calcErrorCheck = adu.GetCRC();
-        }
-
-        if (adu.address == this.address || adu.address == 0 ){            
-            //cheking checsum
-            if(calcErrorCheck == adu.errorCheck){
-                return 0;
-            }
-            else{
-              this.emit('modbus_exeption',"CHEKSUM ERROR");
-              return 1;
-            }
-        }
-        else{
-          //address mistmatch
-          return 1;
-        }
     
-    }
 
     /**
     * Write Data on slave memory from user app

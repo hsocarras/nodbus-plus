@@ -20,7 +20,7 @@ var PresetSingleRegister = function (pdu_req_data){
     let registerValue = pdu_req_data.readUInt16BE(2);
 
     //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-    if((registerValue >= 0x00 && registerValueValue <= 0xFFFF) && pdu_req_data.length == 4){        
+    if((registerValue >= 0x00 && registerValue <= 0xFFFF) && pdu_req_data.length == 4){        
         //initial register. Example coil 20 addressing as 0x13 (19)
         let targetRegister = pdu_req_data.readUInt16BE(0);      
         

@@ -9,7 +9,7 @@
 
 
 const TcpADU = require('../protocol/tcp_adu');
-const Header = require('./mbap_header');
+const MBapHeader = require('./mbap_header');
 const PDU = require('./pdu');
 const ModbusSlave = require('./modbus_slave');
 const SlaveFunctions = require('./server_utils/slave_functions');
@@ -74,11 +74,11 @@ class ModbusServerTcp extends ModbusSlave {
         //Starting server activity
         if(this.globalState){
            let respPromise = this.CheckModbusADU(connection_id, message_frame);
-           respPromise.then(function(connection_id, mb_resp_adu){
-                self.emit('transaction_resolved',connection_id, mb_resp_adu);
-                self.SendResponseMessage(connection_id, mb_resp_adu);
-           },function(connection_id, message_frame){
-               self.emit('transaction_rejected',connection_id, message_frame);
+           respPromise.then(function(result){            
+                self.emit('transaction_resolved',result.connection, result.resp);
+                self.SendResponseMessage(result.connection, result.resp.aduBuffer);
+           },function(result){
+               self.emit('transaction_rejected',result.connection, result.resp);
            });
         }
     }
@@ -96,16 +96,16 @@ class ModbusServerTcp extends ModbusSlave {
 
         if(message_frame.length > 7){
 
-            let header = new Header(message_frame.slice(0, 7));
+            let mbapHeader = new MBapHeader(message_frame.slice(0, 7));
             //parsing header           
             
-            if(header.ParseBuffer() && header.protocolID == 0 && header.length <= PDU.MaxLength + 1){                
+            if(mbapHeader.ParseBuffer() && mbapHeader.protocolID == 0 && mbapHeader.length <= PDU.MaxLength + 1){                
                
                 let mbRequestPDU = new PDU(message_frame.slice(7));
                 mbRequestPDU.ParseBuffer();
 
                 let mbRequestADU = new TcpADU()
-                mbRequestADU.header = header;
+                mbRequestADU.mbapHeader = mbapHeader;
                 mbRequestADU.pdu = mbRequestPDU;
 
                 //Instanciate Transaction Object
@@ -128,17 +128,17 @@ class ModbusServerTcp extends ModbusSlave {
                     else{
                         //transaction rejected. exception 1
                         let resPDU = this.BuilModbusException(mbRequestPDU.modbus_function, 1);
-                        mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
+                        mbResponseAdu = MakeResponse(mbRequestADU.mbapHeader, resPDU);                   
     
-                        return  Promise.resolve(connection_id, mbRequestPDU);
+                        return  Promise.resolve({connection: connection_id, resp: mbResponseAdu});
                     }
                 }
                 else{
                     //transaction rejected. exception 6
                     let resPDU = this.BuilModbusException(mbRequestPDU.modbus_function, 6);
-                    mbResponseAdu = MakeResponse(mbRequestADU.header, resPDU);                   
+                    mbResponseAdu = MakeResponse(mbRequestADU.mbapHeader, resPDU);                   
 
-                    return  Promise.resolve(connection_id, mbRequestPDU);
+                    return  Promise.resolve({connection: connection_id, resp: mbResponseAdu});
 
                 }
             }
@@ -151,26 +151,25 @@ class ModbusServerTcp extends ModbusSlave {
     ResolveTransaction(transaction_index){
         let self = this;
         let transaction = this.transactionStack[transaction_index];
-        let reqHeader = transaction.request.header;
+        let reqHeader = transaction.request.mbapHeader;
 
         let resPDU = this.MBServiceProcessing(transaction.request.pdu);
-        let mbResponseAdu = MakeResponse(reqHeader, resPDU);   
+        let mbResponseAdu = self.MakeResponse(reqHeader, resPDU);   
         self.transactionStack[transaction_index] = null;
-
-        return new Promise.resolve(transaction.connectionID, mbResponseAdu);        
         
+        return Promise.resolve({connection: transaction.connectionID, resp: mbResponseAdu}); 
     }
 
    MakeResponse(req_header, resp_pdu){
 
         let mbResponseAdu = new TcpADU();
-        mbResponseAdu.header = new Header();
+        mbResponseAdu.mbapHeader = new MBapHeader();
         mbResponseAdu.pdu = resp_pdu;
-        mbResponseAdu.header.unitID = req_header.unitID;
-        mbResponseAdu.header.transactionID = req_header.transactionID;
-        mbResponseAdu.header.length = resp_pdu.GetLength() + 1;
+        mbResponseAdu.mbapHeader.unitID = req_header.unitID;
+        mbResponseAdu.mbapHeader.transactionID = req_header.transactionID;
+        mbResponseAdu.mbapHeader.length = resp_pdu.GetLength() + 1;
         mbResponseAdu.MakeBuffer();
-
+        
         return mbResponseAdu
    }
    
