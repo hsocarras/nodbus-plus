@@ -110,7 +110,7 @@ class BooleanRegister {
     }
   }
 
-  /**
+/**
 * function to get the register value from user app.
 * The register are encoding usin litle endian
 * @param {number} dataAddress address of register

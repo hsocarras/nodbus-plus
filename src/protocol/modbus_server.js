@@ -7,12 +7,12 @@
 */
 
 
-const EventEmitter = require('events');
-const PDU = require('./pdu');
-const BooleanRegister = require('./server_utils/boolean_register');
-const WordRegister = require('./server_utils/word_register');
-const Utils = require('./server_utils/util');
-const SlaveFunctions = require('./server_utils/slave_functions');
+import EventEmitter from 'events';
+
+//define max number of coil, inputs or register
+const MAX_ITEM_NUMBER = 65535;
+const MAX_BOOLEAN_ADDRESS_SIZE = 8192;
+const MAX_WORD_ADDRESS_SISE = 131070;
 
 /**
  * Class representing a modbus slave.
@@ -21,16 +21,16 @@ const SlaveFunctions = require('./server_utils/slave_functions');
 class ModbusSlave extends EventEmitter {
     /**
     * Create a Modbus Basic server.
-    * @param {object} mb_server_cfg - Configuration object, must have the following properties:
+    * @param {object} mbServerCfg - Configuration object, must have the following properties:
     * {
     *   endianness : {string} - endianess used for data representation. Acepted values 'BE', 'big', 'big-endian' for big endian or 'LE', 'little', 'little-endian' for little endian representation.
-    *   inputs : {buffer} buffer to store inputs with 8 inputs per byte
-    *   coils : {buffer} buffer to store coils with 8 coils per byte
-    *   holdingRegisters : {buffer} buffer to store holding registers with 2 bytes per register
-    *   inputRegisters : {buffer} buffer to store input registers with 2 bytes per register
+    *   inputs : {int} buffer zise to store inputs with 8 inputs per byte, 0 means that imputs uses same buffer thar input registers.
+    *   coils : {int} buffer zise to store coils with 8 coils per byte, 0 means that coils uses same buffer thar coils registers.
+    *   holdingRegisters : {int} buffer size to store holding registers with 2 bytes per register
+    *   inputRegisters : {int} buffer size to store input registers with 2 bytes per register
     * }
     */
-    constructor(mb_server_cfg){
+    constructor(mbServerCfg){
         super();
 
         var self = this;
@@ -41,13 +41,14 @@ class ModbusSlave extends EventEmitter {
         *
         */
         this._internalFunctionCode = new Map();
-        this._internalFunctionCode.set(1, this.MBFunctionCode01)
-        Object.defineProperty(self, 'supportedFunctionsCode',{
+        this._internalFunctionCode.set(1, this.readCoilStatusService);
+        this._internalFunctionCode.set(2, this.readInputStatusService);
+        this._internalFunctionCode.set(3, this.readHoldingRegistersService);
+        Object.defineProperty(self, 'supportedFunctionCode',{
             get: function(){
               return this._internalFunctionCode.keys();
             }
-        })
-        
+        })        
 
         
         /**
@@ -85,72 +86,106 @@ class ModbusSlave extends EventEmitter {
               }
           }
         })
-        this.endianness = mb_server_cfg.endianness || "LE";
+        this.endianness = mbServerCfg.endianness || "LE";
 
         /**
         * Inputs. Reference 1x.
         * @type {Buffer}
         * @public
         */
-        this.inputs =  mb_server_cfg.inputs || Buffer.alloc(256);
+        if(mbServerCfg.inputs <= MAX_BOOLEAN_ADDRESS_SIZE & mbServerCfg.inputs > 0){
+            this.inputs =  Buffer.alloc(mbServerCfg.inputs);
+        }
+        else if(mbServerCfg.inputs >= MAX_BOOLEAN_ADDRESS_SIZE){
+            this.inputs =  Buffer.alloc(MAX_BOOLEAN_ADDRESS_SIZE);
+        }
+        else if (mbServerCfg.inputs <= 0){
+            this.inputs =  this.inputRegisters;
+        }
+        else{
+            this.inputs =  Buffer.alloc(256);
+        }
+
 
         /**
         * Coils. Reference 0x        
         * @type {buffer}
         * @public
         */
-        this.coils = mb_server_cfg.coils || Buffer.alloc(256);
-
+        if(mbServerCfg.coils <= MAX_BOOLEAN_ADDRESS_SIZE & mbServerCfg.coils > 0){
+            this.coils =  Buffer.alloc(mbServerCfg.coils);
+        }
+        else if(mbServerCfg.coils >= MAX_BOOLEAN_ADDRESS_SIZE){
+            this.coils =  Buffer.alloc(MAX_BOOLEAN_ADDRESS_SIZE);
+        }
+        else if (mbServerCfg.coils <= 0){
+            this.coils =  this.holdingRegisters;
+        }
+        else{
+            this.coils =  Buffer.alloc(256);
+        }
 
         /**
         * Holding Registers.
         * @type {Object}
         * @public
         */
-        this.holdingRegisters =   mb_server_cfg.holdingRegisters || Buffer.alloc(4096);
+        if(mbServerCfg.holdingRegisters <= MAX_WORD_ADDRESS_SISE & mbServerCfg.holdingRegisters > 0){
+          this.holdingRegisters =  Buffer.alloc(mbServerCfg.holdingRegisters);
+        }
+        else if(mbServerCfg.holdingRegisters >= MAX_WORD_ADDRESS_SISE){
+            this.holdingRegisters =  Buffer.alloc(MAX_WORD_ADDRESS_SISE);
+        }       
+        else{
+            this.holdingRegisters =  Buffer.alloc(4096);
+        }
 
         /**
         * Input Registers.
         * @type {Buffer}
         * @public
         */
-        this.inputRegisters = mb_server_cfg.inputRegisters || Buffer.alloc(4096);         
+        if(mbServerCfg.inputRegisters <= MAX_WORD_ADDRESS_SISE & mbServerCfg.inputRegisters > 0){
+          this.inputRegisters =  Buffer.alloc(mbServerCfg.inputRegisters);
+        }
+        else if(mbServerCfg.inputRegisters >= MAX_WORD_ADDRESS_SISE){
+            this.inputRegisters =  Buffer.alloc(MAX_WORD_ADDRESS_SISE);
+        }       
+        else{
+            this.inputRegisters =  Buffer.alloc(4096);
+        }         
         
 
     }  
 
      /**
     * Main frontend server function. Entry point for client request. Process request pdu, execute de service and return a response pdu.
-    * @param {Buffer} mb_req_pdu_buffer buffer containing a protocol data unit
+    * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
     * @fires  ModbusSlave#mb_exception
     * @fires  ModbusSlave#mb_register_writed
     * @return {Buffer} buffer containing a protocol data unit
     */
-     ProcessReqPdu(req_pdu_buffer) {
+     processReqPdu(reqPduBuffer) {
 
       let self = this;
-      let function_code = req_pdu_buffer[0];      
+      let functionCode = reqPduBuffer[0];      
       
       //Check for function code
-      if(this._internalFunctionCode.has(function_code)){
+      if(this._internalFunctionCode.has(functionCode)){
 
           //gets pdu data
-          let req_pdu_data = Buffer.alloc(req_pdu_buffer.length - 1);
-          req_pdu_buffer.copy(req_pdu_data,0,1);
+          let reqPduData = Buffer.alloc(reqPduBuffer.length - 1);
+          reqPduBuffer.copy(reqPduData,0,1);
 
-          ServExecFunction = this._internalFunctionCode.get(function_code);      //get de function code prossesing function
-          let res_pdu_data = ServExecFunction(req_pdu_data);                     //execute service procesing
-
-          var res_pdu_buffer = Buffer.alloc(res_pdu_data.length + 1);           //creating response pdu buffer
-          res_pdu_buffer[0] = function_code;
-          res_pdu_data.copy(req_pdu_buffer, 1);     
+          let servExecFunction = this._internalFunctionCode.get(functionCode);      //get de function code prossesing function
+          var resPduBuffer = servExecFunction(reqPduData);                          //execute service procesing
          
-          return res_pdu_buffer;
+          return resPduBuffer;
       }        
       else{ 
           //reply modbus exception 1
-          res_pdu_buffer = this.BuildExceptionResPdu(function_code, 1);           
-          return res_pdu_buffer;
+          resPduBuffer = this.makeExceptionResPdu(functionCode, 1);           
+          return resPduBuffer;
       }
 
   }    
@@ -158,89 +193,215 @@ class ModbusSlave extends EventEmitter {
     
     /**
     * Build a modbus exception response PDU
-    * @param {number} mb_function_code modbus function code
-    * @param {number} exception_code code of modbus exception
+    * @param {number} mbFunctionCode modbus function code
+    * @param {number} exceptionCode code of modbus exception
     * @fires  ModbusSlave#mb_exception
     * @return {Buffer} Exception response pdu
     */
-    BuildExceptionResPdu(modbus_function, exception_code){
+    makeExceptionResPdu(mbFunctionCode,  exceptionCode){
       
         //setting modbus function to exception
-        let excep_function_code = mb_function_code | 0x80;
+        let excepFunctionCode = mbFunctionCode | 0x80;
         //setting exeption code
-        let excep_res_buffer = Buffer.alloc(2);
-        excep_res_buffer[0] = excep_function_code;
-        excep_res_buffer[1] = exception_code;
+        let excepResBuffer = Buffer.alloc(2);
+        excepResBuffer[0] = excepFunctionCode;
+        excepResBuffer[1] = exceptionCode;
     
         switch(exception_code){
             case 1:            
-                this.emit('mb_exception', modbus_function, 'ILLEGAL FUNCTION');  
+                this.emit('mb_exception', mbFunctionCode, 'ILLEGAL FUNCTION');  
             break;
             case 2:
-                this.emit('mb_exception', modbus_function, 'ILLEGAL DATA ADDRESS');
+                this.emit('mb_exception', mbFunctionCode, 'ILLEGAL DATA ADDRESS');
                 break;
             case 3:
-                this.emit('mb_exception', modbus_function, 'ILLEGAL DATA VALUE');
+                this.emit('mb_exception', mbFunctionCode, 'ILLEGAL DATA VALUE');
                 break;
             case 4:
-                this.emit('mb_exception', modbus_function, 'SLAVE DEVICE FAILURE');
+                this.emit('mb_exception', mbFunctionCode, 'SLAVE DEVICE FAILURE');
                 break;
             case 5:
-                this.emit('mb_exception', modbus_function, 'ACKNOWLEDGE');
+                this.emit('mb_exception', mbFunctionCode, 'ACKNOWLEDGE');
                 break;
             case 6:
-                this.emit('mb_exception', modbus_function, 'SLAVE DEVICE BUSY');
+                this.emit('mb_exception', mbFunctionCode, 'SLAVE DEVICE BUSY');
                 break;            
             case 8:
-                this.emit('mb_exception', modbus_function, 'MEMORY PARITY ERROR');
+                this.emit('mb_exception', mbFunctionCode, 'MEMORY PARITY ERROR');
                 break;
             case 0x0A:
-                this.emit('mb_exception', modbus_function, 'GATEWAY PATH UNAVAILABLE');
+                this.emit('mb_exception', mbFunctionCode, 'GATEWAY PATH UNAVAILABLE');
                 break;
             case 0x0B:
-                this.emit('mb_exception', modbus_function, 'GATEWAY TARGET DEVICE FAILED TO RESPOND');
+                this.emit('mb_exception', mbFunctionCode, 'GATEWAY TARGET DEVICE FAILED TO RESPOND');
                 break;
         }
 
-        return excep_res_buffer;
+        return excepResBuffer;
     }
 
     /**
-    * Function to implement Read Coil stauts service on server.
-    * @param {buffer}  pdu_req_data buffer containing only data from a requet pdu    
+    * Function to implement Read Coil stauts service on server. Function code 01.
+    * @param {buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusSlave#mb_exception
-    * @return {Buffer} Exception response pdu
+    * @return {Buffer} resPduBuffer. Response pdu.
     */
-    MBFunctionCode01(pdu_req_data){
+    readCoilStatusService(pduReqData){
+
+      //Defining function code for this service
+      const FUNCTION_CODE = 1;
+
+      let resPduBuffer;
 
       //registers to read
-      let numberOfRegister =   pdu_req_data.readUInt16BE(2);
+      let registersToRead =  pduReqData.readUInt16BE(2);
 
       //Validating Data Value. Max number of coils to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
-      if(numberOfRegister >=1 && numberOfRegister <= 2000 && pdu_req_data.length == 4){        
+      if(registersToRead >=1 && registersToRead <= 2000 && pduReqData.length == 4){        
           //initial register. Example coil 20 addressing as 0x13 (19)
-          let startingAddress = pdu_req_data.readUInt16BE(0);      
+          let startAddress = pduReqData.readUInt16BE(0);      
           
           //Validating data address
-          if(startingAddress + numberOfRegister < this.coils.size ){           
-              let execPduStatus = ReadBoolRegister(rspPDU, this.coils, startingAddress, numberOfRegister);
-              if(execPduStatus){
-                  return rspPDU;
+          if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+
+              //Calculando cantidad de bytes de la respuesta 12%8=1
+              //ejemplo 12 coils necesitan 2 bytes
+              let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
+              let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+              let values = Buffer.alloc(byteCount);
+              resPduBuffer = Buffer.alloc(byteCount + 2);  
+              resPduBuffer[0] = FUNCTION_CODE;            
+              resPduBuffer[1] = byteCount;
+
+              for(let i = 0; i < registersToRead; i++){                   
+                if(this.getBoolFromBuffer(this.coils, startAddress + i)){ 
+                  values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
+                }          
               }
-              else{
-                  return MakeModbusException.call(this, FUNCTION_CODE, 4);
-              }
+
+              values.copy(resPduBuffer, 2);
           }
           //Making modbus exeption 2
           else{
-              return MakeModbusException.call(this, FUNCTION_CODE, 2);
+              //reply modbus exception 2
+              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
           }
       }
       //Making modbus exeption 3
       else{
-          return MakeModbusException.call(this, FUNCTION_CODE, 3);
+          //reply modbus exception 2
+          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
       }
+      return resPduBuffer;
+    }
 
+    /**
+    * Function to implement Read Input status service on server. Function code 02.
+    * @param {buffer}  pduReqData buffer containing only data from a request pdu    
+    * @fires  ModbusSlave#mb_exception
+    * @return {Buffer} resPduBuffer. Response pdu.
+    */
+    readInputStatusService(pduReqData){
+
+      //Defining function code for this service
+      const FUNCTION_CODE = 2;
+
+      let resPduBuffer;
+
+      //registers to read
+      let registersToRead =  pduReqData.readUInt16BE(2);
+
+      //Validating Data Value. Max number of inputss to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
+      if(registersToRead >=1 && registersToRead <= 2000 && pduReqData.length == 4){        
+          //initial register. Example coil 20 addressing as 0x13 (19)
+          let startAddress = pduReqData.readUInt16BE(0);      
+          
+          //Validating data address
+          if(startAddress + registersToRead < this.inputs.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+
+              //Calculando cantidad de bytes de la respuesta 12%8=1
+              //example 12 inputss needs 2 bytes
+              let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
+              let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+              let values = Buffer.alloc(byteCount);
+              resPduBuffer = Buffer.alloc(byteCount + 2);  
+              resPduBuffer[0] = FUNCTION_CODE;            
+              resPduBuffer[1] = byteCount;
+
+              for(let i = 0; i < registersToRead; i++){                   
+                if(this.getBoolFromBuffer(this.inputs, startAddress + i)){ 
+                  values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
+                }          
+              }
+
+              values.copy(resPduBuffer, 2);
+          }
+          //Making modbus exeption 2
+          else{
+              //reply modbus exception 2
+              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+          }
+      }
+      //Making modbus exeption 3
+      else{
+          //reply modbus exception 3
+          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
+      }
+      return resPduBuffer;
+    }
+
+    /**
+    * Function to implement Read Holdings registers service on server. Function code 03.
+    * @param {buffer}  pduReqData buffer containing only data from a request pdu    
+    * @fires  ModbusSlave#mb_exception
+    * @return {Buffer} resPduBuffer. Response pdu.
+    */
+    readHoldingRegistersService(pduReqData){
+
+        //Defining function code for this service
+        const FUNCTION_CODE = 3;
+
+        let resPduBuffer;
+
+        //registers to read
+        let registersToRead =  pduReqData.readUInt16BE(2);
+
+        //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
+        if(registersToRead >=1 && registersToRead <=  0x007D && pduReqData.length == 4){        
+          //initial register.
+          let startAddress = pduReqData.readUInt16BE(0);   
+          
+          //Validating data address
+          if(startAddress + registersToRead < this.holdingRegisters.length / 2 ){ 
+
+              //Calculando cantidad de bytes de la respuesta
+              //example 12 registers needs 2 bytes
+              let byteCount = registersToRead * 2;
+              let values = Buffer.alloc(byteCount);
+              resPduBuffer = Buffer.alloc(byteCount + 2);  
+              resPduBuffer[0] = FUNCTION_CODE;            
+              resPduBuffer[1] = byteCount;
+              
+              for(let i = 0; i < registersToRead; i++){
+                  let word = this.getWordFromBuffer(this.holdingRegisters, startAddress + i);     
+                  word.copy(values, i * 2) ;
+              }
+
+              values.copy(resPduBuffer, 2);
+
+          }
+          //Making modbus exeption 2
+          else{
+              //reply modbus exception 3
+              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);  
+          }
+        }
+        //Making modbus exeption 3
+        else{
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
+        }
+        return resPduBuffer;
     }
 
     /**
@@ -410,9 +571,56 @@ class ModbusSlave extends EventEmitter {
       return Utils.GetValueFromBuffer(buffValue, dataType, this.endianness);
 
     }
+
+    /**
+    * Low level api function to get a boolean value from buffer.
+    * @param {buffer} targetBuffer buffer object to read
+    * @param {number} offset integer value with bit address.
+    * @return {boolean} bit value
+    * @throws {RangeError} if offset is out of buffer's bound.
+    */
+    getBoolFromBuffer(targetBuffer, offset = 0){
+
+        if(offset >= targetBuffer.length * 8){
+
+          let targetByte = this.targetBuffer[Math.floor(dataAddress/8)];
+          let byteOffset = offset % 8;
+          let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+
+          let value = (targetByte & masks[offset]) > 0;
+
+          return value;
+
+        }
+        else{
+          throw new RangeError("offset is out of buffer bounds");
+        }
+    }
+
+    /**
+    * Low level api function to get a 2 bytes  word value from buffer.
+    * @param {buffer} targetBuffer buffer object to read
+    * @param {number} offset integer value with bit address.
+    * @return {Buffer} 2 bytes length buffer
+    * @throws {RangeError} if offset is out of buffer's bound.
+    */
+    getWordFromBuffer(targetBuffer, offset = 0){
+
+        if(offset >= targetBuffer.length / 2){
+          
+          let value = Buffer.alloc(2);
+          value[0] = targetBuffer[offset * 2];
+          value[1] = targetBuffer[offset*2 + 1];
+
+          return value;
+
+        }
+        else{
+          throw new RangeError("offset is out of buffer bounds");
+        }
+    }
     
 }
 
-ModbusSlave.prototype.MakeModbusException = SlaveFunctions.MakeModbusException;
 
-module.exports = ModbusSlave;
+export default ModbusSlave;
