@@ -6,13 +6,13 @@
 */
 
 
-const ModbusTcpServer = require('./server/mb_tcp_server');
+//const ModbusTcpServer = require('./server/mb_tcp_server');
 //const ModbusTcpClient = require('./client/m_tcp_client');
 //const ModbusSerialServer = require('./server/m_serial_server');
 //const ModbusSerialClient = require('./client/m_serial_client');
 //const ModbusMaster = require('./protocol/modbus_master');
-//const ModbusSlave = require('./protocol/modbus_slave');
-
+const ModbusServer  = require( "./protocol/modbus_server.js");
+module.exports.ModbusServer = ModbusServer;
 
 /**
  * ModbusTcpServer.
@@ -64,6 +64,7 @@ const ModbusTcpServer = require('./server/mb_tcp_server');
 * @param {string} mode Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
+/*
 module.exports.CreateTcpServer = function (server_cfg){
 
   var server = new ModbusTcpServer(server_cfg);
@@ -71,14 +72,14 @@ module.exports.CreateTcpServer = function (server_cfg){
   return server;
 
 }
-
+*/
 /**
 * Create a Slave instance
-
 * @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
 * @param {string} mode Serial or TCP.
 * @return {Object} Master object
 */
+/*
 module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
 
   switch(tp){
@@ -112,3 +113,6 @@ module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
   }
 
 }
+*/
+
+

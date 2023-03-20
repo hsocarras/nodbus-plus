@@ -11,7 +11,10 @@
     "slave",
     "server"
   ],
-  "main": "src/nodbus-plus.js",
+  "main": "src/nodbus-plus.js",  
+  "scripts": {
+    "test": "jest"
+  },
   "author": {
     "name": "Héctor E. Socarrás Cabrera",
     "email": "hsocarras1987@gmail.com"

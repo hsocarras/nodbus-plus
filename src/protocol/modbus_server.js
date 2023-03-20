@@ -7,11 +7,19 @@
 */
 
 
-import { EventEmitter } from 'node:events';
-import { Buffer } from 'node:buffer';
+const EventEmitter = require('node:events');
+const { Buffer } = require('node:buffer');
 
 //define max number of coil, inputs or register
 const MAX_ITEM_NUMBER = 65535;
+
+//Default Server's Configuration object
+const defaultCfg = {
+    inputs : 2048,
+    coils : 2048,
+    holdingRegisters : 2048,
+    inputRegisters : 2048
+}
 
 /**
  * Class representing a modbus slave.
@@ -21,15 +29,14 @@ class ModbusServer extends EventEmitter {
     /**
     * Create a Modbus Basic server.
     * @param {object} mbServerCfg - Configuration object, must have the following properties:
-    * {
-    *   endianness : {string} - endianess used for data representation. Acepted values 'BE', 'big', 'big-endian' for big endian or 'LE', 'little', 'little-endian' for little endian representation.
+    * {    
     *   inputs : {int} cuantity of inputs, 0 means that imputs uses same buffer thar input registers.
     *   coils : {int} cuantity of coils, 0 means that coils uses same buffer thar coils registers.
     *   holdingRegisters : {int} cuantity of holding registers with 2 bytes per register
     *   inputRegisters : {int} cuantity of input registers with 2 bytes per register
     * }
     */
-    constructor(mbServerCfg){
+    constructor(mbServerCfg = defaultCfg){
         super();
 
         var self = this;
@@ -40,58 +47,58 @@ class ModbusServer extends EventEmitter {
         *
         */
         this._internalFunctionCode = new Map();
-        this._internalFunctionCode.set(1, this.readCoilStatusService);
-        this._internalFunctionCode.set(2, this.readInputStatusService);
+        this._internalFunctionCode.set(1, this.readCoilsService);
+        this._internalFunctionCode.set(2, this.readDiscreteInputsService);
         this._internalFunctionCode.set(3, this.readHoldingRegistersService);
+        this._internalFunctionCode.set(4, this.readInputRegistersService);
+        this._internalFunctionCode.set(5, this.writeSingleCoilService);
+        this._internalFunctionCode.set(6, this.writeSingleRegisterService);
+        this._internalFunctionCode.set(15, this.writeMultipleCoilsService);
+        this._internalFunctionCode.set(16, this.writeMultipleRegistersService);
+        this._internalFunctionCode.set(22, this.maskWriteRegisterService);
+        this._internalFunctionCode.set(23, this.readWriteMultipleRegistersService);
         Object.defineProperty(self, 'supportedFunctionCode',{
             get: function(){
               return this._internalFunctionCode.keys();
             }
-        })        
-
+        }) 
+        
         
         /**
-         * Endiannes format for data representation on server's internal registers
-         * @type {string}
-         */
-        let _endianness 
-        Object.defineProperty(self, 'endianness',{
-          get: function(){
-            return _endianness;
-          },
-          set: function(endianness){
-              switch (endianness){
-                  case 'BE':
-                      _endianness = 'BE';
-                      break;
-                  case 'big':
-                      _endianness = 'BE';
-                      break;
-                  case 'big-endian':
-                      _endianness = 'BE';
-                      break;
-                  case 'LE':
-                      _endianness = 'LE'; 
-                      break;
-                  case 'little':  
-                      _endianness = 'LE'; 
-                      break;
-                  case 'little-endian':
-                      _endianness = 'LE'; 
-                      break;
-                  default:
-                      _endianness = 'LE'; 
-                      break;
-              }
-          }
-        })
-        this.endianness = mbServerCfg.endianness || "LE";
+        * Holding Registers.
+        * @type {Object}
+        * @public
+        */
+        if(mbServerCfg.holdingRegisters <= MAX_ITEM_NUMBER & mbServerCfg.holdingRegisters > 0){
+          this.holdingRegisters =  Buffer.alloc(mbServerCfg.holdingRegisters*2);
+        }
+        else if(mbServerCfg.holdingRegisters >= MAX_ITEM_NUMBER){
+            this.holdingRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
+        }       
+        else{
+            this.holdingRegisters =  Buffer.alloc(4096);
+        }
 
+        /**
+        * Input Registers.
+        * @type {Buffer}
+        * @public
+        */
+        if(mbServerCfg.inputRegisters <= MAX_ITEM_NUMBER & mbServerCfg.inputRegisters > 0){
+          this.inputRegisters =  Buffer.alloc(mbServerCfg.inputRegisters * 2);
+        }
+        else if(mbServerCfg.inputRegisters >= MAX_ITEM_NUMBER){
+            this.inputRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
+        }       
+        else{
+            this.inputRegisters =  Buffer.alloc(4096);
+        }  
+        
         /**
         * Inputs. Reference 1x.
         * @type {Buffer}
         * @public
-        */
+        */        
         if(mbServerCfg.inputs <= MAX_ITEM_NUMBER & mbServerCfg.inputs > 0){
             this.inputs =  Buffer.alloc(Math.ceil(mbServerCfg.inputs/8));
         }
@@ -124,35 +131,6 @@ class ModbusServer extends EventEmitter {
             this.coils =  Buffer.alloc(256);
         }
 
-        /**
-        * Holding Registers.
-        * @type {Object}
-        * @public
-        */
-        if(mbServerCfg.holdingRegisters <= MAX_ITEM_NUMBER & mbServerCfg.holdingRegisters > 0){
-          this.holdingRegisters =  Buffer.alloc(mbServerCfg.holdingRegisters*2);
-        }
-        else if(mbServerCfg.holdingRegisters >= MAX_ITEM_NUMBER){
-            this.holdingRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
-        }       
-        else{
-            this.holdingRegisters =  Buffer.alloc(4096);
-        }
-
-        /**
-        * Input Registers.
-        * @type {Buffer}
-        * @public
-        */
-        if(mbServerCfg.inputRegisters <= MAX_ITEM_NUMBER & mbServerCfg.inputRegisters > 0){
-          this.inputRegisters =  Buffer.alloc(mbServerCfg.inputRegisters * 2);
-        }
-        else if(mbServerCfg.inputRegisters >= MAX_ITEM_NUMBER){
-            this.inputRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
-        }       
-        else{
-            this.inputRegisters =  Buffer.alloc(4096);
-        }         
         
 
     }  
@@ -952,4 +930,4 @@ class ModbusServer extends EventEmitter {
 }
 
 
-export default ModbusServer;
+module.exports = ModbusServer;
