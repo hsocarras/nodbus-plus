@@ -14,15 +14,337 @@ basicServer1 = new ModbusServer(server1Cfg);
 //Creating a default setting server
 basicServer2 = new ModbusServer();
 
+//Writing values on server registers for testing purpose
+basicServer1.coils[0] = 0x0f;
+basicServer1.coils[1] = 0x52;
+basicServer2.coils[10]=0xAA;
+
+basicServer1.inputs[1] = 0x38;
+basicServer2.inputs[0] = 0x76;
+
+basicServer1.holdingRegisters[10] = 0x13;
+basicServer1.holdingRegisters.writeUint16BE(1879, 12);
+basicServer2.holdingRegisters.writeFloatBE(3.14);
+
+basicServer1.inputRegisters.writeUInt32BE(25489);
+basicServer2.inputRegisters.writeFloatBE(125.8);
+
 describe("Server instantation", () => {
     
     it("correct input buffer length for server 1", () => {
         expect(basicServer1.inputs.length).toEqual(66);
     });
-    it("correct default inputs buffer lenght", () => {
+    it("correct default inputs buffer lenght on server 2", () => {
         expect(basicServer2.inputs.length).toEqual(256);
     });
     it("correct coil buffer length for server 1", () => {
         expect(basicServer1.coils.length).toEqual(1024);
+    });
+    it("correct default coils buffer lenght on server 2", () => {
+        expect(basicServer2.coils.length).toEqual(256);
+    });
+    it("correct holding register buffer length for server 1", () => {
+        expect(basicServer1.holdingRegisters.length).toEqual(1024);
+    });
+    it("correct default holding register buffer lenght on server 2", () => {
+        expect(basicServer2.holdingRegisters.length).toEqual(4096);
+    });
+    it("correct input register buffer length for server 1", () => {
+        expect(basicServer1.inputRegisters.length).toEqual(512);
+    });
+    it("correct default input register buffer lenght on server 2", () => {
+        expect(basicServer2.inputRegisters.length).toEqual(4096);
+    });
+    it("chech correct writing register from user app", () => {
+        expect(basicServer1.holdingRegisters[12]).toEqual(0x07);
+        expect(basicServer1.holdingRegisters[13]).toEqual(0x57);
+    });
+});
+
+describe("Read Coils status", () => {
+    let pdu1 = Buffer.from([0x01, 0x00, 0x00, 0x00, 0x03]);
+    let pdu2 = Buffer.from([0x01, 0x13, 0xA5, 0x00, 0x03]);
+    let pdu3 = Buffer.from([0x01, 0x00, 0xA5, 0x07, 0xD3]);
+    let pdu4 = Buffer.from([0x01, 0x00, 0x48, 0x00, 0x0A]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu1)  
+       expect(res1[0]).toEqual(1);     
+       expect(res1[1]).toEqual(1);  
+       expect(res1[2]).toEqual(7);      
+    } );
+    it("correct response server 1 reading on holdings", () => {
+        let res1 = basicServer1.processReqPdu(pdu4)  
+        expect(res1[0]).toEqual(1);     
+        expect(res1[1]).toEqual(2);  
+        expect(res1[2]).toEqual(0);      
+        expect(res1[3]).toEqual(3);  
+    });
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x81);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x81);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Read inputs status", () => {
+    let pdu1 = Buffer.from([0x02, 0x00, 0x00, 0x00, 0x05]);
+    let pdu2 = Buffer.from([0x02, 0x23, 0xA5, 0x00, 0x03]);
+    let pdu3 = Buffer.from([0x02, 0x00, 0xA5, 0x07, 0xD3]);
+    let pdu4 = Buffer.from([0x02, 0x00, 0x00, 0x00, 0x0C]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu4)  
+       expect(res1[0]).toEqual(2);     
+       expect(res1[1]).toEqual(2);  
+       expect(res1[2]).toEqual(0);  
+       expect(res1[3]).toEqual(8);    
+    } );
+    it("correct response server 2", () => {
+        let res1 = basicServer2.processReqPdu(pdu1)  
+        expect(res1[0]).toEqual(2);     
+        expect(res1[1]).toEqual(1);  
+        expect(res1[2]).toEqual(0x16);
+    });
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x82);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x82);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Read holding registers", () => {
+    let pdu1 = Buffer.from([0x03, 0x00, 0x05, 0x00, 0x01]);
+    let pdu2 = Buffer.from([0x03, 0xA3, 0xA5, 0x00, 0x03]);
+    let pdu3 = Buffer.from([0x03, 0x00, 0xA5, 0x00, 0x7F]);
+    let pdu4 = Buffer.from([0x03, 0x00, 0x05, 0x00, 0x02]);
+    let pdu5 = Buffer.from([0x03, 0x00, 0x0, 0x00, 0x02]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu1)  
+       expect(res1[0]).toEqual(3);     
+       expect(res1[1]).toEqual(2);  
+       expect(res1[2]).toEqual(0x13);      
+       expect(res1[3]).toEqual(0);  
+    } );
+    it("correct response server 1 reading on holdings", () => {
+        let res1 = basicServer1.processReqPdu(pdu4)  
+        expect(res1[0]).toEqual(3);     
+        expect(res1[1]).toEqual(4);  
+        expect(res1[2]).toEqual(0x13);      
+        expect(res1[3]).toEqual(0);
+        expect(res1[4]).toEqual(0x07);      
+        expect(res1[5]).toEqual(0x57);  
+    });
+    /*
+    it("correct response server 2 reading on holdings", () => {
+        let res1 = basicServer2.processReqPdu(pdu5)  
+        expect(res1[0]).toEqual(3);     
+        expect(res1[1]).toEqual(4);  
+        expect(res1[2]).toEqual(0x13);      
+        expect(res1[3]).toEqual(0);
+        expect(res1[4]).toEqual(0x07);      
+        expect(res1[5]).toEqual(0x57);  
+    });*/
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x83);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x83);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Read input registers", () => {
+    let pdu1 = Buffer.from([0x04, 0x00, 0x00, 0x00, 0x02]);
+    let pdu2 = Buffer.from([0x04, 0xA3, 0xA5, 0x00, 0x03]);
+    let pdu3 = Buffer.from([0x04, 0x00, 0xA5, 0x00, 0x7F]);
+    let pdu4 = Buffer.from([0x04, 0x00, 0x00, 0x00, 0x02]);
+    
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu1) 
+       expect(res1[0]).toEqual(4);     
+       expect(res1[1]).toEqual(4);  
+       expect(res1[2]).toEqual(0);      
+       expect(res1[3]).toEqual(0); 
+       expect(res1[4]).toEqual(0x63);      
+       expect(res1[5]).toEqual(0x91);  
+    } );
+    
+    /*
+    it("correct response server 2 reading on holdings", () => {
+        let res1 = basicServer2.processReqPdu(pdu5)  
+        expect(res1[0]).toEqual(3);     
+        expect(res1[1]).toEqual(4);  
+        expect(res1[2]).toEqual(0x13);      
+        expect(res1[3]).toEqual(0);
+        expect(res1[4]).toEqual(0x07);      
+        expect(res1[5]).toEqual(0x57);  
+    });*/
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x84);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x84);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Write Single Coils", () => {
+    let pdu1 = Buffer.from([0x05, 0x00, 27, 0xFF,  0x00]);
+    let pdu2 = Buffer.from([0x05, 0x13, 0xA5, 0x00, 0x00]);
+    let pdu3 = Buffer.from([0x05, 0x00, 0xA5, 0x0, 0x03]);
+    let pdu4 = Buffer.from([0x05, 0x00, 0x00, 0x00, 0x00]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu1) 
+        
+       expect(res1[0]).toEqual(5);     
+       expect(res1[2]).toEqual(27);  
+       expect(res1[3]).toEqual(0xFF);      
+       expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 27)).toEqual(true)
+    } );
+    
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x85);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x85);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Write Single Register", () => {
+    let pdu1 = Buffer.from([0x06, 0x00, 20, 0x34,  0x12]);
+    let pdu2 = Buffer.from([0x06, 0x13, 0xA5, 0x00, 0x00]);
+    let pdu3 = Buffer.from([0x06, 0x00, 0xA5, 0x00, 0x03, 0x45]);
+    let pdu4 = Buffer.from([0x06, 0x00, 0x00, 0x00, 0x00]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+       let res1 = basicServer1.processReqPdu(pdu1) 
+       
+       expect(res1[0]).toEqual(6);     
+       expect(res1[2]).toEqual(20);  
+       expect(res1[3]).toEqual(0x34);      
+       expect(basicServer1.getWordFromBuffer(basicServer1.holdingRegisters, 20)[0]).toEqual(0x34)
+    } );
+    
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x86);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x86);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+});
+
+describe("Write Multiples Coils", () => {
+    let pdu1 = Buffer.from([0x0F, 0x00, 30, 0x00, 0x0A, 0x02, 0x68, 0x01]);
+    let pdu2 = Buffer.from([0x0F, 0x13, 0xA5, 0x00, 0x02, 0x01, 0x01]);
+    let pdu3 = Buffer.from([0x0F, 0x00, 0x40, 0x07, 0xB3, 0xF6, 0x00]);
+    let pdu4 = Buffer.from([0x0F, 0x00, 0x50, 0x00, 0x23, 0x02, 0x00]);
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+    
+    it("correct response server 1", () => {
+        basicServer1.setBoolToBuffer(true, basicServer1.holdingRegisters, 39);
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 39)).toEqual(true)
+        let res1 = basicServer1.processReqPdu(pdu1) 
+        expect(res1[0]).toEqual(15);     
+        expect(res1[2]).toEqual(30);  
+        expect(res1[4]).toEqual(0x0A);      
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 33)).toEqual(true)
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 35)).toEqual(true)
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 36)).toEqual(true)
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 38)).toEqual(true)
+        expect(basicServer1.getBoolFromBuffer(basicServer1.coils, 39)).toEqual(false)
+    } );
+    
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x8F);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x8F);     
+        expect(res1[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
     });
 });

@@ -40,6 +40,12 @@ class ModbusServer extends EventEmitter {
         super();
 
         var self = this;
+
+        //arguments check
+        if(mbServerCfg.inputs == undefined){mbServerCfg.inputs = defaultCfg.inputs;}
+        if(mbServerCfg.coils == undefined){ mbServerCfg.coils = defaultCfg.coils;}        
+        if(mbServerCfg.holdingRegisters == undefined){mbServerCfg.holdingRegisters = defaultCfg.holdingRegisters;}
+        if(mbServerCfg.inputRegisters == undefined){mbServerCfg.inputRegisters = defaultCfg.inputRegisters;}        
         
         /**
         * Get server's modbus functions code supported 
@@ -47,16 +53,16 @@ class ModbusServer extends EventEmitter {
         *
         */
         this._internalFunctionCode = new Map();
-        this._internalFunctionCode.set(1, this.readCoilsService);
-        this._internalFunctionCode.set(2, this.readDiscreteInputsService);
-        this._internalFunctionCode.set(3, this.readHoldingRegistersService);
-        this._internalFunctionCode.set(4, this.readInputRegistersService);
-        this._internalFunctionCode.set(5, this.writeSingleCoilService);
-        this._internalFunctionCode.set(6, this.writeSingleRegisterService);
-        this._internalFunctionCode.set(15, this.writeMultipleCoilsService);
-        this._internalFunctionCode.set(16, this.writeMultipleRegistersService);
-        this._internalFunctionCode.set(22, this.maskWriteRegisterService);
-        this._internalFunctionCode.set(23, this.readWriteMultipleRegistersService);
+        this._internalFunctionCode.set(1, 'readCoilsService');
+        this._internalFunctionCode.set(2, 'readDiscreteInputsService');
+        this._internalFunctionCode.set(3, 'readHoldingRegistersService');
+        this._internalFunctionCode.set(4, 'readInputRegistersService');
+        this._internalFunctionCode.set(5, 'writeSingleCoilService');
+        this._internalFunctionCode.set(6, 'writeSingleRegisterService');
+        this._internalFunctionCode.set(15, 'writeMultipleCoilsService');
+        this._internalFunctionCode.set(16, 'writeMultipleRegistersService');
+        this._internalFunctionCode.set(22, 'maskWriteRegisterService');
+        this._internalFunctionCode.set(23, 'readWriteMultipleRegistersService');
         Object.defineProperty(self, 'supportedFunctionCode',{
             get: function(){
               return this._internalFunctionCode.keys();
@@ -76,7 +82,7 @@ class ModbusServer extends EventEmitter {
             this.holdingRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
         }       
         else{
-            this.holdingRegisters =  Buffer.alloc(4096);
+            this.holdingRegisters =  Buffer.alloc(defaultCfg.holdingRegisters*2);
         }
 
         /**
@@ -91,7 +97,7 @@ class ModbusServer extends EventEmitter {
             this.inputRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
         }       
         else{
-            this.inputRegisters =  Buffer.alloc(4096);
+            this.inputRegisters =  Buffer.alloc(defaultCfg.inputRegisters*2);
         }  
         
         /**
@@ -109,7 +115,7 @@ class ModbusServer extends EventEmitter {
             this.inputs =  this.inputRegisters;
         }
         else{
-            this.inputs =  Buffer.alloc(256);
+            this.inputs =  Buffer.alloc(Math.ceil(defaultCfg.inputs/8));
         }
 
 
@@ -128,7 +134,7 @@ class ModbusServer extends EventEmitter {
             this.coils =  this.holdingRegisters;
         }
         else{
-            this.coils =  Buffer.alloc(256);
+            this.coils =  Buffer.alloc(Math.ceil(defaultCfg.coils / 8));
         }
 
         
@@ -156,8 +162,8 @@ class ModbusServer extends EventEmitter {
               let reqPduData = Buffer.alloc(reqPduBuffer.length - 1);
               reqPduBuffer.copy(reqPduData,0,1);
 
-              let servExecFunction = this._internalFunctionCode.get(functionCode);      //get de function code prossesing function
-              var resPduBuffer = servExecFunction(reqPduData);                          //execute service procesing
+              let serviceName = this._internalFunctionCode.get(functionCode);      //get de function code prossesing function
+              var resPduBuffer = this[serviceName](reqPduData);                          //execute service procesing
             
               return resPduBuffer;
           }
@@ -193,7 +199,7 @@ class ModbusServer extends EventEmitter {
         excepResBuffer[0] = excepFunctionCode;
         excepResBuffer[1] = exceptionCode;
     
-        switch(exception_code){
+        switch(exceptionCode){
             case 1:            
                 this.emit('exception', mbFunctionCode, 'ILLEGAL FUNCTION');  
             break;
@@ -233,7 +239,7 @@ class ModbusServer extends EventEmitter {
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     readCoilsService(pduReqData){
-
+        
       //Defining function code for this service
       const FUNCTION_CODE = 1;
 
@@ -244,34 +250,37 @@ class ModbusServer extends EventEmitter {
 
       //Validating Data Value. Max number of coils to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
       if(registersToRead >=1 && registersToRead <= 2000 && pduReqData.length == 4){        
-          //initial register. Example coil 20 addressing as 0x13 (19)
-          let startAddress = pduReqData.readUInt16BE(0);      
+            //initial register. Example coil 20 addressing as 0x13 (19)
+            let startAddress = pduReqData.readUInt16BE(0);      
           
-          //Validating data address
-          if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+            //Validating data address
+            if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+            
+            
+                //Calculando cantidad de bytes de la respuesta 12%8=1
+                //ejemplo 12 coils necesitan 2 bytes
+                let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
+                let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+                let values = Buffer.alloc(byteCount);
+                resPduBuffer = Buffer.alloc(byteCount + 2);  
+                resPduBuffer[0] = FUNCTION_CODE;            
+                resPduBuffer[1] = byteCount;
+                
+                for(let i = 0; i < registersToRead; i++){                   
+                    if(this.getBoolFromBuffer(this.coils, startAddress + i)){ 
+                    values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
+                    }          
+                }
 
-              //Calculando cantidad de bytes de la respuesta 12%8=1
-              //ejemplo 12 coils necesitan 2 bytes
-              let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
-              let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-              let values = Buffer.alloc(byteCount);
-              resPduBuffer = Buffer.alloc(byteCount + 2);  
-              resPduBuffer[0] = FUNCTION_CODE;            
-              resPduBuffer[1] = byteCount;
-
-              for(let i = 0; i < registersToRead; i++){                   
-                if(this.getBoolFromBuffer(this.coils, startAddress + i)){ 
-                  values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
-                }          
-              }
-
-              values.copy(resPduBuffer, 2);
-          }
-          //Making modbus exeption 2
-          else{
-              //reply modbus exception 2
-              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
-          }
+                values.copy(resPduBuffer, 2);
+            
+            
+            }
+            //Making modbus exeption 2
+            else{
+                //reply modbus exception 2
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+            }
       }
       //Making modbus exeption 3
       else{
@@ -462,7 +471,7 @@ class ModbusServer extends EventEmitter {
         let value =  pduReqData.readUInt16BE(2);
 
         //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-        if((value == 0x00 || Value == 0xFF00) && pduReqData.length == 4){   
+        if((value == 0x00 || value == 0xFF00) && pduReqData.length == 4){   
 
               //coil to write
               let targetCoil = pduReqData.readUInt16BE(0);     
@@ -575,12 +584,12 @@ class ModbusServer extends EventEmitter {
         //amount coils to write
         let cuantityOfOutputs =   pduReqData.readUInt16BE(2);
         //byte count
-        let byteCount = pduReqData.readUInt16BE(4);
+        let byteCount = pduReqData[4];
         //values to force
-        let outputValues = pduReqData.subarray(5);    
+        let outputValues = pduReqData.subarray(5);   
 
       //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-      if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount == Math.ceil(cuantityOfOutputs/8) & byteCount == outputValues.length){   
+      if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount == Math.ceil(cuantityOfOutputs/8) && byteCount == outputValues.length){   
 
             //start
             let startingAddress = pduReqData.readUInt16BE(0); 
@@ -640,7 +649,7 @@ class ModbusServer extends EventEmitter {
         //amount  to write
         let cuantityOfRegisters =   pduReqData.readUInt16BE(2);
         //byte count
-        let byteCount = pduReqData.readUInt16BE(4);
+        let byteCount = pduReqData[4];;
         //values to force
         let registerValues = pduReqData.subarray(5);    
 
@@ -768,7 +777,7 @@ class ModbusServer extends EventEmitter {
       let cuantityToRead =   pduReqData.readUInt16BE(2);
       let cuantityToWrite =   pduReqData.readUInt16BE(6);
       //byte count
-      let byteCount = pduReqData.readUInt16BE(8);
+      let byteCount = pduReqData[8];
       //values to force
       let writeRegisterValues = pduReqData.subarray(9);    
 
@@ -836,10 +845,10 @@ class ModbusServer extends EventEmitter {
     * @throws {RangeError} if offset is out of buffer's bound.
     */
     getBoolFromBuffer(targetBuffer, offset = 0){
+        
+        if(offset < targetBuffer.length * 8){
 
-        if(offset >= targetBuffer.length * 8){
-
-          let targetByte = this.targetBuffer[Math.floor(offset/8)];         //Byte where  the bit is place inside the buffer
+          let targetByte = targetBuffer[Math.floor(offset/8)];         //Byte where  the bit is place inside the buffer
           let byteOffset = offset % 8;                                      //offset of bit inside the byte
           let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
 
@@ -862,9 +871,9 @@ class ModbusServer extends EventEmitter {
     */
     setBoolToBuffer(value, targetBuffer, offset = 0){
 
-      if(offset >= targetBuffer.length * 8){
+      if(offset < targetBuffer.length * 8){
 
-          let targetOffset = Math.floor(dataAddress/8);           //byte inside the buffer where the bit is placed
+          let targetOffset = Math.floor(offset / 8);           //byte inside the buffer where the bit is placed
           let byteOffset = offset % 8;                            //offset inside the byte
           let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
 
@@ -892,7 +901,7 @@ class ModbusServer extends EventEmitter {
     */
     getWordFromBuffer(targetBuffer, offset = 0){
 
-        if(offset >= targetBuffer.length / 2){
+        if(offset < targetBuffer.length / 2){
           
           let value = Buffer.alloc(2);
           value[0] = targetBuffer[offset * 2];
@@ -915,7 +924,7 @@ class ModbusServer extends EventEmitter {
     */
     setWordToBuffer(value, targetBuffer, offset = 0){
 
-      if(offset >= targetBuffer.length / 2){        
+      if(offset < targetBuffer.length / 2){        
        
           targetBuffer[offset * 2] = value[0];
           targetBuffer[offset*2 + 1] = value[1];
