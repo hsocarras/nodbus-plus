@@ -716,14 +716,16 @@ class ModbusServer extends EventEmitter {
         
 
         //Validating data address 
-        if(startingAddress < this.holdingRegisters.length / 2){   
+        if(referenceAddress < this.holdingRegisters.length / 2){   
 
-              //masks
-              let andMask = pduReqData.readUInt16BE(2);     
-              let orMask =  pduReqData.readUInt16BE(4);                   
+                               
               
-              //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006  
-              if(pduReqData.length == 6 ){     
+            //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006  
+            if(pduReqData.length == 6 ){     
+
+                //masks
+                let andMask = pduReqData.readUInt16BE(2);     
+                let orMask =  pduReqData.readUInt16BE(4); 
                 
                   resPduBuffer = Buffer.alloc(7);
                   resPduBuffer[0] = FUNCTION_CODE;
@@ -732,7 +734,7 @@ class ModbusServer extends EventEmitter {
                   let actualValue = this.getWordFromBuffer(this.holdingRegisters, referenceAddress);               
                   let maskValue = Buffer.alloc(2);
                   maskValue.writeUint16BE((actualValue.readUint16BE() & andMask) | (orMask & ~andMask));
-                  this.setWordToBuffer(maskValue, this.holdingRegisters)
+                  this.setWordToBuffer(maskValue, this.holdingRegisters, referenceAddress)
                   
                   pduReqData.copy(resPduBuffer, 1);
                   
@@ -743,12 +745,12 @@ class ModbusServer extends EventEmitter {
                   //telling user app that some coils was writed
                   this.emit('write', 4, values);  
               
-              }
-              //Making modbus exeption 3
-              else{
-                  //reply modbus exception 3
-                  resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3); 
-              }
+            }
+            //Making modbus exeption 3
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3); 
+            }
         }
         //Making modbus exeption 2
         else{
