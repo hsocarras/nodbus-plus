@@ -431,3 +431,48 @@ describe("Mask Write Register", () => {
     
 });
 
+describe("Read/Write Multiple Registers", () => {
+    let pdu1 = Buffer.from([0x17, 0x00, 0, 0x00, 0x03, 0, 100, 0, 2, 4, 0x0f, 0xAA, 0xBB, 0xCC]);
+    let pdu2 = Buffer.from([0x17, 0x13, 0xA5, 0x00, 0x02, 0, 100, 0, 2, 4, 0x0f, 0xAA, 0xBB, 0xCC]);
+    let pdu3 = Buffer.from([0x17, 0x00, 0, 0x00, 0x7E, 0, 100, 0, 2, 4, 0x0f, 0xAA, 0xBB, 0xCC]);
+    let pdu4 = Buffer.from([0x17, 0x00, 0, 0x00, 0x00, 0, 100, 0, 2, 4, 0x0f, 0xAA, 0xBB, 0xCC]);
+    let pdu5 = Buffer.from([0x17, 0x00, 0, 0x00, 0x01, 0, 100, 0x00, 0x7A, 4, 0x0f, 0xAA, 0xBB, 0xCC]);
+    
+    let exceptionserver1 = new ModbusServer(server1Cfg);
+    let exceptionserver2 = new ModbusServer();
+   
+    it("correct response server 1", () => {
+        basicServer1.holdingRegisters[4] = 0xAB;
+        let res1 = basicServer1.processReqPdu(pdu1)         
+        expect(res1[0]).toEqual(0x17); 
+        expect(res1[1]).toEqual(0x06);  
+        expect(res1[6]).toEqual(0xAB);
+        expect(basicServer1.getWordFromBuffer(basicServer1.holdingRegisters, 101)[0]).toEqual(0xBB)
+        expect(basicServer1.getWordFromBuffer(basicServer1.holdingRegisters, 101)[1]).toEqual(0XCC)
+    } );
+    
+    it("Check Illegal address", () => {
+        let res1 = exceptionserver2.processReqPdu(pdu2)  
+        expect(res1[0]).toEqual(0x97);     
+        expect(res1[1]).toEqual(2);  
+        exceptionserver2.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA ADDRESS'); 
+        })      
+    });
+    it("Check Illegal data Value", () => {
+        let res1 = exceptionserver1.processReqPdu(pdu3)  
+        expect(res1[0]).toEqual(0x97);     
+        expect(res1[1]).toEqual(3);  
+        let res2 =  exceptionserver1.processReqPdu(pdu4)      
+        expect(res2[0]).toEqual(0x97);     
+        expect(res2[1]).toEqual(3); 
+        let res3 =  exceptionserver1.processReqPdu(pdu5)
+        expect(res3[0]).toEqual(0x97);     
+        expect(res3[1]).toEqual(3); 
+        exceptionserver1.on('exception', (functionCode, message) =>{            
+            expect(message).toEqual('ILLEGAL DATA VALUE'); 
+        })      
+    });
+    
+});
+

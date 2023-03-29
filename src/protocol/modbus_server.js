@@ -240,53 +240,58 @@ class ModbusServer extends EventEmitter {
     */
     readCoilsService(pduReqData){
         
-      //Defining function code for this service
-      const FUNCTION_CODE = 1;
+        //Defining function code for this service
+        const FUNCTION_CODE = 1;
 
-      let resPduBuffer;
+        let resPduBuffer;
 
-      //registers to read
-      let registersToRead =  pduReqData.readUInt16BE(2);
+        if(pduReqData.length == 4){
+            //registers to read
+            let registersToRead =  pduReqData.readUInt16BE(2);
 
-      //Validating Data Value. Max number of coils to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
-      if(registersToRead >=1 && registersToRead <= 2000 && pduReqData.length == 4){        
-            //initial register. Example coil 20 addressing as 0x13 (19)
-            let startAddress = pduReqData.readUInt16BE(0);      
-          
-            //Validating data address
-            if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
-            
-            
-                //Calculando cantidad de bytes de la respuesta 12%8=1
-                //ejemplo 12 coils necesitan 2 bytes
-                let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
-                let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-                let values = Buffer.alloc(byteCount);
-                resPduBuffer = Buffer.alloc(byteCount + 2);  
-                resPduBuffer[0] = FUNCTION_CODE;            
-                resPduBuffer[1] = byteCount;
+            //Validating Data Value. Max number of coils to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
+            if(registersToRead >=1 && registersToRead <= 2000){        
+                    //initial register. Example coil 20 addressing as 0x13 (19)
+                    let startAddress = pduReqData.readUInt16BE(0);      
                 
-                for(let i = 0; i < registersToRead; i++){                   
-                    if(this.getBoolFromBuffer(this.coils, startAddress + i)){ 
-                    values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
-                    }          
-                }
+                    //Validating data address
+                    if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+                    
+                    
+                        //Calculando cantidad de bytes de la respuesta 12%8=1
+                        //ejemplo 12 coils necesitan 2 bytes
+                        let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
+                        let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+                        let values = Buffer.alloc(byteCount);
+                        resPduBuffer = Buffer.alloc(byteCount + 2);  
+                        resPduBuffer[0] = FUNCTION_CODE;            
+                        resPduBuffer[1] = byteCount;
+                        
+                        for(let i = 0; i < registersToRead; i++){                   
+                            if(this.getBoolFromBuffer(this.coils, startAddress + i)){ 
+                            values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
+                            }          
+                        }
 
-                values.copy(resPduBuffer, 2);
-            
-            
-            }
-            //Making modbus exeption 2
+                        values.copy(resPduBuffer, 2);
+                    
+                    
+                    }
+                    //Making modbus exeption 2
+                    else{
+                        //reply modbus exception 2
+                        resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                    }
+            }      
             else{
-                //reply modbus exception 2
-                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
             }
-      }
-      //Making modbus exeption 3
-      else{
-          //reply modbus exception 3
-          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
-      }
+        }
+        else{
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
+        }
       return resPduBuffer;
     }
 
@@ -298,50 +303,55 @@ class ModbusServer extends EventEmitter {
     */
     readDiscreteInputsService(pduReqData){
 
-      //Defining function code for this service
-      const FUNCTION_CODE = 2;
+        //Defining function code for this service
+        const FUNCTION_CODE = 2;
 
-      let resPduBuffer;
+        let resPduBuffer;
+        if(pduReqData.length == 4){
+            //registers to read
+            let registersToRead =  pduReqData.readUInt16BE(2);
 
-      //registers to read
-      let registersToRead =  pduReqData.readUInt16BE(2);
+            //Validating Data Value. Max number of inputss to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
+            if(registersToRead >=1 && registersToRead <= 2000){        
+                //initial register. Example coil 20 addressing as 0x13 (19)
+                let startAddress = pduReqData.readUInt16BE(0);      
+                
+                //Validating data address
+                if(startAddress + registersToRead < this.inputs.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
 
-      //Validating Data Value. Max number of inputss to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
-      if(registersToRead >=1 && registersToRead <= 2000 && pduReqData.length == 4){        
-          //initial register. Example coil 20 addressing as 0x13 (19)
-          let startAddress = pduReqData.readUInt16BE(0);      
-          
-          //Validating data address
-          if(startAddress + registersToRead < this.inputs.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+                    //Calculando cantidad de bytes de la respuesta 12%8=1
+                    //example 12 inputss needs 2 bytes
+                    let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
+                    let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+                    let values = Buffer.alloc(byteCount);
+                    resPduBuffer = Buffer.alloc(byteCount + 2);  
+                    resPduBuffer[0] = FUNCTION_CODE;            
+                    resPduBuffer[1] = byteCount;
 
-              //Calculando cantidad de bytes de la respuesta 12%8=1
-              //example 12 inputss needs 2 bytes
-              let byteCount = registersToRead % 8 ? Math.ceil(registersToRead/8) : (registersToRead/8);   
-              let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-              let values = Buffer.alloc(byteCount);
-              resPduBuffer = Buffer.alloc(byteCount + 2);  
-              resPduBuffer[0] = FUNCTION_CODE;            
-              resPduBuffer[1] = byteCount;
+                    for(let i = 0; i < registersToRead; i++){                   
+                        if(this.getBoolFromBuffer(this.inputs, startAddress + i)){ 
+                        values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
+                        }          
+                    }
 
-              for(let i = 0; i < registersToRead; i++){                   
-                if(this.getBoolFromBuffer(this.inputs, startAddress + i)){ 
-                  values[Math.floor(i/8)] = values[Math.floor(i/8)] | masks[i%8];            
-                }          
-              }
-
-              values.copy(resPduBuffer, 2);
-          }
-          //Making modbus exeption 2
-          else{
-              //reply modbus exception 2
-              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
-          }
-      }
-      //Making modbus exeption 3
-      else{
-          //reply modbus exception 3
-          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
-      }
+                    values.copy(resPduBuffer, 2);
+                }
+                //Making modbus exeption 2
+                else{
+                    //reply modbus exception 2
+                    resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                }
+            }
+            //Making modbus exeption 3
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
+            }
+        }
+        else{
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);         
+        }
       return resPduBuffer;
     }
 
@@ -358,40 +368,45 @@ class ModbusServer extends EventEmitter {
 
         let resPduBuffer;
 
-        //registers to read
-        let registersToRead =  pduReqData.readUInt16BE(2);
+        if(pduReqData.length == 4){
+            //registers to read
+            let registersToRead =  pduReqData.readUInt16BE(2);
 
-        //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
-        if(registersToRead >=1 && registersToRead <=  0x007D && pduReqData.length == 4){        
-          //initial register.
-          let startAddress = pduReqData.readUInt16BE(0);   
-          
-          //Validating data address
-          if(startAddress + registersToRead < this.holdingRegisters.length / 2 ){ 
+            //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
+            if(registersToRead >=1 && registersToRead <=  0x007D){        
+            //initial register.
+            let startAddress = pduReqData.readUInt16BE(0);   
+            
+            //Validating data address
+            if(startAddress + registersToRead < this.holdingRegisters.length / 2 ){ 
 
-              //Calculando cantidad de bytes de la respuesta
-              //example 12 registers needs 2 bytes
-              let byteCount = registersToRead * 2;
-              let values = Buffer.alloc(byteCount);
-              resPduBuffer = Buffer.alloc(byteCount + 2);  
-              resPduBuffer[0] = FUNCTION_CODE;            
-              resPduBuffer[1] = byteCount;
-              
-              for(let i = 0; i < registersToRead; i++){
-                  let word = this.getWordFromBuffer(this.holdingRegisters, startAddress + i);     
-                  word.copy(values, i * 2) ;
-              }
+                //Calculando cantidad de bytes de la respuesta
+                //example 12 registers needs 2 bytes
+                let byteCount = registersToRead * 2;
+                let values = Buffer.alloc(byteCount);
+                resPduBuffer = Buffer.alloc(byteCount + 2);  
+                resPduBuffer[0] = FUNCTION_CODE;            
+                resPduBuffer[1] = byteCount;
+                
+                for(let i = 0; i < registersToRead; i++){
+                    let word = this.getWordFromBuffer(this.holdingRegisters, startAddress + i);     
+                    word.copy(values, i * 2) ;
+                }
 
-              values.copy(resPduBuffer, 2);
+                values.copy(resPduBuffer, 2);
 
-          }
-          //Making modbus exeption 2
-          else{
-              //reply modbus exception 3
-              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);  
-          }
+            }
+            //Making modbus exeption 2
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);  
+            }
+            }            
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
+            }
         }
-        //Making modbus exeption 3
         else{
             //reply modbus exception 3
             resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
@@ -407,49 +422,53 @@ class ModbusServer extends EventEmitter {
     */
     readInputRegistersService(pduReqData){
 
-      //Defining function code for this service
-      const FUNCTION_CODE = 4;
+        //Defining function code for this service
+        const FUNCTION_CODE = 4;
 
-      let resPduBuffer;
+        let resPduBuffer;
+        if(pduReqData.length == 4){
+            //registers to read
+            let registersToRead =  pduReqData.readUInt16BE(2);
 
-      //registers to read
-      let registersToRead =  pduReqData.readUInt16BE(2);
+            //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
+            if(registersToRead >=1 && registersToRead <=  0x007D){        
+                //initial register.
+                let startAddress = pduReqData.readUInt16BE(0);   
+                
+                //Validating data address
+                if(startAddress + registersToRead < this.inputRegisters.length / 2 ){ 
 
-      //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
-      if(registersToRead >=1 && registersToRead <=  0x007D && pduReqData.length == 4){        
-        //initial register.
-        let startAddress = pduReqData.readUInt16BE(0);   
-        
-        //Validating data address
-        if(startAddress + registersToRead < this.inputRegisters.length / 2 ){ 
+                    //Calculando cantidad de bytes de la respuesta
+                    //example 12 registers needs 2 bytes
+                    let byteCount = registersToRead * 2;
+                    let values = Buffer.alloc(byteCount);
+                    resPduBuffer = Buffer.alloc(byteCount + 2);  
+                    resPduBuffer[0] = FUNCTION_CODE;            
+                    resPduBuffer[1] = byteCount;
+                    
+                    for(let i = 0; i < registersToRead; i++){
+                        let word = this.getWordFromBuffer(this.inputRegisters, startAddress + i);     
+                        word.copy(values, i * 2) ;
+                    }
 
-            //Calculando cantidad de bytes de la respuesta
-            //example 12 registers needs 2 bytes
-            let byteCount = registersToRead * 2;
-            let values = Buffer.alloc(byteCount);
-            resPduBuffer = Buffer.alloc(byteCount + 2);  
-            resPduBuffer[0] = FUNCTION_CODE;            
-            resPduBuffer[1] = byteCount;
-            
-            for(let i = 0; i < registersToRead; i++){
-                let word = this.getWordFromBuffer(this.inputRegisters, startAddress + i);     
-                word.copy(values, i * 2) ;
+                    values.copy(resPduBuffer, 2);
+
+                }
+                //Making modbus exeption 2
+                else{
+                    //reply modbus exception 3
+                    resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);  
+                }
+            }            
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
             }
-
-            values.copy(resPduBuffer, 2);
-
         }
-        //Making modbus exeption 2
         else{
             //reply modbus exception 3
-            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);  
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
         }
-      }
-      //Making modbus exeption 3
-      else{
-          //reply modbus exception 3
-          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);  
-      }
       return resPduBuffer;
     }
 
@@ -466,45 +485,49 @@ class ModbusServer extends EventEmitter {
         const FUNCTION_CODE = 5;
 
         let resPduBuffer;
+        if(pduReqData.length == 4){
+            //value to write
+            let value =  pduReqData.readUInt16BE(2);
 
-        //value to write
-        let value =  pduReqData.readUInt16BE(2);
+            //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
+            if(value == 0x00 || value == 0xFF00){   
 
-        //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-        if((value == 0x00 || value == 0xFF00) && pduReqData.length == 4){   
-
-              //coil to write
-              let targetCoil = pduReqData.readUInt16BE(0);     
-              
-              //Validating data address
-              if(targetCoil  < this.coils.length * 8 & targetCoil <= MAX_ITEM_NUMBER){     
+                //coil to write
+                let targetCoil = pduReqData.readUInt16BE(0);     
                 
-                  resPduBuffer = Buffer.alloc(5);
-                  resPduBuffer[0] = FUNCTION_CODE;
+                //Validating data address
+                if(targetCoil  < this.coils.length * 8 & targetCoil <= MAX_ITEM_NUMBER){     
                     
-                  //writing values on register                  
-                  this.setBoolToBuffer(value, this.coils, targetCoil);
-                  pduReqData.copy(resPduBuffer, 1);
-                    
-                  //creating object of values writed
-                  let values = new Map();
-                  let coilValue = this.getBoolFromBuffer(this.coils, targetCoil);
-                  values.set(targetCoil, coilValue);
-                  //telling user app that some coils was writed
-                  this.emit('write', 0, values);
-              
-              }
-              //Making modbus exeption 2
-              else{
-                  //reply modbus exception 3
-                  resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
-              }
-          }
-          //Making modbus exeption 3
-          else{
-              //reply modbus exception 3
-              resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
-          }
+                    resPduBuffer = Buffer.alloc(5);
+                    resPduBuffer[0] = FUNCTION_CODE;
+                        
+                    //writing values on register                  
+                    this.setBoolToBuffer(value, this.coils, targetCoil);
+                    pduReqData.copy(resPduBuffer, 1);
+                        
+                    //creating object of values writed
+                    let values = new Map();
+                    let coilValue = this.getBoolFromBuffer(this.coils, targetCoil);
+                    values.set(targetCoil, coilValue);
+                    //telling user app that some coils was writed
+                    this.emit('write', 0, values);
+                
+                }
+                //Making modbus exeption 2
+                else{
+                    //reply modbus exception 3
+                    resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                }
+            }            
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
+            }
+        }
+        else{
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
+        }
 
           return resPduBuffer;
     }
@@ -523,42 +546,41 @@ class ModbusServer extends EventEmitter {
 
       let resPduBuffer;
 
-      //registers to write
-      let value =  Buffer.alloc(2);
-      value[0] = pduReqData[2];
-      value[1] = pduReqData[3];
-
+     
       //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
       if(pduReqData.length == 4){   
 
-          //register to write
-          let targetRegister = pduReqData.readUInt16BE(0);     
+            //registers to write
+            let value =  Buffer.alloc(2);
+            value[0] = pduReqData[2];
+            value[1] = pduReqData[3];
+
+            //register to write
+            let targetRegister = pduReqData.readUInt16BE(0);     
             
           //Validating data address
-          if(targetRegister  < this.holdingRegisters.length / 2){     
-              
-              resPduBuffer = Buffer.alloc(5);
-              resPduBuffer[0] = FUNCTION_CODE;
-                  
-                //writing values on register                  
-                this.setWordToBuffer(value, this.holdingRegisters, targetRegister);
-                pduReqData.copy(resPduBuffer, 1);
-                  
-                //creating object of values writed
-                let values = new Map();
-                let registerValue = this.getWordFromBuffer(this.holdingRegisters, targetRegister);
-                values.set(targetRegister, registerValue);
-                //telling user app that some coils was writed
-                this.emit('write', 4, values);
-            
-            }
-            //Making modbus exeption 2
+            if(targetRegister  < this.holdingRegisters.length / 2){     
+                
+                resPduBuffer = Buffer.alloc(5);
+                resPduBuffer[0] = FUNCTION_CODE;
+                    
+                    //writing values on register                  
+                    this.setWordToBuffer(value, this.holdingRegisters, targetRegister);
+                    pduReqData.copy(resPduBuffer, 1);
+                    
+                    //creating object of values writed
+                    let values = new Map();
+                    let registerValue = this.getWordFromBuffer(this.holdingRegisters, targetRegister);
+                    values.set(targetRegister, registerValue);
+                    //telling user app that some coils was writed
+                    this.emit('write', 4, values);
+                
+            }           
             else{
                 //reply modbus exception 2
                 resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
             }
-        }
-        //Making modbus exeption 3
+        }       
         else{
             //reply modbus exception 3
             resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
@@ -580,55 +602,58 @@ class ModbusServer extends EventEmitter {
         const FUNCTION_CODE = 15;
 
         let resPduBuffer;
+        if(pduReqData.length >=6){
+            //amount coils to write
+            let cuantityOfOutputs =   pduReqData.readUInt16BE(2);
+            //byte count
+            let byteCount = pduReqData[4];
+            //values to force
+            let outputValues = pduReqData.subarray(5);   
 
-        //amount coils to write
-        let cuantityOfOutputs =   pduReqData.readUInt16BE(2);
-        //byte count
-        let byteCount = pduReqData[4];
-        //values to force
-        let outputValues = pduReqData.subarray(5);   
+            //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
+            if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount == Math.ceil(cuantityOfOutputs/8) && byteCount == outputValues.length){   
 
-      //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-      if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount == Math.ceil(cuantityOfOutputs/8) && byteCount == outputValues.length){   
-
-            //start
-            let startingAddress = pduReqData.readUInt16BE(0); 
+                    //start
+                    let startingAddress = pduReqData.readUInt16BE(0); 
+                                
+                    //Validating data address
+                    if(startingAddress + cuantityOfOutputs  < this.coils.length * 8 & (startingAddress + cuantityOfOutputs) <= MAX_ITEM_NUMBER){     
+                    
+                        resPduBuffer = Buffer.alloc(5);
+                        resPduBuffer[0] = FUNCTION_CODE;
                         
-            //Validating data address
-            if(startingAddress + cuantityOfOutputs  < this.coils.length * 8 & (startingAddress + cuantityOfOutputs) <= MAX_ITEM_NUMBER){     
-              
-                resPduBuffer = Buffer.alloc(5);
-                resPduBuffer[0] = FUNCTION_CODE;
-                  
-                //writing values on register  
-                for(let i=0; i < cuantityOfOutputs; i++){
-                  let value = this.getBoolFromBuffer(outputValues, i);       
-                  this.setBoolToBuffer(value, this.coils, startingAddress + i);
-                }
-                pduReqData.copy(resPduBuffer, 1);
+                        //writing values on register  
+                        for(let i=0; i < cuantityOfOutputs; i++){
+                        let value = this.getBoolFromBuffer(outputValues, i);       
+                        this.setBoolToBuffer(value, this.coils, startingAddress + i);
+                        }
+                        pduReqData.copy(resPduBuffer, 1);
 
-                //creating object of values writed
-                let values = new Map();
-                for(let i = 0; i < cuantityOfOutputs; i++){                  
-                  let coilValue = this.getBoolFromBuffer(this.coils, startingAddress + i);                  
-                  values.set(startingAddress + i, coilValue);
-                }                 
-                //telling user app that some coils was writed
-                this.emit('write', 0, values);
-            
+                        //creating object of values writed
+                        let values = new Map();
+                        for(let i = 0; i < cuantityOfOutputs; i++){                  
+                        let coilValue = this.getBoolFromBuffer(this.coils, startingAddress + i);                  
+                        values.set(startingAddress + i, coilValue);
+                        }                 
+                        //telling user app that some coils was writed
+                        this.emit('write', 0, values);
+                    
+                    }
+                    //Making modbus exeption 2
+                    else{
+                        //reply modbus exception 3
+                        resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                    }
             }
-            //Making modbus exeption 2
             else{
                 //reply modbus exception 3
-                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
             }
         }
-        //Making modbus exeption 3
         else{
             //reply modbus exception 3
             resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
         }
-
         return resPduBuffer;
     }
 
@@ -646,49 +671,54 @@ class ModbusServer extends EventEmitter {
 
         let resPduBuffer;
 
-        //amount  to write
-        let cuantityOfRegisters =   pduReqData.readUInt16BE(2);
-        //byte count
-        let byteCount = pduReqData[4];;
-        //values to force
-        let registerValues = pduReqData.subarray(5);    
+        if(pduReqData.length >=6){
+            //amount  to write
+            let cuantityOfRegisters = pduReqData.readUInt16BE(2);
+            //byte count
+            let byteCount = pduReqData[4];;
+            //values to force
+            let registerValues = pduReqData.subarray(5);    
 
-        //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-        if(cuantityOfRegisters >= 1 && cuantityOfRegisters <= 0x07B0 && byteCount == cuantityOfRegisters*2 & byteCount == registerValues.length){   
+            //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
+            if(cuantityOfRegisters >= 1 && cuantityOfRegisters <= 0x07B0 && byteCount == cuantityOfRegisters*2 & byteCount == registerValues.length){   
 
-              //start
-              let startingAddress = pduReqData.readUInt16BE(0); 
-                          
-              //Validating data address
-              if(startingAddress + cuantityOfRegisters  < this.holdingRegisters.length / 2 ){     
-                
-                  resPduBuffer = Buffer.alloc(5);
-                  resPduBuffer[0] = FUNCTION_CODE;
+                //start
+                let startingAddress = pduReqData.readUInt16BE(0); 
+                            
+                //Validating data address
+                if(startingAddress + cuantityOfRegisters  < this.holdingRegisters.length / 2 ){     
                     
-                  //writing values on register  
-                  for(let i=0; i < cuantityOfRegisters; i++){
-                    let value = this.getWordFromBuffer(registerValues, i);       
-                    this.setWordToBuffer(value, this.holdingRegisters, startingAddress + i);
-                  }
-                  pduReqData.copy(resPduBuffer, 1);
+                    resPduBuffer = Buffer.alloc(5);
+                    resPduBuffer[0] = FUNCTION_CODE;
+                        
+                    //writing values on register  
+                    for(let i=0; i < cuantityOfRegisters; i++){
+                        let value = this.getWordFromBuffer(registerValues, i);       
+                        this.setWordToBuffer(value, this.holdingRegisters, startingAddress + i);
+                    }
+                    pduReqData.copy(resPduBuffer, 1);
 
-                  //creating object of values writed
-                  let values = new Map();
-                  for(let i = 0; i < cuantityOfRegisters; i++){                  
-                    let registerValue = this.getWordFromBuffer(this.holdingRegisters, startingAddress + i);                  
-                    values.set(startingAddress + i, registerValue);
-                  }                 
-                  //telling user app that some coils was writed
-                  this.emit('write', 4, values);
-              
-              }
-              //Making modbus exeption 2
-              else{
-                  //reply modbus exception 3
-                  resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
-              }
+                    //creating object of values writed
+                    let values = new Map();
+                    for(let i = 0; i < cuantityOfRegisters; i++){                  
+                        let registerValue = this.getWordFromBuffer(this.holdingRegisters, startingAddress + i);                  
+                        values.set(startingAddress + i, registerValue);
+                    }                 
+                    //telling user app that some coils was writed
+                    this.emit('write', 4, values);
+                
+                }
+                //Making modbus exeption 2
+                else{
+                    //reply modbus exception 3
+                    resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                }
+            }            
+            else{
+                //reply modbus exception 3
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
+            }
         }
-        //Making modbus exeption 3
         else{
             //reply modbus exception 3
             resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
@@ -711,17 +741,13 @@ class ModbusServer extends EventEmitter {
 
         let resPduBuffer;
 
-        //register to mask
-        let referenceAddress =   pduReqData.readUInt16BE(0);
-        
-
         //Validating data address 
-        if(referenceAddress < this.holdingRegisters.length / 2){   
+        if(pduReqData.length == 6 ){
 
-                               
-              
-            //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006  
-            if(pduReqData.length == 6 ){     
+            //register to mask
+            let referenceAddress =   pduReqData.readUInt16BE(0);
+
+            if(referenceAddress < this.holdingRegisters.length / 2){  
 
                 //masks
                 let andMask = pduReqData.readUInt16BE(2);     
@@ -745,17 +771,15 @@ class ModbusServer extends EventEmitter {
                   //telling user app that some coils was writed
                   this.emit('write', 4, values);  
               
-            }
-            //Making modbus exeption 3
+            }            
             else{
-                //reply modbus exception 3
-                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3); 
+                //reply modbus exception 2
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
             }
-        }
-        //Making modbus exeption 2
+        }        
         else{
-            //reply modbus exception 2
-            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2);          
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
         }
 
         return resPduBuffer;
@@ -770,71 +794,77 @@ class ModbusServer extends EventEmitter {
     */
     readWriteMultipleRegistersService(pduReqData){
 
-      //Defining function code for this service
-      const FUNCTION_CODE = 23;
+        //Defining function code for this service
+        const FUNCTION_CODE = 23;
 
-      let resPduBuffer;
+        let resPduBuffer;
 
-      //values to read and write
-      let cuantityToRead =   pduReqData.readUInt16BE(2);
-      let cuantityToWrite =   pduReqData.readUInt16BE(6);
-      //byte count
-      let byteCount = pduReqData[8];
-      //values to force
-      let writeRegisterValues = pduReqData.subarray(9);    
+        if(pduReqData.length >= 11){
 
-      //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006    
-      if(cuantityToRead > 0 && cuantityToRead <= 0x7D && cuantityToWrite > 0  && cuantityToWrite <= 0x79 && byteCount == cuantityToWrite*2 & byteCount == writeRegisterValues.length){   
+            //values to read and write
+            let cuantityToRead =   pduReqData.readUInt16BE(2);
+            let cuantityToWrite =   pduReqData.readUInt16BE(6);
+            //byte count
+            let byteCount = pduReqData[8];
+            //values to force
+            let writeRegisterValues = pduReqData.subarray(9);    
 
-            //starting addresses
-            let readStartingAddress = pduReqData.readUInt16BE(0); 
-            let writeStartingAddress = pduReqData.readUInt16BE(4); 
+            //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006    
+            if(cuantityToRead > 0 && cuantityToRead <= 0x7D && cuantityToWrite > 0  && cuantityToWrite <= 0x79 && byteCount == cuantityToWrite*2 & byteCount == writeRegisterValues.length){   
+
+                    //starting addresses
+                    let readStartingAddress = pduReqData.readUInt16BE(0); 
+                    let writeStartingAddress = pduReqData.readUInt16BE(4); 
+                                
+                    //Validating data address
+                    if(readStartingAddress + cuantityToRead  < this.holdingRegisters.length / 2 && writeStartingAddress + cuantityToWrite  < this.holdingRegisters.length / 2){   
+
+                        //Calculando cantidad de bytes de la respuesta
+                        //example 12 registers needs 2 bytes
+                        let byteCount = cuantityToRead * 2;
+                        let readValues = Buffer.alloc(byteCount);
+                        resPduBuffer = Buffer.alloc(byteCount + 2);  
+                        resPduBuffer[0] = FUNCTION_CODE;            
+                        resPduBuffer[1] = byteCount;
                         
-            //Validating data address
-            if(readStartingAddress + cuantityToRead  < this.holdingRegisters.length / 2 && writeStartingAddress + cuantityToWrite  < this.holdingRegisters.length / 2){   
+                        for(let i = 0; i < cuantityToRead; i++){
+                            let word = this.getWordFromBuffer(this.holdingRegisters, readStartingAddress + i);                             
+                            word.copy(readValues, i * 2) ;
+                        }
 
-                //Calculando cantidad de bytes de la respuesta
-                //example 12 registers needs 2 bytes
-                let byteCount = cuantityToRead * 2;
-                let readValues = Buffer.alloc(byteCount);
-                resPduBuffer = Buffer.alloc(byteCount + 2);  
-                resPduBuffer[0] = FUNCTION_CODE;            
-                resPduBuffer[1] = byteCount;
-              
-                for(let i = 0; i < cuantityToRead; i++){
-                    let word = this.getWordFromBuffer(this.holdingRegisters, readStartingAddress + i);     
-                    word.copy(readValues, i * 2) ;
-                }
+                        readValues.copy(resPduBuffer, 2);
+                        
+                        //writing values on register  
+                        for(let i=0; i < cuantityToWrite; i++){
+                        let value = this.getWordFromBuffer(writeRegisterValues, i);       
+                        this.setWordToBuffer(value, this.holdingRegisters, writeStartingAddress + i);
+                        }
 
-                readValues.copy(resPduBuffer, 2);
-                  
-                //writing values on register  
-                for(let i=0; i < cuantityToWrite; i++){
-                  let value = this.getWordFromBuffer(writeRegisterValues, i);       
-                  this.setWordToBuffer(value, this.holdingRegisters, writeStartingAddress + i);
-                }
-
-                //creating object of values writed
-                let values = new Map();
-                for(let i = 0; i < cuantityToWrite; i++){                  
-                  let registerValue = this.getWordFromBuffer(this.holdingRegisters, writeStartingAddress + i);                  
-                  values.set(writeStartingAddress + i, registerValue);
-                }                 
-                //telling user app that some coils was writed
-                this.emit('write', 4, values);
-            
-            }
-            //Making modbus exeption 2
+                        //creating object of values writed
+                        let values = new Map();
+                        for(let i = 0; i < cuantityToWrite; i++){                  
+                        let registerValue = this.getWordFromBuffer(this.holdingRegisters, writeStartingAddress + i);                  
+                        values.set(writeStartingAddress + i, registerValue);
+                        }                 
+                        //telling user app that some coils was writed
+                        this.emit('write', 4, values);
+                    
+                    }
+                    //Making modbus exeption 2
+                    else{
+                        //reply modbus exception 3
+                        resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                    }
+            }            
             else{
                 //reply modbus exception 3
-                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 2); 
+                resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
             }
-      }
-      //Making modbus exeption 3
-      else{
-          //reply modbus exception 3
-          resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
-      }
+        }   
+        else{
+            //reply modbus exception 3
+            resPduBuffer = this.makeExceptionResPdu(FUNCTION_CODE, 3);          
+        }
 
       return resPduBuffer;
     }    
