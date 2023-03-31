@@ -142,7 +142,7 @@ class ModbusServer extends EventEmitter {
     }  
 
      /**
-    * Main frontend server function. Entry point for client request. Process request pdu, execute de service and return a response pdu.
+    * @brief Main server function. Entry point for client request. Process request pdu, execute de service and return a response pdu.
     * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
     * @fires ModbusServer#exception
     * @fires ModbusServer#write
@@ -184,7 +184,7 @@ class ModbusServer extends EventEmitter {
     
     
     /**
-    * Build a modbus exception response PDU
+    * @brief Build a modbus exception response PDU
     * @param {number} mbFunctionCode modbus function code
     * @param {number} exceptionCode code of modbus exception
     * @fires  ModbusServer#mb_exception
@@ -233,7 +233,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement Read Coil stauts service on server. Function code 01.
+    * @brief Function to implement Read Coil stauts service on server. Function code 01.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @return {Buffer} resPduBuffer. Response pdu.
@@ -296,7 +296,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement Read Input status service on server. Function code 02.
+    * @brief Function to implement Read Input status service on server. Function code 02.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @return {Buffer} resPduBuffer. Response pdu.
@@ -356,7 +356,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement Read Holdings registers service on server. Function code 03.
+    * @brief Function to implement Read Holdings registers service on server. Function code 03.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @return {Buffer} resPduBuffer. Response pdu.
@@ -415,7 +415,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement Read Input registers service on server. Function code 04.
+    * @brief Function to implement Read Input registers service on server. Function code 04.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @return {Buffer} resPduBuffer. Response pdu.
@@ -473,7 +473,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement force single Coil service on server. Function code 05.
+    * @brief Function to implement force single Coil service on server. Function code 05.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -533,7 +533,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement write single Register service on server. Function code 06.
+    * @brief Function to implement write single Register service on server. Function code 06.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -590,7 +590,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement write multiple Coils service on server. Function code 15.
+    * @brief Function to implement write multiple Coils service on server. Function code 15.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -658,7 +658,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement write multiple registers service on server. Function code 16.
+    * @brief Function to implement write multiple registers service on server. Function code 16.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -728,7 +728,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement mask holding register service on server. Function code 22.
+    * @brief Function to implement mask holding register service on server. Function code 22.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -786,7 +786,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Function to implement read and write multiple registers service on server. Function code 23.
+    * @brief Function to implement read and write multiple registers service on server. Function code 23.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -870,7 +870,7 @@ class ModbusServer extends EventEmitter {
     }    
 
     /**
-    * Low level api function to get a boolean value from buffer.
+    * @brief Low level api function to get a boolean value from buffer.
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.
     * @return {boolean} bit value
@@ -895,7 +895,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Low level api function to set a boolean value into a buffer.
+    * @brief Low level api function to set a boolean value into a buffer.
     * @param {bool} value boolean value to write
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.    
@@ -925,7 +925,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Low level api function to get a 2 bytes  word value from buffer.
+    * @brief Low level api function to get a 2 bytes  word value from buffer.
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.
     * @return {Buffer} 2 bytes length buffer
@@ -948,7 +948,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * Low level api function to set a 2 bytes  word value into buffer.
+    * @brief Low level api function to set a 2 bytes  word value into buffer.
     * @param {Buffer} value 2 bytes long buffer object to write
     * @param {Buffer} targetBuffer buffer object to write
     * @param {number} offset integer value with offset in the buffer.    
