@@ -10,8 +10,9 @@
 //const ModbusTcpClient = require('./client/m_tcp_client');
 //const ModbusSerialServer = require('./server/m_serial_server');
 //const ModbusSerialClient = require('./client/m_serial_client');
-//const ModbusMaster = require('./protocol/modbus_master');
+const ModbusMaster = require('./protocol/modbus_master.js');
 const ModbusServer  = require( "./protocol/modbus_server.js");
+module.exports.ModbusMaster = ModbusMaster;
 module.exports.ModbusServer = ModbusServer;
 
 /**

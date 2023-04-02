@@ -24,8 +24,8 @@ class ModbusMaster extends EventEmitter {
    
 
     /**
-    * @brief function to make the request pdu for function code 1 of modbus protocol.  
-    * @param {number} startCoil first coil to read, start at 0.
+    * Function to make the request pdu for function code 1 of modbus protocol  
+    * @param {number} startCoil first coil to read, start at 0
     * @param {number} coilQuantity number of coils to read
     * @return {buffer} pdu buffer.
     */
@@ -39,7 +39,7 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * @brief function to make the request pdu for function code 2 of modbus protocol. 
+    * Function to make the request pdu for function code 2 of modbus protocol. 
     * @param {number} startinput first input to read, start at 0.
     * @param {number} inputQuantity number of inputs to read
     * @return {buffer} pdu buffer.
@@ -55,7 +55,7 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * @brief function to make the request pdu for function code 3 of modbus protocol. 
+    * Function to make the request pdu for function code 3 of modbus protocol. 
     * @param {number} startRegister first holding register to read, start at 0.
     * @param {number} registerQuantity number of holding register to read.
     * @return {buffer} pdu buffer.
@@ -66,7 +66,7 @@ class ModbusMaster extends EventEmitter {
         reqPduBuffer[0] = 0x03;        
         reqPduBuffer.writeUInt16BE(startRegister,1);
         reqPduBuffer.writeUInt16BE(registerQuantity,3);        
-        return request;        
+        return reqPduBuffer;        
     }
 
     /**
@@ -81,7 +81,7 @@ class ModbusMaster extends EventEmitter {
         reqPduBuffer[0] = 0x04;        
         reqPduBuffer.writeUInt16BE(startRegister, 1);
         reqPduBuffer.writeUInt16BE(registerQuantity, 3);        
-        return request;        
+        return reqPduBuffer;        
     }
 
     /**
@@ -107,7 +107,7 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * @brief function to make the request pdu for function code 6 of modbus protocol.
+    * Function to make the request pdu for function code 6 of modbus protocol.
     * @param {Buffer} values value to force   
     * @param {number} startRegister register to write.
     * @return {buffer} pdu buffer.
@@ -120,7 +120,7 @@ class ModbusMaster extends EventEmitter {
             let reqPduBuffer = Buffer.alloc(5);
             //funcion 06 PresetSingleRegister
             reqPduBuffer[0] = 0x06;            
-            reqPduBuffer.writeUInt16BE(startAddres,1);
+            reqPduBuffer.writeUInt16BE(startRegister, 1);
             values.copy(reqPduBuffer, 3);
            
             return reqPduBuffer;
@@ -131,7 +131,7 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * @brief function to make the request pdu for function code 15 of modbus protocol.
+    * Function to make the request pdu for function code 15 of modbus protocol.
     * @param {Buffer} values value to force.
     * @param {number} startCoil first coil to write, start at 0 coil.
     * @param {number} coilQuantity number of coils to read
@@ -157,14 +157,14 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * @brief function to make the request pdu for function code 16 of modbus protocol.
+    * Function to make the request pdu for function code 16 of modbus protocol.
     * @param {Buffer} values value to write.
-    * @param {number} startRegister register to write.
-    * @param {number} registerQuantity number of holding register to read.
+    * @param {number} startRegister first register to write.
+    * @param {number} registerQuantity number of holding register to write.
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
     */
-    presetMultipleRegistersPdu(values, startRegister = 0, registerQuantity){
+    presetMultipleRegistersPdu(values, startRegister = 0, registerQuantity = Math.floor(values.length/2)){
        //function 16 write multiples coils
        if(values instanceof Buffer){
             //creando la pdu del request
@@ -206,15 +206,15 @@ class ModbusMaster extends EventEmitter {
 
     /**
     * @brief function to make the request pdu for function code 23 of modbus protocol.
-    * @param {Buffer} values values to write.
-    * @param {number} writeStartingAddress first register to write.
-    * @param {number} quantityToWrite number of registers to weite
+    * @param {Buffer} values values to write.    
     * @param {number} readStartingAddress first register to read.
-    * @param {number} quantitytoRead number of registers to read    
+    * @param {number} quantitytoRead number of registers to read 
+    * @param {number} writeStartingAddress first register to write.
+    * @param {number} quantityToWrite number of registers to weite   
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
     */
-    readWriteMultipleRegistersPdu(values, writeStartingAddress, quantityToWrite, readStartingAddress, quantitytoRead){
+    readWriteMultipleRegistersPdu(values, readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite = Math.floor(values.length/2)){
         //function 23 write and read multiples registers
        if(values instanceof Buffer){
         //creando la pdu del request
@@ -234,8 +234,8 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-     * @brief This function calculate the necesary buffer to realize the desired mask function
-     * @param {int[]} valueArray: value 1 on position that want to be true, 0 on position that
+    * This function calculate the necesary buffer to realize the desired mask function
+    * @param {Array} valueArray Array of numbers, values 1 on position that want to be true, 0 on position that
     * want to be false and -1 in position that must be unchanged.
     * example register value:           [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
     *         set register value:       [1 0 0 1  -1 0 1 -1  -1 -1 0 0  1 1 -1 0]
@@ -245,7 +245,7 @@ class ModbusMaster extends EventEmitter {
     getMaskRegisterBuffer(valueArray){
 
         let value = Buffer.alloc(4);
-        let AND_Mask = 0x00;
+        let AND_Mask = 0;
         let OR_Mask = 0xFFFF;
         let tempMask = 1;
 
@@ -253,14 +253,18 @@ class ModbusMaster extends EventEmitter {
             
             if(valueArray[i] == 1){
             //AND_MASK = 0;
-            //OR_Mask = 1;        
+            //OR_Mask = 1;              
             }
-            else if(value[i] == 0){ 
-            //AND_MASK = 0;       
-            OR_Mask = OR_Mask  & (~tempMask); //OR_MASK = 0
+            else if(valueArray[i] == 0){ 
+                //AND_MASK = 0;  
+                //OR_MASK = 0     
+                OR_Mask = OR_Mask  & (~tempMask);   //temp mask negated is 1111 1110 for i = 0
+              
             }
             else{
-            AND_Mask = AND_Mask | tempMask;
+                //AND_MASK = 1;  
+                //OR_MASK = 1 
+                AND_Mask = AND_Mask | tempMask;                
             }
             
             tempMask = tempMask << 1; 
@@ -271,6 +275,19 @@ class ModbusMaster extends EventEmitter {
 
         return value;
 
+    }
+
+    /**
+     * Function to get a buffer from a bool value for function 5 of modbus protocol.
+     * @param {boolean} value Bool value.
+     * @return {Buffer} A buffer that can be 0x0000 for false or 0xFF00 for true value
+     */
+    boolToBuffer(value){
+        let valBuffer = Buffer.alloc(2)
+        if(value){
+            valBuffer[0] = 0xFF;
+        }
+        return valBuffer
     }
 
     

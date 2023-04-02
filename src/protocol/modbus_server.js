@@ -753,8 +753,8 @@ class ModbusServer extends EventEmitter {
                 let andMask = pduReqData.readUInt16BE(2);     
                 let orMask =  pduReqData.readUInt16BE(4); 
                 
-                  resPduBuffer = Buffer.alloc(7);
-                  resPduBuffer[0] = FUNCTION_CODE;
+                resPduBuffer = Buffer.alloc(7);
+                resPduBuffer[0] = FUNCTION_CODE;
                     
                   //writing values on register  
                   let actualValue = this.getWordFromBuffer(this.holdingRegisters, referenceAddress);               
