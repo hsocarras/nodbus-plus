@@ -248,8 +248,14 @@ class ModbusMaster extends EventEmitter {
         let AND_Mask = 0;
         let OR_Mask = 0xFFFF;
         let tempMask = 1;
+        let iteratorLimit = 16;
 
-        for (let i = 0; i <valueArray.length; i++){
+        if(valueArray.length < 16){
+            iteratorLimit = valueArray.length;
+        }
+        
+
+        for (let i = 0; i < iteratorLimit; i++){
             
             if(valueArray[i] == 1){
             //AND_MASK = 0;
