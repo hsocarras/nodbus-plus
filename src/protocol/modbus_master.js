@@ -90,15 +90,21 @@ class ModbusMaster extends EventEmitter {
     * @param {number} startcoil first coil to write, start at 0 coil        
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is diferent than 2.
     */
     forceSingleCoilPdu(values, startCoil = 0){        
        //funcion 05 write single coil            
        if(values instanceof Buffer){
-            let reqPduBuffer = Buffer.alloc(5);
-            reqPduBuffer[0] = 0x05;           
-            reqPduBuffer.writeUInt16BE(startCoil,1);
-            values.copy(reqPduBuffer,3); 
-            return reqPduBuffer;  
+            if(values.length == 2){
+                let reqPduBuffer = Buffer.alloc(5);
+                reqPduBuffer[0] = 0x05;           
+                reqPduBuffer.writeUInt16BE(startCoil,1);
+                values.copy(reqPduBuffer,3); 
+                return reqPduBuffer;  
+            }
+            else{
+                throw new RangeError('Error, values length must be 2', 'modbus_master.js', 180);            
+            }
         }            
         else{
             throw new TypeError('Error, values must be a Buffer', "modbus_master.js", 105);         
@@ -112,18 +118,24 @@ class ModbusMaster extends EventEmitter {
     * @param {number} startRegister register to write.
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is diferent than 2.
     */
     presetSingleRegisterPdu(values, startRegister = 0){
 
         if(values instanceof Buffer){
-            //creando la pdu del request
-            let reqPduBuffer = Buffer.alloc(5);
-            //funcion 06 PresetSingleRegister
-            reqPduBuffer[0] = 0x06;            
-            reqPduBuffer.writeUInt16BE(startRegister, 1);
-            values.copy(reqPduBuffer, 3);
-           
-            return reqPduBuffer;
+            if(values.length == 2){
+                //creando la pdu del request
+                let reqPduBuffer = Buffer.alloc(5);
+                //funcion 06 PresetSingleRegister
+                reqPduBuffer[0] = 0x06;            
+                reqPduBuffer.writeUInt16BE(startRegister, 1);
+                values.copy(reqPduBuffer, 3);
+            
+                return reqPduBuffer;
+            }
+            else{
+                throw new RangeError('Error, values length must be 2', 'modbus_master.js', 180);            
+            }
         }            
         else{
             throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 130);        
@@ -137,18 +149,24 @@ class ModbusMaster extends EventEmitter {
     * @param {number} coilQuantity number of coils to read
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is greater than 246.
     */
     forceMultipleCoilsPdu(values, startCoil = 0, coilQuantity){
         //function 15 force multiples coils
         if(values instanceof Buffer){
-            //creando la pdu del request
-            let reqPduBuffer = Buffer.alloc(6+values.length);
-            reqPduBuffer[0] = 0x0F;            
-            reqPduBuffer.writeUInt16BE(startCoil, 1);
-            reqPduBuffer.writeUInt16BE(coilQuantity,3);
-            reqPduBuffer[5]= values.length;
-            values.copy(reqPduBuffer, 6);            
-            return reqPduBuffer;
+            if(values.length <= 246){
+                //creando la pdu del request
+                let reqPduBuffer = Buffer.alloc(6+values.length);
+                reqPduBuffer[0] = 0x0F;            
+                reqPduBuffer.writeUInt16BE(startCoil, 1);
+                reqPduBuffer.writeUInt16BE(coilQuantity,3);
+                reqPduBuffer[5]= values.length;
+                values.copy(reqPduBuffer, 6);            
+                return reqPduBuffer;
+            }
+            else{
+                throw new RangeError('Error, values length exceed the  max pdu length', 'modbus_master.js', 180);            
+            }
         }
         else{
             throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 156);          
@@ -163,19 +181,25 @@ class ModbusMaster extends EventEmitter {
     * @param {number} registerQuantity number of holding register to write.
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is greater than 246.
     */
     presetMultipleRegistersPdu(values, startRegister = 0, registerQuantity = Math.floor(values.length/2)){
        //function 16 write multiples coils
        if(values instanceof Buffer){
-            //creando la pdu del request
-            let reqPduBuffer = Buffer.alloc(6 + values.length);
-            reqPduBuffer[0] = 0x10;            
-            reqPduBuffer.writeUInt16BE(startRegister, 1);
-            reqPduBuffer.writeUInt16BE(registerQuantity, 3);
-            reqPduBuffer[5]= values.length;
-            values.copy(reqPduBuffer, 6);            
-            return reqPduBuffer;
-        }
+            if(values.length <= 246){
+                //creando la pdu del request
+                let reqPduBuffer = Buffer.alloc(6 + values.length);
+                reqPduBuffer[0] = 0x10;            
+                reqPduBuffer.writeUInt16BE(startRegister, 1);
+                reqPduBuffer.writeUInt16BE(registerQuantity, 3);
+                reqPduBuffer[5]= values.length;
+                values.copy(reqPduBuffer, 6);            
+                return reqPduBuffer;
+            }
+            else{
+                throw new RangeError('Error, values length exceed the  max pdu length', 'modbus_master.js', 180);            
+            }
+        }        
         else{
             throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 180);            
         }
@@ -187,16 +211,22 @@ class ModbusMaster extends EventEmitter {
     * @param {Buffer} values value to write.
     * @param {number} startRegister register to write.  
     * @return {buffer} pdu buffer
-     @throws {TypeError} if values is not a buffer's instance.
+    * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is diferent than 4.
     */
     maskHoldingRegisterPdu( values, startRegister = 0){
         //function 22 mask holding register
         if(values instanceof Buffer){
-            let reqPduBuffer = Buffer.alloc(7);
-            reqPduBuffer[0] = 0x16;
-            reqPduBuffer.writeUInt16BE(startRegister, 1);              
-            values.copy(reqPduBuffer, 3); 
-            return reqPduBuffer;
+            if(values.length == 4){
+                let reqPduBuffer = Buffer.alloc(7);
+                reqPduBuffer[0] = 0x16;
+                reqPduBuffer.writeUInt16BE(startRegister, 1);              
+                values.copy(reqPduBuffer, 3); 
+                return reqPduBuffer;
+            }
+            else{
+                throw new RangeError('Error, values length diferent than 4', 'modbus_master.js');            
+            }
         }
         else{
             throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 203);            
@@ -213,24 +243,30 @@ class ModbusMaster extends EventEmitter {
     * @param {number} quantityToWrite number of registers to weite   
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
+    * @throws {RangeError} if values's length is greater than 242.
     */
     readWriteMultipleRegistersPdu(values, readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite = Math.floor(values.length/2)){
-        //function 23 write and read multiples registers
-       if(values instanceof Buffer){
-        //creando la pdu del request
-        let reqPduBuffer = Buffer.alloc(10 + values.length);
-        reqPduBuffer[0] = 0x17;            
-        reqPduBuffer.writeUInt16BE(readStartingAddress, 1);
-        reqPduBuffer.writeUInt16BE(quantitytoRead, 3);
-        reqPduBuffer.writeUInt16BE(writeStartingAddress, 5);
-        reqPduBuffer.writeUInt16BE(quantityToWrite, 7);
-        reqPduBuffer[9]= values.length;
-        values.copy(reqPduBuffer, 10);            
-        return reqPduBuffer;
-    }
-    else{
-        throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 180);            
-    }
+         //function 23 write and read multiples registers
+        if(values instanceof Buffer){
+            if(values.length <= 242){
+                //creando la pdu del request
+                let reqPduBuffer = Buffer.alloc(10 + values.length);
+                reqPduBuffer[0] = 0x17;            
+                reqPduBuffer.writeUInt16BE(readStartingAddress, 1);
+                reqPduBuffer.writeUInt16BE(quantitytoRead, 3);
+                reqPduBuffer.writeUInt16BE(writeStartingAddress, 5);
+                reqPduBuffer.writeUInt16BE(quantityToWrite, 7);
+                reqPduBuffer[9]= values.length;
+                values.copy(reqPduBuffer, 10);            
+                return reqPduBuffer;
+            }
+            else{
+                throw new RangeError('Error, values length exceed the  max pdu length', 'modbus_master.js', 180);            
+            }
+        }
+        else{
+            throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 180);            
+        }
     }
 
     /**

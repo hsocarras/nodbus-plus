@@ -5,7 +5,7 @@
 * @version 1.0.0
 */
 
-const ModbusServer = require('./modbus_slave');
+const ModbusServer = require('./modbus_server');
 
 
 //Default Server's Configuration object
@@ -42,8 +42,8 @@ class ModbusTcpServer extends ModbusServer {
     getTransactionObject(messageFrame){
         let self = this;
         //Starting server activity
-        if(messageFrame > 7){
-            let mbapBuffer = messageFrame.subarray(0, 6);
+        if(messageFrame.length > 7){
+            let mbapBuffer = messageFrame.subarray(0, 7);
             
             if(this.validateMbapHeader(mbapBuffer)){
                 let pduBuffer = messageFrame.subarray(7);
@@ -105,8 +105,8 @@ class ModbusTcpServer extends ModbusServer {
                 req.header.copy(resAdu);
                 //copying pdu to response
                 resPdu.copy(resAdu, 7);
-                //Calculating header lenth field
-                resAdu.writeUint16BE(resPdu.length, 4)  
+                //Calculating header lenth field. Unit Id Byte plus pdu length
+                resAdu.writeUint16BE(resPdu.length + 1, 4)  
                     
                 return resAdu;
             }
