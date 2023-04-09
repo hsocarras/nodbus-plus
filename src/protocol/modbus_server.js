@@ -141,7 +141,7 @@ class ModbusServer extends EventEmitter {
 
     }  
 
-     /**
+    /**
     * @brief Main server function. Entry point for client request. Process request pdu, execute de service and return a response pdu.
     * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
     * @fires ModbusServer#exception
@@ -201,32 +201,34 @@ class ModbusServer extends EventEmitter {
     
         switch(exceptionCode){
             case 1:            
-                this.emit('exception', mbFunctionCode, 'ILLEGAL FUNCTION');  
+                this.emit('exception', mbFunctionCode, exceptionCode, 'ILLEGAL FUNCTION');  
             break;
             case 2:
-                this.emit('exception', mbFunctionCode, 'ILLEGAL DATA ADDRESS');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'ILLEGAL DATA ADDRESS');
                 break;
             case 3:
-                this.emit('exception', mbFunctionCode, 'ILLEGAL DATA VALUE');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'ILLEGAL DATA VALUE');
                 break;
             case 4:
-                this.emit('exception', mbFunctionCode, 'SLAVE DEVICE FAILURE');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'SLAVE DEVICE FAILURE');
                 break;
             case 5:
-                this.emit('exception', mbFunctionCode, 'ACKNOWLEDGE');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'ACKNOWLEDGE');
                 break;
             case 6:
-                this.emit('exception', mbFunctionCode, 'SLAVE DEVICE BUSY');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'SLAVE DEVICE BUSY');
                 break;            
             case 8:
-                this.emit('exception', mbFunctionCode, 'MEMORY PARITY ERROR');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'MEMORY PARITY ERROR');
                 break;
+                /*
             case 0x0A:
-                this.emit('exception', mbFunctionCode, 'GATEWAY PATH UNAVAILABLE');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'GATEWAY PATH UNAVAILABLE');
                 break;
             case 0x0B:
-                this.emit('exception', mbFunctionCode, 'GATEWAY TARGET DEVICE FAILED TO RESPOND');
+                this.emit('exception', mbFunctionCode, exceptionCode, 'GATEWAY TARGET DEVICE FAILED TO RESPOND');
                 break;
+                */
         }
 
         return excepResBuffer;

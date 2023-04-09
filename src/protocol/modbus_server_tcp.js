@@ -18,11 +18,12 @@ const defaultCfg = {
 
 /**
  * Class representing a modbus tcp server.
- * @extends ModbusDevice
+ * @extends ModbusServer
 */
 class ModbusTcpServer extends ModbusServer {
   /**
   * Create a Modbus TCP Server.
+  * @param {Object} mbTcpServercfg Configuration object.
   */
     constructor(mbTcpServercfg = defaultCfg){
         super(mbTcpServercfg);
