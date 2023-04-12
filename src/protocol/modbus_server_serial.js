@@ -7,12 +7,12 @@
 
 const { Buffer } = require('node:buffer');
 
-const ModbusServer = require('./modbus_server');
-const valByte2Chars = require('utils').valByte2Chars
+const ModbusServer = require('./modbus_server.js');
+const valByte2Chars = require('./utils.js').valByteToChars
 
 //Default Server's Configuration object
 const defaultCfg = {
-    transmitMode : 0, //transmition mode 0-auto, 1-rtu, 2-ascii
+    transmitionMode : 0, //transmition mode 0-auto, 1-rtu, 2-ascii
     address : 1,
     inputs : 2048,
     coils : 2048,
@@ -28,17 +28,21 @@ class ModbusSerialServer extends ModbusServer {
   /**
   * Create a Modbus Slave.
   */
-    constructor(mbSerialServercfg){
-        super(mbSerialServercfg);
+    constructor(mbSerialServerCfg = defaultCfg){
+        super(mbSerialServerCfg);
 
         var self = this;
+
+         //arguments check
+         if(mbSerialServerCfg.transmitionMode == undefined){mbSerialServerCfg.transmitionMode = defaultCfg.transmitionMode;}
+         if(mbSerialServerCfg.address == undefined){ mbSerialServerCfg.address = defaultCfg.address;}  
         
         /**
         * address property       
         * @type {number}
         * @private
         */
-        this._address = mbSerialServercfg.address | 1;
+        this._address = mbSerialServerCfg.address;
         
         /**
         * transmition mode property   
@@ -46,7 +50,7 @@ class ModbusSerialServer extends ModbusServer {
         * @type {number}
         * @private
         */
-        this._transmitionMode = mbSerialServercfg.transmition_mode | 0;   
+        this._transmitionMode = mbSerialServerCfg.transmitionMode;   
         
         //add serial function codes
         this._internalFunctionCode.set(7, 'readExceptionCoilsService');
@@ -73,21 +77,21 @@ class ModbusSerialServer extends ModbusServer {
         this.exceptionCoils = Buffer.alloc(1);
 
         //diagnostic counters
-        this.BusMessageCounter = 0;
-        this.BusCommunicationErrorCounter;    //this counter is managed by network layer, this propety takes a pointer to the counter.
-        this.SlaveExceptionErrorCounter = 0;
-        this.SlaveMessageCounter = 0;
-        this.SlaveNoResponseCounter = 0;
-        this.SlaveNAKCounter = 0;
-        this.SlaveBusyCounter = 0;
-        this.BusCharacterOverrunCounter = 0;      //this counter is managed by network layer, this propety takes a pointer to the counter.
+        this.busMessageCount = 0;
+        this.busCommunicationErrorCount = 0;    //this counter is managed by network layer, this propety takes a pointer to the counter.
+        this.slaveExceptionErrorCount = 0;
+        this.slaveMessageCount = 0;
+        this.slaveNoResponseCount = 0;
+        this.slaveNAKCount = 0;
+        this.slaveBusyCount = 0;
+        this.busCharacterOverrunCount = 0;      //this counter is managed by network layer, this propety takes a pointer to the counter.
 
         this.on('exception', (functionCode, exception, message) =>{
             if(exception == 5){
-                this.SlaveNAKCounter++;
+                this.slaveNAKCount++;
             }
             else if(exception == 6){
-                this.SlaveBusyCounter++
+                this.slaveBusyCount++
             }
         })
 
@@ -131,9 +135,100 @@ class ModbusSerialServer extends ModbusServer {
         }
     }
 
-    incBusCommunicationErrorCounter(){
-        this.BusCommunicationErrorCounter++;
+    incbusCommunicationErrorCount(){
+        this.busCommunicationErrorCount++;
     }
+
+    
+    
+    /**
+    * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
+    * See MODBUS over serial line specification and implementation guide V1.02
+    * @param {Buffer}  modbus indication's frame
+    * @return {Buffer} Adu  if success, otherwise null
+    * 
+    */
+    getResponseAduBuffer(reqAduBuffer){
+
+        var self = this;
+        
+         
+        if(reqAduBuffer.length > 3){
+            
+            //check CRC or LRC 
+            if(this.validateCheckSum(reqAduBuffer)){
+                
+                this.busMessageCount++;
+                let reqPduBuffer
+                if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
+                    let reqAduRtuBuffer = aduAscciiToRtu(reqAduBuffer)
+                    reqPduBuffer = reqAduRtuBuffer.subarray(1,reqAduRtuBuffer.length-2);
+                }
+                else {
+                    reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+                }
+                
+              
+                //checking message address
+                if(this.address == reqAduBuffer[0] || reqAduBuffer[0] == 0){
+
+                    this.slaveMessageCount++;
+                    
+
+                    if(reqAduBuffer[0] == 0){
+                        //is Broadcast
+                        this.slaveNoResponseCount++;
+
+                        let noResPdu = this.processBroadcastReqPdu(reqPduBuffer);
+                        if(noResPdu[0] == reqPduBuffer[0] + 0x80){
+                            this.slaveExceptionErrorCount++;
+                        }
+                        return null
+                    }
+                    else{
+                        let resPduBuffer = this.processReqPdu(reqPduBuffer);
+                        if(resPduBuffer[0] == reqPduBuffer[0] + 0x80){
+                            this.this.slaveExceptionErrorCount++;
+                        }
+                        //calculando la adu
+                        let resAduBuffer;
+                        let resRtuAduBuffer = Buffer.alloc(resPduBuffer.length + 3);
+                        resRtuAduBuffer[0] = this.address;                        
+                        resPduBuffer.copy(resRtuAduBuffer, 1)
+
+                        if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
+                            resAduBuffer = aduRtuToAscii(resRtuAduBuffer)
+                        }
+                        else {
+                            //calculating CRC
+                            let crc = this.calcCRC(resRtuAduBuffer);
+
+                            resAduBuffer = resRtuAduBuffer;                            
+                            resAduBuffer.writeUint16BE(crc, resAduBuffer.length - 2);
+                        }
+
+                        return resAduBuffer;
+
+                    }
+                }
+                else{ 
+                    return null;
+                }
+            }
+            else{                    
+                this.busCommunicationErrorCount++;
+                return null;
+            }
+        }
+        else{                
+            this.busCommunicationErrorCount++;
+            return null;
+        }
+        
+        
+
+        
+    }  
 
     /**
     * @brief Server function.Ident to process req pdu but only in broadcast mode, execute de service and return a response pdu.
@@ -174,96 +269,8 @@ class ModbusSerialServer extends ModbusServer {
             return resPduBuffer;
         }
   
-    } 
+    }
     
-    /**
-    * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
-    * See MODBUS over serial line specification and implementation guide V1.02
-    * @param {Buffer}  modbus indication's frame
-    * @return {Buffer} Adu  if success, otherwise null
-    * 
-    */
-    getResponseAduBuffer(reqAduBuffer){
-
-        var self = this;
-        
-            
-        if(reqAduBuffer.length >= 3){
-
-            //check CRC or LRC 
-            if(this.validateCheckSum(reqAduBuffer)){
-
-                this.BusMessageCounter++;
-                let reqPduBuffer
-                if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
-                    let reqAduRtuBuffer = aduAscciiToRtu(reqAduBuffer)
-                    reqPduBuffer = reqAduRtuBuffer.subarray(1,reqAduRtuBuffer.length-2);
-                }
-                else {
-                    reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
-                }
-                
-              
-                //checking message address
-                if(this.address == reqAduBuffer[0] || reqAduBuffer[0] == 0){
-
-                    this.SlaveMessageCounter++;
-                    
-
-                    if(reqAduBuffer[0] == 0){
-                        //is Broadcast
-                        this.SlaveNoResponseCounter++;
-
-                        let noResPdu = this.processReqPdu(reqPduBuffer);
-                        if(noResPdu[0] == reqPduBuffer[0] + 0x80){
-                            this.this.SlaveExceptionErrorCounter++;
-                        }
-                        return null
-                    }
-                    else{
-                        let resPduBuffer = this.processReqPdu(reqPduBuffer);
-                        if(resPduBuffer[0] == reqPduBuffer[0] + 0x80){
-                            this.this.SlaveExceptionErrorCounter++;
-                        }
-                        //calculando la adu
-                        let resAduBuffer;
-                        let resRtuAduBuffer = Buffer.alloc(resPdu.length + 3);
-                        resRtuAduBuffer[0] = this.address;                        
-
-                        if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
-                            resAduBuffer = aduRtuToAscii(resRtuAduBuffer)
-                        }
-                        else {
-                            //calculating CRC
-                            crc = this.calcCRC(resRtuAduBuffer);
-
-                            resAduBuffer = resRtuAduBuffer;                            
-                            resAduBuffer.writeUint16BE(crc, reqAduBuffer.length - 2);
-                        }
-
-                        return resAduBuffer;
-
-                    }
-                }
-                else{ 
-                    return null;
-                }
-            }
-            else{                    
-                this.BusCommunicationErrorCounter++;
-                return null;
-            }
-        }
-        else{                
-            this.BusCommunicationErrorCounter++;
-            return null;
-        }
-        
-        
-
-        
-    }  
-
     /**
     * @brief Function to implement Read Exception Status service on server. Function code 07.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
@@ -276,12 +283,12 @@ class ModbusSerialServer extends ModbusServer {
         const FUNCTION_CODE = 7;
 
         let resPduBuffer;
-
-        if(pduReqData.length == 1){
+        
+        if(pduReqData.length == 0){
            
             resPduBuffer = Buffer.alloc(2);  
             resPduBuffer[0] = FUNCTION_CODE;            
-            this.exceptionCoils.copiy(resPduBuffer,1);
+            this.exceptionCoils.copy(resPduBuffer,1);
             
         }
         else{
@@ -304,21 +311,21 @@ class ModbusSerialServer extends ModbusServer {
         if(this.transmitionMode == 2 | (this.transmitionMode == 0 & frame[0] == 0x3A)){
             //Modbus Ascii Frame
             calcErrorCheck = this.calcLRC(frame);
-            frameErrorCheck = Number('0x'+this.frame.toString('ascii', frameLength-4, frameLength-2));
+            frameErrorCheck = Number('0x' + frame.toString('ascii', frame.length-4, frame.length-2));
         }
         else {
             //Modbus Rtu Frame
             calcErrorCheck = this.calcCRC(frame);
-            frameErrorCheck = this.frame.readUInt16BE(this.aduBuffer.length - 2);
+            frameErrorCheck = frame.readUInt16BE(frame.length - 2);
         }
                    
         //cheking checsum
         if(calcErrorCheck == frameErrorCheck){
-            return 1;
+            return true;
         }
         else{
             //check sum not ok
-            return 0;
+            return false;
         }
         
 
@@ -333,11 +340,11 @@ class ModbusSerialServer extends ModbusServer {
 
        
         //creating rtu frame. content frame + 2 bytes for crc
-        let rtuFrame = Buffer.alloc(content.length/2 + 2);
+        let rtuFrame = Buffer.alloc((asciiFrame.length-1)/2);
 
         //droping first character (:), lrc and ending character(CR, LF) see Mover over serial line 1.02 b
-        for(let i = 1; i < asciiFrame - 4; i++){
-            rtuFrame[i] = Number('0x'+ this.asciiFrame.toString('ascii', 2*i + 1 , 2*i + 3));
+        for(let i = 0; i < asciiFrame.length - 4; i++){
+            rtuFrame[i] = Number('0x'+ asciiFrame.toString('ascii', 2*i + 1 , 2*i + 3));
         }
         
         return rtuFrame;
@@ -351,22 +358,22 @@ class ModbusSerialServer extends ModbusServer {
      */
     aduRtuToAscii(rtuFrame){
 
-        //creating rtu frame. content frame + 2 bytes for crc
-        let asciiFrame = Buffer.alloc(rtuFrame*2 + 3);
+        //creating ascii frame. rtu frame * 2  + 1bytes for ':'
+        let asciiFrame = Buffer.alloc(rtuFrame.length * 2 + 1);
         asciiFrame[0] = 0x3A;
         asciiFrame[asciiFrame.length - 2] = 0x0D;
         asciiFrame[asciiFrame.length - 1] = 0x0A;
 
         //LRC calculation
-        byteLRC = Buffer.alloc(1);
+        let byteLRC = Buffer.alloc(1);
 
         //chars value
-        charsBuffer = buffer.alloc(2);
+        let charsBuffer = Buffer.alloc(2);
 
-        for(let i = 0; i < rtuFrame - 2; i++){
+        for(let i = 0; i < rtuFrame.length - 2; i++){
             byteLRC[0] = byteLRC[0] + rtuFrame[i];
             charsBuffer = valByte2Chars(rtuFrame[i])
-            charsBuffer.copy(asciiFrame, 2*i +1)
+            charsBuffer.copy(asciiFrame, 2*i + 1)
         }
 
         byteLRC[0] = -byteLRC[0]
@@ -382,21 +389,21 @@ class ModbusSerialServer extends ModbusServer {
      */
     resetCounters(){
         //diagnostic counters
-        this.BusMessageCounter = 0;
-        this.BusCommunicationErrorCounter;    //this counter is managed by network layer, this propety takes a pointer to the counter.
-        this.SlaveExceptionErrorCounter = 0;
-        this.SlaveMessageCounter = 0;
-        this.SlaveNoResponseCounter = 0;
-        this.SlaveNAKCounter = 0;
-        this.SlaveBusyCounter = 0;
-        this.BusCharacterOverrunCounter = 0;      //this counter is managed by network layer, this propety takes a pointer to the counter.
+        this.busMessageCount = 0;
+        this.busCommunicationErrorCount = 0;    //this counter is managed by network layer, this propety takes a pointer to the counter.
+        this.slaveExceptionErrorCount = 0;
+        this.slaveMessageCount = 0;
+        this.slaveNoResponseCount = 0;
+        this.slaveNAKCount = 0;
+        this.slaveBusyCount = 0;
+        this.busCharacterOverrunCount = 0;      //this counter is managed by network layer, this propety takes a pointer to the counter.
     }
    
 }
 
-ModbusSerialServer.prototype.calcCRC = require('utils').calcCRC;
+ModbusSerialServer.prototype.calcCRC = require('./utils.js').calcCRC;
 
-ModbusSerialServer.prototype.calcLRC = require('utils').calcLRC;;
+ModbusSerialServer.prototype.calcLRC = require('./utils.js').calcLRC;;
 
 module.exports = ModbusSerialServer;
 

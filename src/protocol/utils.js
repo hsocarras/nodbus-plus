@@ -63,7 +63,7 @@ function calcCRC(frame){
 */
 function calcLRC(frame){
 
-    var bufferBytes = Buffer.alloc(Math.floor((frame-5)/2));
+    var bufferBytes = Buffer.alloc(Math.floor((frame.length-5)/2));
     var  byteLRC = Buffer.alloc(1);
 
     for(var i = 0; i < bufferBytes.length; i++){
@@ -90,11 +90,11 @@ function valByte2Chars (uint8Val){
 
     let temp = Buffer.alloc(2);
         
-    //LSB from hex value
-    temp.write((byte & 0x0F).toString(16).toUpperCase(), 1);
-    //MSB from hex value
-    temp.write((byte >> 4).toString(16).toUpperCase());    
-  
+    //get LSB part
+    temp.write((uint8Val & 0x0F).toString(16).toUpperCase(), 1);
+    //get msb
+    temp.write((uint8Val >> 4).toString(16).toUpperCase());
+    
     return temp;
 }
 
