@@ -1,10 +1,10 @@
-const ModbusMaster = require('../').ModbusMaster
+const ModbusClient = require('../').ModbusClient
 
 describe("Read Coils status", () => {
     let pdu1 = Buffer.from([0x01, 0x00, 0x00, 0x00, 0x03]);  
     let pdu2 = Buffer.from([0x01, 0x00, 0x48, 0x00, 0x0A]);
     
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     
     it("request 1", () => {
        let req1 = testMaster.readCoilStatusPdu(0, 3);        
@@ -25,7 +25,7 @@ describe("Read Coils status", () => {
 
 describe("Read Input status", () => {
        
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     
     it("request 1", () => {
        let req1 = testMaster.readInputStatusPdu(0, 3);        
@@ -46,7 +46,7 @@ describe("Read Input status", () => {
 
 describe("Read Holding register status", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     
     it("request 1", () => {
        let req1 = testMaster.readHoldingRegistersPdu(0, 3);        
@@ -67,7 +67,7 @@ describe("Read Holding register status", () => {
 
 describe("Read Input register status", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     
     it("request 1", () => {
        let req1 = testMaster.readInputRegistersPdu(0, 3);        
@@ -88,7 +88,7 @@ describe("Read Input register status", () => {
 
 describe("force single Coils", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     
     it("request 1", () => {
        let req1 = testMaster.forceSingleCoilPdu(testMaster.boolToBuffer(true), 3);        
@@ -109,7 +109,7 @@ describe("force single Coils", () => {
 
 describe("Preset single register", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     let val1 = Buffer.alloc(2);
     val1[0] = 0x25;
     val1[1] = 0x56;
@@ -132,7 +132,7 @@ describe("Preset single register", () => {
 
 describe("write multiple Coils", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     let val1 = Buffer.alloc(1);
     let val2 = Buffer.alloc(2);
     val1[0] = 0x36;
@@ -159,7 +159,7 @@ describe("write multiple Coils", () => {
 
 describe("write multiple register", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     let val1 = Buffer.alloc(4);
     val1[0] = 0x25;
     val1[1] = 0x56;
@@ -187,7 +187,7 @@ describe("write multiple register", () => {
 
 describe("mask holding register", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     let val1 = new Array(16);
     val1[0] = -1;
     val1[1] = 0;
@@ -238,7 +238,7 @@ describe("mask holding register", () => {
 
 describe("read and write multiple register", () => {
         
-    let testMaster = new ModbusMaster();
+    let testMaster = new ModbusClient();
     let val1 = Buffer.alloc(4);
     val1[0] = 0x25;
     val1[1] = 0x56;

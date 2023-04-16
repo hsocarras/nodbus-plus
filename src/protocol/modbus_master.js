@@ -8,17 +8,19 @@
 
 
 const EventEmitter = require('events');
+const utils = require('./utils');
 
 /**
  * Class representing a modbus master.
  * @extends EventEmitter
 */
-class ModbusMaster extends EventEmitter {
+class ModbusClient extends EventEmitter {
     /**
     * Create a Modbus Master.
     */
     constructor(){
-        super();         
+        super();            
+        
     }  
 
    
@@ -270,56 +272,6 @@ class ModbusMaster extends EventEmitter {
     }
 
     /**
-    * This function calculate the necesary buffer to realize the desired mask function
-    * @param {Array} valueArray Array of numbers, values 1 on position that want to be true, 0 on position that
-    * want to be false and -1 in position that must be unchanged.
-    * example register value:           [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
-    *         set register value:       [1 0 0 1  -1 0 1 -1  -1 -1 0 0  1 1 -1 0]
-    *         final register value:     [1 0 0 1   1 0 1 0    0 1 0 0   1 1 0 0] 0x3259
-    * @returns {Buffer} Buffer value with AND MASK and OR MASK for modbus 0x16 function.
-    */
-    getMaskRegisterBuffer(valueArray){
-
-        let value = Buffer.alloc(4);
-        let AND_Mask = 0;
-        let OR_Mask = 0xFFFF;
-        let tempMask = 1;
-        let iteratorLimit = 16;
-
-        if(valueArray.length < 16){
-            iteratorLimit = valueArray.length;
-        }
-        
-
-        for (let i = 0; i < iteratorLimit; i++){
-            
-            if(valueArray[i] == 1){
-            //AND_MASK = 0;
-            //OR_Mask = 1;              
-            }
-            else if(valueArray[i] == 0){ 
-                //AND_MASK = 0;  
-                //OR_MASK = 0     
-                OR_Mask = OR_Mask  & (~tempMask);   //temp mask negated is 1111 1110 for i = 0
-              
-            }
-            else{
-                //AND_MASK = 1;  
-                //OR_MASK = 1 
-                AND_Mask = AND_Mask | tempMask;                
-            }
-            
-            tempMask = tempMask << 1; 
-        }   
-    
-        value.writeUInt16BE(AND_Mask);
-        value.writeUInt16BE(OR_Mask, 2);
-
-        return value;
-
-    }
-
-    /**
      * Function to get a buffer from a bool value for function 5 of modbus protocol.
      * @param {boolean} value Bool value.
      * @return {Buffer} A buffer that can be 0x0000 for false or 0xFF00 for true value
@@ -335,4 +287,6 @@ class ModbusMaster extends EventEmitter {
     
 }
 
-module.exports = ModbusMaster;
+ModbusClient.prototype.getMaskRegisterBuffer = utils.getMaskRegisterBuffer;
+
+module.exports = ModbusClient;
