@@ -148,6 +148,62 @@ function getMaskRegisterBuffer(valueArray){
 
 }
 
+/**
+ * Function to convert a asccii frame to rtu to be processed
+ * @param {Buffre} asciiFrame 
+ * @returns {Buffer} a equivalent rtu buffer
+ */
+function aduAsciiToRtu(asciiFrame){
+
+        
+    //creating rtu frame. content frame + 2 bytes for crc
+    let rtuFrame = Buffer.alloc((asciiFrame.length-1)/2);
+
+    //droping first character (:), lrc and ending character(CR, LF) see Mover over serial line 1.02 b
+    for(let i = 0; i < asciiFrame.length - 4; i++){
+        rtuFrame[i] = Number('0x'+ asciiFrame.toString('ascii', 2*i + 1 , 2*i + 3));
+    }
+    
+    let crc = calcCRC(rtuFrame);
+    rtuFrame.writeUInt16BE(crc,rtuFrame.length - 2);
+
+    return rtuFrame;
+
+}
+
+/**
+ * Function to convert a rtu frame to ascii to be responsed
+ * @param {Buffre} rtuFrame
+ * @returns {Buffer} a equivalent ascii buffer
+ */
+function aduRtuToAscii(rtuFrame){
+
+    //creating ascii frame. rtu frame * 2  + 1bytes for ':'
+    let asciiFrame = Buffer.alloc(rtuFrame.length * 2 + 1);
+    asciiFrame[0] = 0x3A;
+    asciiFrame[asciiFrame.length - 2] = 0x0D;
+    asciiFrame[asciiFrame.length - 1] = 0x0A;
+
+    //LRC calculation
+    let byteLRC = Buffer.alloc(1);
+
+    //chars value
+    let charsBuffer = Buffer.alloc(2);
+
+    for(let i = 0; i < rtuFrame.length - 2; i++){
+        byteLRC[0] = byteLRC[0] + rtuFrame[i];
+        charsBuffer = valByte2Chars(rtuFrame[i])
+        charsBuffer.copy(asciiFrame, 2*i + 1)
+    }
+
+    byteLRC[0] = -byteLRC[0]
+    //get lrc chars 
+    charsBuffer = valByte2Chars(byteLRC[0]);
+    charsBuffer.copy(asciiFrame, asciiFrame.length - 4);
+
+    return asciiFrame;
+}
+
 module.exports.calcCRC = calcCRC;
 
 module.exports.calcLRC = calcLRC;
@@ -155,3 +211,7 @@ module.exports.calcLRC = calcLRC;
 module.exports.valByteToChars = valByte2Chars;
 
 module.exports.getMaskRegisterBuffer = getMaskRegisterBuffer;
+
+module.exports.aduAsciiToRtu = aduAsciiToRtu;
+
+module.exports.aduRtuToAscii = aduRtuToAscii;

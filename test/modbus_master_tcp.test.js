@@ -133,9 +133,10 @@ describe("setReqTimer", () => {
         expect(timed2).toEqual(-1);
         expect(testMaster.reqTimersPool.has(11)).toEqual(true);
         let stored = testMaster.reqTimersPool.get(11);
-        expect(stored).toEqual(timed3); 
-        testMaster.on('req_timeout', (trans) =>{            
-            expect(trans).toEqual(11);
+        expect(stored).toEqual(timed3);
+
+        testMaster.on('req_timeout', (transactionId) =>{            
+            expect(transactionId).toEqual(11);
         })
         
 
@@ -165,11 +166,11 @@ describe("processResAdu", () => {
         expect(testMaster.reqPool.has(11)).toEqual(false);
         
         testMaster.on('transaction', (req, res) =>{            
-            expect(trans).toEqual(11);
+            
             expect(req[1]).toEqual(11); 
             expect(req[11]).toEqual(3);
             expect(res[1]).toEqual(11); 
-            expect(stored[11]).toEqual(3);
+            expect(res[11]).toEqual(3);
         })
 
     });

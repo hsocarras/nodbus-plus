@@ -401,9 +401,13 @@ class ModbusSerialServer extends ModbusServer {
    
 }
 
+ModbusSerialServer.prototype.aduAsciiToRtu = require('./utils.js').aduAsciiToRtu;
+
+ModbusSerialServer.prototype.aduRtuToAscii = require('./utils.js').aduRtuToAscii;
+
 ModbusSerialServer.prototype.calcCRC = require('./utils.js').calcCRC;
 
-ModbusSerialServer.prototype.calcLRC = require('./utils.js').calcLRC;;
+ModbusSerialServer.prototype.calcLRC = require('./utils.js').calcLRC;
 
 module.exports = ModbusSerialServer;
 
