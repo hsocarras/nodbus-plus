@@ -220,15 +220,14 @@ class ModbusServer extends EventEmitter {
                 break;            
             case 8:
                 this.emit('exception', mbFunctionCode, exceptionCode, 'MEMORY PARITY ERROR');
-                break;
-                /*
+                break;                
             case 0x0A:
                 this.emit('exception', mbFunctionCode, exceptionCode, 'GATEWAY PATH UNAVAILABLE');
                 break;
             case 0x0B:
                 this.emit('exception', mbFunctionCode, exceptionCode, 'GATEWAY TARGET DEVICE FAILED TO RESPOND');
                 break;
-                */
+                
         }
 
         return excepResBuffer;
@@ -788,7 +787,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement read and write multiple registers service on server. Function code 23.
+    * Function to implement read and write multiple registers service on server. Function code 23.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
     * @fires ModbusServer#write
@@ -872,7 +871,7 @@ class ModbusServer extends EventEmitter {
     }    
 
     /**
-    * @brief Low level api function to get a boolean value from buffer.
+    * Low level api function to get a boolean value from buffer.
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.
     * @return {boolean} bit value
@@ -897,7 +896,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Low level api function to set a boolean value into a buffer.
+    * Low level api function to set a boolean value into a buffer.
     * @param {bool} value boolean value to write
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.    
@@ -927,7 +926,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Low level api function to get a 2 bytes  word value from buffer.
+    * Low level api function to get a 2 bytes  word value from buffer.
     * @param {Buffer} targetBuffer buffer object to read
     * @param {number} offset integer value with bit address.
     * @return {Buffer} 2 bytes length buffer
@@ -950,7 +949,7 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Low level api function to set a 2 bytes  word value into buffer.
+    * Low level api function to set a 2 bytes  word value into buffer.
     * @param {Buffer} value 2 bytes long buffer object to write
     * @param {Buffer} targetBuffer buffer object to write
     * @param {number} offset integer value with offset in the buffer.    

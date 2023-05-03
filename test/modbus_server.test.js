@@ -1,6 +1,20 @@
 
 const ModbusServer = require('../').ModbusServer
 
+class ModbusServerExtended extends ModbusServer{
+    constructor(mbServerCfg){
+        super(mbServerCfg)
+
+        this._internalFunctionCode.set(68, 'customService68');
+    }
+
+    customService68(pduReqData){
+        let resp = Buffer.alloc(2);
+        resp[0] = 68;
+        resp[1] = pduReqData[0];
+        return resp
+    }
+}
 //creating config file for basic server 1
 let server1Cfg = {
     inputs : 524,
@@ -476,3 +490,17 @@ describe("Read/Write Multiple Registers", () => {
     
 });
 
+describe("Extended server with custom modbus function", () => {
+    let pdu1 = Buffer.from([68, 21]);
+    
+    let serverExtended = new ModbusServerExtended(server1Cfg);
+    
+    
+    it("correct response server 1", () => {
+       let res1 = serverExtended.processReqPdu(pdu1)  
+       expect(res1[0]).toEqual(68);     
+       expect(res1[1]).toEqual(21);  
+             
+    } );
+    
+});
