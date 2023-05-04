@@ -26,7 +26,7 @@ new ModbusServer([options])
 
 * **Returns:** <ModbusServer>
 
-Constructor for ModbusServer instance.
+Constructor for new ModbusServer instance.
 
 .. code-block:: javascript
 
@@ -300,6 +300,7 @@ Method: modbusServer.writeSingleCoilService(pduReqData)
 
 This method execute the write single coil indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 05 is received.
 
+
 Method: modbusServer.writeSingleRegisterService(pduReqData)
 ------------------------------------------------------------
 
@@ -311,6 +312,7 @@ Method: modbusServer.writeSingleRegisterService(pduReqData)
    *Modbus Write Single holding Register Request and Response*
 
 This method execute the write single register indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 06 is received.
+
 
 Method: modbusServer.writeMultipleCoilsService(pduReqData)
 -----------------------------------------------------------

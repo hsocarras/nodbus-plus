@@ -14,6 +14,7 @@ It supports both Modbus TCP and Modbus Serial, as well as different transport pr
    :caption: Contents:
 
    starting
+   protocol/modbus_master.rst
    protocol/modbus_server.rst
 
 

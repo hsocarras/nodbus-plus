@@ -88,59 +88,59 @@ class ModbusClient extends EventEmitter {
 
     /**
     * @brief function to make the request pdu for function code 5 of modbus protocol.
-    * @param {Buffer} values value to force   
+    * @param {Buffer} value value to force   
     * @param {number} startcoil first coil to write, start at 0 coil        
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
     * @throws {RangeError} if values's length is diferent than 2.
     */
-    forceSingleCoilPdu(values, startCoil = 0){        
+    forceSingleCoilPdu(value, startCoil = 0){        
        //funcion 05 write single coil            
-       if(values instanceof Buffer){
-            if(values.length == 2){
+       if(value instanceof Buffer){
+            if(value.length == 2){
                 let reqPduBuffer = Buffer.alloc(5);
                 reqPduBuffer[0] = 0x05;           
                 reqPduBuffer.writeUInt16BE(startCoil,1);
-                values.copy(reqPduBuffer,3); 
+                value.copy(reqPduBuffer,3); 
                 return reqPduBuffer;  
             }
             else{
-                throw new RangeError('Error, values length must be 2', 'modbus_master.js', 180);            
+                throw new RangeError('Error, value length must be 2', 'modbus_master.js', 180);            
             }
         }            
         else{
-            throw new TypeError('Error, values must be a Buffer', "modbus_master.js", 105);         
+            throw new TypeError('Error, value must be a Buffer', "modbus_master.js", 105);         
         }       
         
     }
 
     /**
     * Function to make the request pdu for function code 6 of modbus protocol.
-    * @param {Buffer} values value to force   
+    * @param {Buffer} value value to force   
     * @param {number} startRegister register to write.
     * @return {buffer} pdu buffer.
     * @throws {TypeError} if values is not a buffer's instance.
     * @throws {RangeError} if values's length is diferent than 2.
     */
-    presetSingleRegisterPdu(values, startRegister = 0){
+    presetSingleRegisterPdu(value, startRegister = 0){
 
-        if(values instanceof Buffer){
-            if(values.length == 2){
+        if(value instanceof Buffer){
+            if(value.length == 2){
                 //creando la pdu del request
                 let reqPduBuffer = Buffer.alloc(5);
                 //funcion 06 PresetSingleRegister
                 reqPduBuffer[0] = 0x06;            
                 reqPduBuffer.writeUInt16BE(startRegister, 1);
-                values.copy(reqPduBuffer, 3);
+                value.copy(reqPduBuffer, 3);
             
                 return reqPduBuffer;
             }
             else{
-                throw new RangeError('Error, values length must be 2', 'modbus_master.js', 180);            
+                throw new RangeError('Error, value length must be 2', 'modbus_master.js', 180);            
             }
         }            
         else{
-            throw new TypeError('Error, values must be a Buffer', 'modbus_master.js', 130);        
+            throw new TypeError('Error, value must be a Buffer', 'modbus_master.js', 130);        
         }
     }
 
@@ -153,7 +153,7 @@ class ModbusClient extends EventEmitter {
     * @throws {TypeError} if values is not a buffer's instance.
     * @throws {RangeError} if values's length is greater than 246.
     */
-    forceMultipleCoilsPdu(values, startCoil = 0, coilQuantity){
+    forceMultipleCoilsPdu(values, startCoil, coilQuantity){
         //function 15 force multiples coils
         if(values instanceof Buffer){
             if(values.length <= 246){
@@ -185,7 +185,7 @@ class ModbusClient extends EventEmitter {
     * @throws {TypeError} if values is not a buffer's instance.
     * @throws {RangeError} if values's length is greater than 246.
     */
-    presetMultipleRegistersPdu(values, startRegister = 0, registerQuantity = Math.floor(values.length/2)){
+    presetMultipleRegistersPdu(values, startRegister, registerQuantity = Math.floor(values.length/2)){
        //function 16 write multiples coils
        if(values instanceof Buffer){
             if(values.length <= 246){
