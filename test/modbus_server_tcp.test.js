@@ -8,31 +8,38 @@ let server1Cfg = {
     inputRegisters : 256
 }
 
-describe("Get transaction from adu", () => {
+describe("Get header from adu", () => {
     let adu1 = Buffer.from([0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);
-    let adu2 = Buffer.from([0x00, 0x02, 0x00, 0x01, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);
-    let adu3 = Buffer.from([0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF]);  
+     
    
     let server2 = new ModbusTcpServer();
     
     it("instanciate transaction", () => {
-        let tran = server2.getTransactionObject(adu1)  
+        let header = server2.getMbapHeader(adu1)  
        
-        expect(tran.header[1]).toEqual(2); 
-        expect(tran.header[6]).toEqual(0xFF);    
-        expect(tran.header.length).toEqual(7);
-        expect(tran.pdu[4]).toEqual(3);  
-        expect(tran.pdu.length).toEqual(5);     
-    } );
-    it("transaction rejected invalid header's protocol field", () => {
-        let tran = server2.getTransactionObject(adu2)  
-        expect(tran).toEqual(null); 
-           
-    });
-    it("transaction rejected invalid adu message legnth", () => {
-        let tran = server2.getTransactionObject(adu3)  
-        expect(tran).toEqual(null);    
-    });
+        expect(header[1]).toEqual(2); 
+        expect(header[5]).toEqual(0x06); 
+        expect(header[6]).toEqual(0xFF);    
+        expect(header.length).toEqual(7);
+             
+    } );   
+    
+});
+
+describe("Get pdu from adu", () => {
+    let adu1 = Buffer.from([0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);
+     
+   
+    let server2 = new ModbusTcpServer();
+    
+    it("instanciate transaction", () => {
+        let pdu = server2.getPdu(adu1)  
+       
+        expect(pdu[0]).toEqual(1); 
+        expect(pdu[4]).toEqual(0x03);             
+        expect(pdu.length).toEqual(5);
+             
+    } );   
     
 });
 
@@ -69,7 +76,8 @@ describe("build response  from adu", () => {
     let server2 = new ModbusTcpServer();
     
     it("instanciate transaction", () => {
-        let res = server2.builResponseAdu(server2.getTransactionObject(adu1))  
+
+        let res = server2.getResponseAdu(adu1); 
         
         expect(res[1]).toEqual(2); 
         expect(res[5]).toEqual(9);

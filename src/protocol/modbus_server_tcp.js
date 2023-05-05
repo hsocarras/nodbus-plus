@@ -32,34 +32,30 @@ class ModbusTcpServer extends ModbusServer {
        
     }  
 
-   
     /**
-    * this function is the interface for tcp layer to send modbus message.   
-    * See Fig 16 on Modbus Messaging on TCPIP Implementation Guide V1.0b
-    * @param {buffer} messageFrame modbus indication's frame
-    * @return {object} Transaction object. {header: Buffer, pdu: Buffer}
-    * 
-    */
-    getTransactionObject(messageFrame){
-        let self = this;
-        //Starting server activity
-        if(messageFrame.length > 7){
-            let mbapBuffer = messageFrame.subarray(0, 7);
-            
-            if(this.validateMbapHeader(mbapBuffer)){
-                let pduBuffer = messageFrame.subarray(7);
-                return {
-                    header: mbapBuffer,
-                    pdu : pduBuffer
-                }
-            }
-            else{
-                //discard
-                return null
-            }
+     * Function to get the pdu buffer from a tcp adu request.
+     * @param {Buffer} reqAduBuffer 
+     * @returns {Buffer} Pdu's buffer.
+     */
+    getPdu(reqAduBuffer){
+        if(reqAduBuffer.length > 7) {
+            return reqAduBuffer.subarray(7);
         }
         else{
-            //discard
+            return null
+        }
+    }
+
+    /**
+     * Function to get the header buffer from a tcp adu request.
+     * @param {Buffer} reqAduBuffer 
+     * @returns {Buffer} Header's buffer.
+     */
+    getMbapHeader(reqAduBuffer){
+        if(reqAduBuffer.length >= 7) {
+            return reqAduBuffer.subarray(0, 7);
+        }
+        else{
             return null
         }
     }
@@ -83,7 +79,6 @@ class ModbusTcpServer extends ModbusServer {
             return false;
         }
     }
-
     
     /**
      * 
@@ -92,18 +87,24 @@ class ModbusTcpServer extends ModbusServer {
      * @throws {TypeError} if header or pdu are not Buffer instances.
      * @throws {RangeError} if header and pdu buffer has incorrect length.
      */
-    builResponseAdu(req){
+    getResponseAdu(reqAduBuffer){
 
         //Type check
-        if(req.header instanceof Buffer & req.pdu instanceof Buffer ){
+       
+        if(reqAduBuffer instanceof Buffer){
+            
             //Range check
-            if(req.header.length == 7 & req.pdu.length > 0 & req.pdu.length <= 253){
+            if(reqAduBuffer.length > 7 & reqAduBuffer.length <= 260){
+
+                let header = reqAduBuffer.subarray(0, 7);
+                let pdu = reqAduBuffer.subarray(7);
+
                 //Get the response Pdu
-                let resPdu = this.processReqPdu(req.pdu);
+                let resPdu = this.processReqPdu(pdu);
                 //Crating response Buffer
                 let resAdu = Buffer.alloc(7+resPdu.length);
                 //copying values fron req header 
-                req.header.copy(resAdu);
+                header.copy(resAdu);
                 //copying pdu to response
                 resPdu.copy(resAdu, 7);
                 //Calculating header lenth field. Unit Id Byte plus pdu length

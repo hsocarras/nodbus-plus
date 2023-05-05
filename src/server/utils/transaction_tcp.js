@@ -4,6 +4,36 @@
 * @author Hector E. Socarras.
 * @version 0.9.0
 */
+/**
+    * this function is the interface for tcp layer to send modbus message.   
+    * See Fig 16 on Modbus Messaging on TCPIP Implementation Guide V1.0b
+    * @param {buffer} messageFrame modbus indication's frame
+    * @return {object} Transaction object. {header: Buffer, pdu: Buffer}
+    * 
+    */
+getTransactionObject(messageFrame){
+    let self = this;
+    //Starting server activity
+    if(messageFrame.length > 7){
+        let mbapBuffer = messageFrame.subarray(0, 7);
+        
+        if(this.validateMbapHeader(mbapBuffer)){
+            let pduBuffer = messageFrame.subarray(7);
+            return {
+                header: mbapBuffer,
+                pdu : pduBuffer
+            }
+        }
+        else{
+            //discard
+            return null
+        }
+    }
+    else{
+        //discard
+        return null
+    }
+}
 
 class MBTcpTransaction {
     constructor(socket, mb_adu){        

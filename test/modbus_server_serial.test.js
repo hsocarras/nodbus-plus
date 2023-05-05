@@ -10,6 +10,87 @@ let server1Cfg = {
     transmitionMode : 2
 }
 
+//get address method
+describe("getAddress", () => {
+    let adu1 = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x06, 0xC8, 0xC5]);
+    let adu2 = Buffer.from([0x0A, 0x02, 0x00, 0x01, 0x00, 0x16, 0x7F, 0xA9]);   
+   
+    let server1 = new ModbusSerialServer(server1Cfg);
+    let server2 = new ModbusSerialServer();
+    
+    it("address 1", () => {
+        let address1 = server1.getAddress(adu1) 
+        
+        expect(address1).toEqual(1);              
+    } );
+    it("address 2", () => {
+        let address2 = server2.getAddress(adu2)  
+        
+        expect(address2).toEqual(10); 
+        
+    } );
+    
+    
+});
+
+//get pdu method
+describe("getPdu", () => {
+    let adu1 = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x06, 0xC8, 0xC5]);
+    let adu2 = Buffer.from([0x0A, 0x02, 0x00, 0x01, 0x00, 0x16, 0x7F, 0xA9]);   
+   
+    let server1 = new ModbusSerialServer(server1Cfg);
+    let server2 = new ModbusSerialServer();
+    
+    it("pdu 1", () => {
+        let pdu1 = server1.getPdu(adu1) 
+        
+        expect(pdu1[0]).toEqual(3);        
+        expect(pdu1[3]).toEqual(0);  
+        expect(pdu1[4]).toEqual(6);  
+        expect(pdu1.length).toEqual(5);        
+    } );
+    it("pdu 2", () => {
+        let pdu2 = server2.getPdu(adu2)  
+        
+        expect(pdu2[0]).toEqual(2);        
+        expect(pdu2[2]).toEqual(1);  
+        expect(pdu2[4]).toEqual(0x16);  
+        expect(pdu2.length).toEqual(5);  
+        
+    } );
+    
+    
+});
+
+//get checKsum method
+describe("getChecksum", () => {
+    let adu1 = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x06, 0xC8, 0xC5]);
+    let adu2 = Buffer.from([0x0A, 0x02, 0x00, 0x01, 0x00, 0x16, 0x7F, 0xA9]);   
+   
+    let server1 = new ModbusSerialServer(server1Cfg);
+    let server2 = new ModbusSerialServer();
+    
+    it("checksum 1", () => {
+        let crc1 = server1.getChecksum(adu1) 
+        
+        expect(crc1[0]).toEqual(0xC8);        
+        expect(crc1[1]).toEqual(0xC5);  
+          
+        expect(crc1.length).toEqual(2);        
+    } );
+    it("checksum 2", () => {
+        let crc2 = server2.getChecksum(adu2)  
+        
+        expect(crc2[0]).toEqual(0x7F);        
+        expect(crc2[1]).toEqual(0xA9);  
+          
+        expect(crc2.length).toEqual(2);  
+        
+    } );
+    
+    
+});
+
 //calcLRC Test
 describe("Testing calcLRC method", () => {
     let adu1 = Buffer.from([0x3a, 0x30, 0x31, 0x30, 0x33, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x36, 0x46, 0x36, 0x0d, 0x0a]);
@@ -213,12 +294,12 @@ describe("Receiving adu", () =>{
     let server1 = new ModbusSerialServer();
 
     it("bus error", () => {
-        let resp = server1.getResponseAduBuffer(adu1) 
+        let resp = server1.getResponseAdu(adu1) 
         //less than 4 bytes
         expect(server1.busCommunicationErrorCount).toEqual(1);
         expect(resp).toEqual(null);
         //wrong crc
-        resp = server1.getResponseAduBuffer(adu2)
+        resp = server1.getResponseAdu(adu2)
         expect(server1.busCommunicationErrorCount).toEqual(2);
         expect(resp).toEqual(null);   
         
@@ -226,19 +307,19 @@ describe("Receiving adu", () =>{
     } );
 
     it("wrong address", () => {
-        let resp = server1.getResponseAduBuffer(adu3);
+        let resp = server1.getResponseAdu(adu3);
         expect(resp).toEqual(null);
     });
 
     it("valid adu", () => {
-        let resp = server1.getResponseAduBuffer(adu4);
+        let resp = server1.getResponseAdu(adu4);
         
         expect(server1.slaveMessageCount).toEqual(1);
         expect(server1.slaveNoResponseCount).toEqual(1);
         expect(server1.slaveExceptionErrorCount).toEqual(1);
         expect(resp).toEqual(null);
 
-        resp = server1.getResponseAduBuffer(adu5);
+        resp = server1.getResponseAdu(adu5);
         
         expect(resp[0]).toEqual(0x01);
         expect(resp[1]).toEqual(0x03);

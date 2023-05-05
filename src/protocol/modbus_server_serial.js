@@ -139,7 +139,32 @@ class ModbusSerialServer extends ModbusServer {
         this.busCommunicationErrorCount++;
     }
 
+    /**
+     * Function to get the addresson a serial adu request.
+     * @param {Buffer} reqAduBuffer 
+     * @returns {number} server address on requesr.
+     */
+    getAddress(reqAduBuffer){
+        return reqAduBuffer[0];
+    }
     
+    /**
+     * Function to get the pdu buffer from a serial adu request.
+     * @param {Buffer} reqAduBuffer 
+     * @returns {Buffer} Pdu's buffer.
+     */
+    getPdu(reqAduBuffer){
+        return reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+    }
+
+    /**
+     * Function to get the checsum buffer from a serial adu request.
+     * @param {Buffer} reqAduBuffer 
+     * @returns {Buffer} Two bytes Buffer length with the checksum.
+     */
+    getChecksum(reqAduBuffer){
+        return reqAduBuffer.subarray(reqAduBuffer.length - 2);
+    }
     
     /**
     * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
@@ -148,7 +173,7 @@ class ModbusSerialServer extends ModbusServer {
     * @return {Buffer} Adu  if success, otherwise null
     * 
     */
-    getResponseAduBuffer(reqAduBuffer){
+    getResponseAdu(reqAduBuffer){
 
         var self = this;
         
@@ -300,7 +325,7 @@ class ModbusSerialServer extends ModbusServer {
 
     /**
     * Check the CRC or LRC on the frame.
-    * @param {Bufferr} frame frame off modbus indication
+    * @param {Buffer} frame frame off modbus indication
     * @return {boolean} check sum ok return true.    
     */
     validateCheckSum(frame){
@@ -330,59 +355,7 @@ class ModbusSerialServer extends ModbusServer {
         
 
     }
-
-    /**
-     * Function to convert a asccii frame to rtu to be processed
-     * @param {Buffre} asciiFrame 
-     * @returns {Buffer} a equivalent rtu buffer
-     */
-    aduAsciiToRtu(asciiFrame){
-
-       
-        //creating rtu frame. content frame + 2 bytes for crc
-        let rtuFrame = Buffer.alloc((asciiFrame.length-1)/2);
-
-        //droping first character (:), lrc and ending character(CR, LF) see Mover over serial line 1.02 b
-        for(let i = 0; i < asciiFrame.length - 4; i++){
-            rtuFrame[i] = Number('0x'+ asciiFrame.toString('ascii', 2*i + 1 , 2*i + 3));
-        }
-        
-        return rtuFrame;
-
-    }
-
-    /**
-     * Function to convert a rtu frame to ascii to be responsed
-     * @param {Buffre} rtuFrame
-     * @returns {Buffer} a equivalent ascii buffer
-     */
-    aduRtuToAscii(rtuFrame){
-
-        //creating ascii frame. rtu frame * 2  + 1bytes for ':'
-        let asciiFrame = Buffer.alloc(rtuFrame.length * 2 + 1);
-        asciiFrame[0] = 0x3A;
-        asciiFrame[asciiFrame.length - 2] = 0x0D;
-        asciiFrame[asciiFrame.length - 1] = 0x0A;
-
-        //LRC calculation
-        let byteLRC = Buffer.alloc(1);
-
-        //chars value
-        let charsBuffer = Buffer.alloc(2);
-
-        for(let i = 0; i < rtuFrame.length - 2; i++){
-            byteLRC[0] = byteLRC[0] + rtuFrame[i];
-            charsBuffer = valByte2Chars(rtuFrame[i])
-            charsBuffer.copy(asciiFrame, 2*i + 1)
-        }
-
-        byteLRC[0] = -byteLRC[0]
-        //get lrc chars 
-        charsBuffer = valByte2Chars(byteLRC[0]);
-        charsBuffer.copy(asciiFrame, asciiFrame.length - 4);
-
-        return asciiFrame;
-    }
+    
 
     /**
      * Function to restart the counter's value
