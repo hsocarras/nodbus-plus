@@ -1,4 +1,4 @@
-.. _modbus_tcp__server:
+.. _modbus_tcp_server:
 
 Class: ModbusTcpServer
 ======================

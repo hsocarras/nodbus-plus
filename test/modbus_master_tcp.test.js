@@ -8,7 +8,7 @@ describe("Make Mbap header", () => {
     
     it("header 1", () => {
         testMaster.transactionCount = 1;
-        let header = testMaster.makeMbapHeader(2, pdu1.length);        
+        let header = testMaster.makeHeader(2, pdu1.length);        
         expect(header[0]).toEqual(0);     
         expect(header[1]).toEqual(1);  
         expect(header[3]).toEqual(0);  
@@ -18,7 +18,7 @@ describe("Make Mbap header", () => {
     } );
     it("header 2", () => {
         testMaster.transactionCount = 10;
-        let header = testMaster.makeMbapHeader(20, pdu2.length);        
+        let header = testMaster.makeHeader(20, pdu2.length);        
         expect(header[0]).toEqual(0);     
         expect(header[1]).toEqual(10);  
         expect(header[3]).toEqual(0);  
@@ -39,21 +39,21 @@ describe("Parse Mbap header", () => {
     
     it("header 1", () => {        
                 
-        expect(()=>{testMaster.parseMbapHeader(header1)}).toThrow(TypeError);
-        expect(()=>{testMaster.parseMbapHeader(header1)}).toThrow('Error: Header must be a buffer instance');     
+        expect(()=>{testMaster.parseHeader(header1)}).toThrow(TypeError);
+        expect(()=>{testMaster.parseHeader(header1)}).toThrow('Error: Header must be a buffer instance');     
             
     } );
 
     it("header 2", () => {        
                 
-        expect(()=>{testMaster.parseMbapHeader(header2)}).toThrow(RangeError);
-        expect(()=>{testMaster.parseMbapHeader(header2)}).toThrow('Error: Header must be 7 bytes long');     
+        expect(()=>{testMaster.parseHeader(header2)}).toThrow(RangeError);
+        expect(()=>{testMaster.parseHeader(header2)}).toThrow('Error: Header must be 7 bytes long');     
             
     } );
     
     it("header 3", () => {
         
-        let header = testMaster.parseMbapHeader(header3);        
+        let header = testMaster.parseHeader(header3);        
         expect(header.transactionId).toEqual(16);
         expect(header.protocolId).toEqual(0);    
         expect(header.length).toEqual(7);    

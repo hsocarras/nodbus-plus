@@ -62,7 +62,7 @@ class ModbusTcpClient extends ModbusClient {
     * @param {number} pduLength pdu's legth in bytes    
     * @return {buffer} header buffer.
     */
-    makeMbapHeader(unitId, pduLength){
+    makeHeader(unitId, pduLength){
 
         let header = Buffer.alloc(7);
         header.writeUInt16BE(this.transactionCount);
@@ -80,7 +80,7 @@ class ModbusTcpClient extends ModbusClient {
     * @throws {TypeError} if bufferHeader is not a Buffer.
     * @throws {RangeError} if bufferHeader's length is diferent than 7..
     */
-    parseMbapHeader(bufferHeader){
+    parseHeader(bufferHeader){
 
         let header = {};
         if(bufferHeader instanceof Buffer){
@@ -113,7 +113,7 @@ class ModbusTcpClient extends ModbusClient {
             //Increment of transaction count
             this.transactionCount++;
 
-            let header = this.makeMbapHeader(unitId, pdu.length);
+            let header = this.makeHeader(unitId, pdu.length);
 
             //allocating memory for request
             let reqBuffer = Buffer.alloc(7 + pdu.length);
@@ -168,7 +168,7 @@ class ModbusTcpClient extends ModbusClient {
 
             let req =self.reqPool.get(transactionId);
             let timerId = setTimeout(()=>{
-                self.emit('req_timeout', transactionId, req); //what to do when timeout occurs is desition for the user app
+                self.emit('req_timeout', transactionId, req); //what to do when timeout occurs is decision for the user app
             }, timeout);
             //storing timer on the timer's pool
             self.reqTimersPool.set(transactionId, timerId)

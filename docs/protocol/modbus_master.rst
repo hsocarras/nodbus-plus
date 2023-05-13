@@ -21,7 +21,8 @@ Constructor for new ModbusClient instance.
 .. code-block:: javascript
 
       const ModbusClient = require('nodbus-plus').ModbusClient;
-      let modbusClient = new ModbusClient();                //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
+      let modbusClient = new ModbusClient();                
+
 
 Method: modbusClient.readCoilStatusPdu([startCoil],[coilQuantity])
 ------------------------------------------------------------------
