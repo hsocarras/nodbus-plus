@@ -17,8 +17,8 @@ It supports both Modbus TCP and Modbus Serial, as well as different transport pr
    protocol/modbus_master.rst
    protocol/modbus_master_tcp.rst
    protocol/modbus_server.rst
-   protocol/modbus_server_tcp.rst
-
+   protocol/modbus_server_serial.rst
+   protocol/modbus_server_tcp.rst  
 
 
 Indices and tables

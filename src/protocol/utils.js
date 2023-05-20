@@ -150,7 +150,7 @@ function getMaskRegisterBuffer(valueArray){
 
 /**
  * Function to convert a asccii frame to rtu to be processed
- * @param {Buffre} asciiFrame 
+ * @param {Buffer} asciiFrame 
  * @returns {Buffer} a equivalent rtu buffer
  */
 function aduAsciiToRtu(asciiFrame){

@@ -133,14 +133,10 @@ class ModbusSerialServer extends ModbusServer {
         else{
             this._transmitionMode = 0;
         }
-    }
-
-    incbusCommunicationErrorCount(){
-        this.busCommunicationErrorCount++;
-    }
+    }    
 
     /**
-     * Function to get the addresson a serial adu request.
+     * Function to get the address on a serial adu request.
      * @param {Buffer} reqAduBuffer 
      * @returns {number} server address on requesr.
      */
@@ -258,7 +254,7 @@ class ModbusSerialServer extends ModbusServer {
     /**
     * @brief Server function.Ident to process req pdu but only in broadcast mode, execute de service and return a response pdu.
     * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
-    * @fires ModbusServer#exception
+    * @fires ModbusServer#mb_exception
     * @fires ModbusServer#write
     * @fires ModbusServer#error
     * @return {Buffer} buffer containing a protocol data unit
