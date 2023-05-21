@@ -1,7 +1,11 @@
 .. _modbus_master:
 
+==========================
 Class: ModbusClient
-===========================
+==========================
+
+.. contents:: Table of Contents
+   :depth: 3
 
 **Nodbus-Plus v1.0 Documentation**
 
@@ -10,6 +14,9 @@ This class is an EventEmitter. It provides the basic functionalities to make Mod
 .. Figure:: /images/modbus_pdu.png
 
    *Modbus Protocol Data Unis*
+
+Creating a ModbusClient Instance
+================================
 
 new ModbusClient()
 ------------------
@@ -23,6 +30,11 @@ Constructor for new ModbusClient instance.
       const ModbusClient = require('nodbus-plus').ModbusClient;
       let modbusClient = new ModbusClient();                
 
+
+Methods
+=======
+
+.. _modbus_client_methods:
 
 Method: modbusClient.readCoilStatusPdu([startCoil],[coilQuantity])
 ------------------------------------------------------------------

@@ -1,15 +1,24 @@
 .. _modbus_tcp_server:
 
+======================
 Class: ModbusTcpServer
 ======================
 
 **Nodbus-Plus v1.0 Documentation**
+
+.. contents:: Table of Contents
+   :depth: 3
 
 This class extends :ref:`ModbusServer Class <modbus_server>`. It provides the basic functionalities to handle Modbus TCP Aplication Data Units (ADU).
 
 .. Figure:: /images/tcp_adu.png
 
    *Modbus Tcp Aplication Data Unis*
+
+
+Creating a ModbusTCPServer Instance
+===================================
+
 
 new ModbusTcpServer([options])
 -------------------------------
@@ -33,6 +42,11 @@ Constructor for new ModbusTcpServer instance.
       const ModbusTcpServer = require('nodbus-plus').ModbusTcpServer;
       let modbusTcpServer = new ModbusTcpServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
+
+Methods
+=======
+
+See :ref:`ModbusServer Class Methods <modbus_server_methods>` for base class inherited methods.
 
 Method: modbusTcpServer.getPdu(reqAduBuffer)
 ----------------------------------------------

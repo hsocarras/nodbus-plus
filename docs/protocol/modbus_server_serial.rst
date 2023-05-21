@@ -1,15 +1,23 @@
 .. _modbus_serial_server:
 
+==========================
 Class: ModbusSerialServer
 ==========================
 
 **Nodbus-Plus v1.0 Documentation**
+
+.. contents:: Table of Contents
+   :depth: 3
 
 This class extends :ref:`ModbusServer Class <modbus_server>`. It provides the basic functionalities to handle Modbus Serial Aplication Data Units (ADU).
 
 .. Figure:: /images/serial_adu.png
 
    *Modbus Serial Aplication Data Unis*
+
+
+Creating a ModbusSerialServer Instance
+======================================
 
 new ModbusSerialServer([options])
 ----------------------------------
@@ -43,6 +51,9 @@ Constructor for new ModbusSerialServer instance.
       const ModbusSerialServer = require('nodbus-plus').ModbusSerialServer;
       let modbusSerialServer = new ModbusSerialServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
+
+Atributes
+==========
 
 Atribute: modbusSerialServer.address
 ------------------------------------
@@ -160,6 +171,11 @@ Atribute: modbusSerialServer.transmitionMode
 * <number>
 
 Accessor property to get and set the modbus's transmition mode. Allowed values are 0, 1 and 2 for auto, rtu and ascii mode.
+
+Methods
+=======
+
+See :ref:`ModbusServer Class Methods <modbus_server_methods>` for base class inherited methods.
 
 Method: modbusSerialServer.aduAsciiToRtu(asciiFrame)
 ----------------------------------------------------

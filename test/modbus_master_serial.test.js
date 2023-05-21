@@ -9,8 +9,8 @@ describe("Make reqest Buffer", () => {
     
     it("fail to make request", () => {        
         
-        req1 = testMaster.makeRtuRequest(10, pdu2);
-        req2 = testMaster.makeRtuRequest(258, pdu1);
+        req1 = testMaster.makeRequest(10, pdu2);
+        req2 = testMaster.makeRequest(258, pdu1);
         expect(req1).toEqual(null);     
         expect(req2).toEqual(null);
           
@@ -19,7 +19,7 @@ describe("Make reqest Buffer", () => {
 
     it("successful request", () => {
 
-        req1 = testMaster.makeRtuRequest(2, pdu1);       
+        req1 = testMaster.makeRequest(2, pdu1);       
         expect(req1[0]).toEqual(2);     
         expect(req1[1]).toEqual(1);  
         expect(req1[3]).toEqual(0);  
@@ -31,7 +31,7 @@ describe("Make reqest Buffer", () => {
 
     it("successful request Ascii", () => {
 
-        req = testMaster.makeRtuRequest(2, pdu1);   
+        req = testMaster.makeRequest(2, pdu1);   
         req1 = testMaster.aduRtuToAscii(req)    
         expect(req1[0]).toEqual(0x3A);     
         expect(req1[2]).toEqual(0x32);  
@@ -52,7 +52,7 @@ describe("setReqTimer", () => {
     
     it("successful request", () => {
 
-        req1 = testMaster.makeRtuRequest(2, pdu1);       
+        req1 = testMaster.makeRequest(2, pdu1);       
         
         let timed1 = testMaster.setReqTimer(1500);
         expect(timed1).toEqual(-1);
@@ -102,7 +102,7 @@ describe("processResAdu", () => {
     it("response", () => {
 
         
-        req1 = testMaster.makeRtuRequest(2, pdu1);       
+        req1 = testMaster.makeRequest(2, pdu1);       
         testMaster.activeRequest = req1;
                 
         let timed3 = testMaster.setReqTimer(100);        

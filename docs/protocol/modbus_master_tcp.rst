@@ -1,15 +1,22 @@
 .. _modbus_tcp_master:
 
+======================
 Class: ModbusTcpClient
 ======================
 
 **Nodbus-Plus v1.0 Documentation**
+
+.. contents:: Table of Contents
+   :depth: 3
 
 This class extends :ref:`ModbusClient Class <modbus_master>`. It provides the basic functionalities to handle Modbus TCP Aplication Data Units (ADU).
 
 .. Figure:: /images/tcp_adu.png
 
    *Modbus Tcp Aplication Data Unis*
+
+Creating a ModbusTcpClient Instance
+===================================
 
 new ModbusTcpClient()
 ---------------------
@@ -23,7 +30,10 @@ Constructor for new ModbusTcpClient instance.
       const ModbusTcpClient = require('nodbus-plus').ModbusTcpClient;
       let modbusTcpClient = new ModbusTcpClient();
 
-    
+
+Events
+======
+
 Event: 'req_timeout'
 --------------------
 
@@ -49,6 +59,8 @@ Event: 'transaction'
 
 This event is emmited when the :ref:`Method: modbusTcpClient.processResAdu(bufferAdu)` is called to manage a server response.
 
+Atributes
+=========
 
 Atribute: modbusTcpClient._transactionCount
 --------------------------------------------
@@ -89,6 +101,10 @@ Atribute: modbusTcpClient.transactionCount
    
 Accesor property to get and set the transaction counter.
 
+Methods
+=======
+
+See :ref:`ModbusClient Class Methods <modbus_client_methods>` for base class inherited methods.
 
 Method: modbusTcpClient.makeHeader(unitId, pduLength)
 ---------------------------------------------------------
@@ -159,7 +175,7 @@ Method: modbusTcpClient.setReqTimer(transactionId, [timeout])
 * **timeout** <number>: Number of milliseconds to await for a response or fire timeout event.
 * **Returns** <number>: Timer's id to be use on clearTimeout.
 
-This functions store a timerId in the :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>` if the request esits in request pool.
+This functions store a timerId in the :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>` if the request exist in request pool.
 
 
 Method: modbusTcpClient.clearReqTimer(transactionId)

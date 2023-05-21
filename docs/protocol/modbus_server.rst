@@ -1,15 +1,25 @@
 .. _modbus_server:
 
+===========================
 Class: ModbusServer
 ===========================
 
 **Nodbus-Plus v1.0 Documentation**
 
-This class is an EventEmitter. It provides the basic functionalities to handle Modbus Protocol Data Units (PDU).
+.. contents:: Table of Contents
+   :depth: 3
+
+       
+
+The ModbusServer class is an EventEmitter that provides basic functionalities to handle Modbus Protocol Data Units (PDU).
 
 .. Figure:: /images/modbus_pdu.png
 
    *Modbus Protocol Data Unis*
+
+
+Creating a ModbusServer Instance
+================================
 
 new ModbusServer([options])
 ---------------------------
@@ -33,10 +43,17 @@ Constructor for new ModbusServer instance.
       const ModbusServer = require('nodbus-plus').ModbusServer;
       let modbusServer = new ModbusServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
+
+Events
+======
+
+
 Event: 'error'
 --------------
 
-* **e** <Error> Emitted when a error occurs.
+* **e** <Error>: The error object.
+
+Emitted when a error occurs.
 
 Event: 'mb_exception'
 ---------------------
@@ -102,45 +119,49 @@ Event: 'mb_exception'
    </tr>
    </table> 
 
+Emitted when a Modbus exception occurs.
 
 Event: 'write'
 --------------
 
-* **register** <number> Indicate wich register was writed. 
+* **register** <number> Indicate wich register was written. 
 
   * 0: Coils.
 
   * 4: Holding registers.
 
-* **values** <Map>: Map object.
+* **values** <Map>: A Map object.
 
   * *key* <number>: The register offset. An integer between 0 and 65535.
   
-  * *value* <boolean|Buffer>: The register value, A boolean for coils or a buffer with 2 bytes length for holding registers.
+  * *value* <boolean|Buffer>: The register value, a boolean for coils or a buffer with a length of 2 bytes for holding registers.
 
   .. code-block:: javascript
 
-      modbusServer.on('write', (reg, val) ->{
-         if(reg == 0){
-            //coil writed
-            for(const coil of val.entries()){
-               console.log('coil 0x' + coil[0] + 'was modified by client with ' + coil[1] + 'value');
+      modbusServer.on('write', (reg, val) => {
+         if (reg === 0) {
+            // coil written
+            for (const coil of val.entries()) {
+               console.log('Coil 0x' + coil[0] + ' was modified by the client with a value of ' + coil[1]);
             }
-         }
-         else{
-            //holding register writed
-            for(const holding of val.entries()){
-               console.log('holding register 4x' + holding[0] + 'was modified by client with ' + holding[1].readUInt16BE() + 'value');
+         } else {
+            // holding register written
+            for (const holding of val.entries()) {
+               console.log('Holding register 4x' + holding[0] + ' was modified by the client with a value of ' + holding[1].readUInt16BE());
             }
          }
       })
+
+
+Atributes
+==========
 
 Atribute: modbusServer._internalFunctionCode
 --------------------------------------------
 
 * <Map>
 
-This property stores the Modbus functions code suported by the server. 
+This property stores the Modbus functions codes supported by the server. 
 It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
 
 .. code-block:: javascript
@@ -222,6 +243,11 @@ This property is a Buffer that store the servers' digital coils. The byte 0 stor
 
 To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
 
+
+Methods
+=======
+
+.. _modbus_server_methods:
 
 Method: modbusServer.processReqPdu(reqPduBuffer)
 ------------------------------------------------

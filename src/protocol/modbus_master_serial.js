@@ -38,14 +38,12 @@ class ModbusSerialClient extends ModbusClient {
         /** 
          * variable that holds the timer used when broadcast request is sended.
         */
-        this.turnAroundDelay = 100;
+        this.turnAroundDelay = 10;
 
         
 
     }  
    
-    
-
     
 
     /**
@@ -54,7 +52,7 @@ class ModbusSerialClient extends ModbusClient {
      * @param {Buffer} pdu Buffer with modbus pdu
      * @returns {object} buffer with request if succesfull or null.
      */
-    makeRtuRequest(address, pdu){
+    makeRequest(address, pdu){
 
         if(pdu instanceof Buffer & address >= 0 & address <= 247){
 
