@@ -6,16 +6,15 @@
 */
 
 const ModbusTcpServer = require('../protocol/modbus_server_tcp');
-const tcpServer = require('./net/tcpserver');
-const udpServer = require('./net/udpserver');
+const TcpServer = require('./net/tcpserver');
+const UdpServer = require('./net/udpserver');
 
 //Default Server's Configuration object
 const defaultCfg = {
   inputs : 2048,
   coils : 2048,
   holdingRegisters : 2048,
-  inputRegisters : 2048,
-  transportProtocol : 0,  //0 - tcp, 1- udp4, 2 - udp6
+  inputRegisters : 2048,  
   port : 502,
   maxConnections : 32
 }
@@ -27,15 +26,15 @@ const defaultCfg = {
 class NodbusTcpServer extends ModbusTcpServer {
     /**
     * Create a Modbus Tcp Server.
+    * @param {number} netType : 0,  //0 - tcp, 1- udp4, 2 - udp6
     * @param {object} config object.
     * 
     */
-    constructor(mbTcpServerCfg = defaultCfg){
+    constructor(netType = 0, mbTcpServerCfg = defaultCfg){
         super(mbTcpServerCfg);
         let self = this;
 
-        //arguments check
-        if(mbTcpServerCfg.transportProtocol == undefined){mbTcpServerCfg.transportProtocol = defaultCfg.transportProtocol}
+        //arguments check        
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
       
@@ -43,38 +42,45 @@ class NodbusTcpServer extends ModbusTcpServer {
         * network layer
         * @type {object}
         */
-              
-        switch(mbTcpServerCfg.transportProtocol){
-            case 0:
-                this.netServer = new tcpServer(mbTcpServerCfg);
-                break
-            case 1:
-                this.netServer = new udpServer(mbTcpServerCfg, 'udp4');
-                break;
-            case 'udp6':
-                this.netServer = new udpServer(mbTcpServerCfg, 'udp6');
-                break;
-            default:
-                this.netServer = new tcpServer(mbTcpServerCfg);
-        }
-      
-
+        this.net = createNetObject(netType, mbTcpServerCfg);     
+        
         //Adding listeners to netServer events
         //function to call by net interface when data arrive.
-        this.netServer.onData = (socket, dataFrame) => {
+        this.net.onDataHook = (socket, dataFrame) => {
             /**
             * indication event.
             * @event ModbusnetServer#indication
             */
-            this.emit('indication', socket, dataFrame);
+            this.emit('data', socket, dataFrame);
         };
 
-        this.netServer.onMessage = this.ReceiveIndicationMessage.bind(this);
+        this.net.onMbAduHook = (sock, adu) =>{
+
+            //Checking PDU Modbus Tcp Implementation Guide Figure 16
+            let header = adu.subarray(0, 7);
+            if(this.validateMbapHeader(header)){
+                let pdu = adu.subarray(7);
+                let req = {};
+
+                req.timeStamp = Date.now();
+                req.transactionId = header.readUint16BE(0);
+                req.unitId = header[6];
+                req.functionCode = pdu[0];
+                req.data = pdu.subarray(1);
+
+                this.emit('request', sock, req);
+
+                let resAdu = this.getResponseAdu(adu)
+                this.net.write(sock, resAdu)
+            }
+            else return
+            
+        };
 
         /**
         * @fires ModbusnetServer#connection
         */
-        this.netServer.onConnectionAccepted = (socket) => {
+        this.net.onConnectionAcceptedHook = (socket) => {
             /**
            * connection event.
            * Emited when new connecton is sablished
@@ -92,7 +98,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @see https://nodejs.org/api/net.html
         * @fires ModbusnetServer#connection-closed
         */
-        this.netServer.onConnectionClose = (socket) => {
+        this.net.onConnectionCloseHook = (socket) => {
           /**
          * connection-closed event.
          * @event ModbusnetServer#connection-closed
@@ -108,7 +114,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @see https://nodejs.org/api/net.html
         * @fires ModbusnetServer#listening
         */
-        this.netServer.onListening  = () => {
+        this.net.onListeningHook  = () => {
           /**
          * listening event.
          * @event ModbusNetServer#listening
@@ -123,7 +129,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @see https://nodejs.org/api/net.html
         * @fires ModbusnetServer#closed
         */
-        this.netServer.onServerClose = () => {
+        this.net.onServerCloseHook = () => {
             /**
             * closed event.
             * @event ModbusNetServer#closed
@@ -136,7 +142,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         * Emited when error hapen
         * @fires ModbusNetServer#error
         */
-        this.netServer.onError = (err) =>{
+        this.net.onErrorHook = (err) =>{
           /**
          * error event.
          * @event ModbusNetServer#error
@@ -149,30 +155,15 @@ class NodbusTcpServer extends ModbusTcpServer {
         * Emited when response is send to master
         * @fires ModbusnetServer#response
         */
-        this.netServer.onWrite = (ip_address, message_frame) => {
+        this.net.onWriteHook = (sock, resAdu) => {
           /**
          * response event.
          * @event ModbusnetServer#response
          */
-          this.emit('sended_response', ip_address, message_frame);
+          this.emit('write', sock, resAdu);
         
         };
-
-        this.SendResponseMessage = this.netServer.Write.bind(this.netServer);
-
-        this.on('transaction_acepted', function(transaction){
-            //building Request Object
-            let sock = self.netServer.GetSocket(transaction.connectionID);
-            let req = new Transaction(sock, transaction.request);
-            self.emit('request', req);
-        });
-
-        this.on('transaction_resolved', function(connection_id, mb_resp_adu){
-          //building Request Object
-          let sock = self.netServer.GetSocket(connection_id); 
-          let resp = new Transaction(sock, mb_resp_adu);
-          self.emit('response', resp);
-        });
+        
         
         //Sellando el netServer
         Object.defineProperty(self, 'netServer', {
@@ -187,42 +178,69 @@ class NodbusTcpServer extends ModbusTcpServer {
       * Getter listening status
       */
     get isListening(){
-      return this.netServer.isListening;
+        return this.net.isListening;
     }
 
     get maxConnections(){
-      return this.netServer.maxConnections;
+        return this.net.maxConnections;
     }
 
     set maxConnections(max){
-      this.netServer.maxConnections = max;
+        this.net.maxConnections = max;
     }
     
     get port(){
-      return this.netServer.port
+        return this.net.port
     }
 
     set port(newport){
-      this.netServer.port = newport
+        this.net.port = newport
+    }
+
+    get activeConnections(){
+        return this.net.activeConnections;
     }
 
     /**
     * Function to start the server
     */
-    Start(){
+    start(){
       
-      this.netServer.Start();
+      this.net.start();
     }
 
     /**
     * Function to stop the server
     */
-    Stop(){
+    stop(){
       
-      this.netServer.Stop();
+      this.net.stop();
     }
 
         
 }
 
 module.exports = NodbusTcpServer;
+
+/**
+ * 
+ * @param {number} type: type of net object. 0 -tcp, 1-udp4, 2-udp6
+ * @param {*} config: Configuration object. {port, maxNumberConection}  Acces control for future version
+ * @returns 
+ */
+function createNetObject(type, config){
+    
+    switch(type){
+      case 0:
+          return new TcpServer(config);
+          break
+      case 1:
+          return new UdpServer(config, 'udp4');
+          break;
+      case 2:
+        return new UdpServer(config, 'udp6');
+          break;
+      default:
+          return new TcpServer(config);
+    }
+}

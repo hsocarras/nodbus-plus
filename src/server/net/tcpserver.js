@@ -11,7 +11,7 @@ const net = require('node:net');
 const defaultCfg = {
   port : 502,
   maxConnections : 32,
-  accesControlEnable: false,
+  accessControlEnable: false,
   connectionTimeout : 0
 }
 
@@ -30,7 +30,7 @@ class TcpServer {
 
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
-        if(netCfg.accesControlEnable == undefined){ netCfg.accesControlEnable = defaultCfg.accesControlEnable}
+        if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
         if(netCfg.connectionTimeout == undefined){ netCfg.connectionTimeout = defaultCfg.connectionTimeout}
 
         let self = this;
@@ -42,23 +42,17 @@ class TcpServer {
         this.tcpServer = net.createServer();
 
         //array whit connections
-        let connections = [];
+        this.activeConnections = [];
       
-        /**
-        * list of connections
-        * @type {Object[]}
-        */
-        Object.defineProperty(self,'activeConnections',{
-            get: function(){ return connections}
-        })
-
         /**
         * port
         * @type {number}
         */
-        this.port = netCfg.port;   
+        this.port = netCfg.port;  
 
-        this.accesControlEnable = netCfg.accesControlEnable;
+        this.maxConnections = netCfg.maxConnections;
+        
+        this.accessControlEnable = true;
         
         /**
         *  Inactivity time to close a connection
@@ -78,7 +72,7 @@ class TcpServer {
         *  function to executed when modbus message is detected
         * @param {Buffer} data
         */
-        this.onMessageHook = noop;
+        this.onMbAduHook = noop;
 
         /**
         *  function to executed when event listening is emited
@@ -114,7 +108,8 @@ class TcpServer {
         */
         this.onServerCloseHook = noop;
         this.tcpServer.on('close', function(){
-            connections = [];          
+            
+            self.activeConnections = [];          
             self.onServerCloseHook();
                
         });
@@ -132,65 +127,51 @@ class TcpServer {
         //******************************************************************************************************************************************************
 
 
-        this.tcpServer.on('connection', function(socket) {
+        this.tcpServer.on('connection', function(socket) {                     
 
-          function AceptConnection(socket){
+            //adding sockets to connections pool
+            self.activeConnections.push(socket)
+            
+            //disabling nagle algorithm
+            socket.setNoDelay(true);
+          
+            socket.on('data',function(data){
 
-              if(self.onConnectionAcceptedHook instanceof Function){
-                self.onConnectionAcceptedHook(socket);
-              }
-
-              //adding sockets to connections pool
-              connections.push(socket)
-
-              //disabling nagle algorithm
-              socket.setNoDelay(true);
-              
-              socket.on('data',function(data){
-
-                let index = connections.indexOf(socket);
-
+                
                 if(self.onDataHook instanceof Function){
-                    self.onDataHook(index, data);
+                    self.onDataHook(socket, data);
                 }
 
-                let messages = self.SplitTCPFrame(data);
+                let messages = self.splitTcpFrame(data);
 
                 messages.forEach((message) => {
-                    if(self.onMessageHook  instanceof Function){
-                      self.onMessageHook(index, message);
+                    if(self.onMbAduHook  instanceof Function){
+                      self.onMbAduHook(socket, message);
                     }
                 })
-                              
-              });
+                          
+            });
 
-              socket.on('error', (e) => {
+            socket.on('error', (e) => {
                 if(self.onErrorHook instanceof Function){
                     self.onErrorHook(e);
                 }
-              });
+            });
 
-              socket.on('close',function(had_error){
+            socket.on('close',function(had_error){
 
-                var index = connections.indexOf(socket);
+                var index = self.activeConnections.indexOf(socket);
                 //deleting socket from pool
-                connections.splice(index,1);
+                self.activeConnections.splice(index,1);
 
                 if(self.onConnectionCloseHook instanceof Function){
-                  self.onConnectionCloseHook(had_error);
+                    self.onConnectionCloseHook(had_error);
                 }
-              });
+            });
 
-          }
-
-          if(self.accesControlEnable){
-              if(self.onConnectionRequestHook(socket)){
-                  AceptConnection(socket);
-              }
-          }
-          else{
-              AceptConnection(socket);
-          }
+            if(self.onConnectionAcceptedHook instanceof Function){
+              self.onConnectionAcceptedHook(socket);
+            }
             
         });
 
@@ -212,10 +193,7 @@ class TcpServer {
       return this.tcpServer.listening;
     }
 
-    getSocket(socket_index){
-        return this.activeConnections[socket_index];
-    }
-  
+      
     /**
     * Start the tcp server
     */
@@ -232,12 +210,12 @@ class TcpServer {
     * Stop the tcp server
     */
     stop (){
-        //cerrando el server
-        this.tcpServer.close();
-        var sockets = this.activeConnections;
-        sockets.forEach(function(element){
+        //cerrando el server                   
+        this.activeConnections.forEach(function(element){
             element.destroy();
         });
+       
+        this.tcpServer.close(); 
     }
 
     /**
@@ -245,11 +223,11 @@ class TcpServer {
     * @param {number} socketIndex. Index to socket in connections array
     * @param {buffer} data
     */
-    write (socketIndex, frame){
+    write (socket, frame){
         let self = this;    
-        let socket = self.activeConnections[socketIndex];
+        
         socket.write(frame, 'utf8', function(){        
-            self.onWriteHook(socket.remoteAddress, frame);        
+            self.onWriteHook(socket, frame);        
         });
     }
 
@@ -275,7 +253,7 @@ class TcpServer {
           else if (dataFrame.length > expectedlength + 6){
             dataFrame.copy(indication,  0, 0, expectedlength + 6);
             indicationsList.push(indication);
-            indicationsList = indicationsList.concat(this.SplitTCPFrame(dataFrame.slice(expectedlength + 6)));          
+            indicationsList = indicationsList.concat(this.splitTcpFrame(dataFrame.slice(expectedlength + 6)));          
           }          
       }   
 
@@ -286,3 +264,5 @@ class TcpServer {
 }
 
 module.exports = TcpServer;
+
+

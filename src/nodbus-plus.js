@@ -19,67 +19,40 @@ module.exports.ModbusTcpClient = ModbusTcpClient;
 module.exports.ModbusTcpServer = ModbusTcpServer;
 module.exports.ModbusClient = ModbusClient;
 module.exports.ModbusServer = ModbusServer;
-//*************************************************************************************************************************
+//***********************************************************************************************************************
+
+//Modbus full implementation*********************************************************************************************
+const NodbusTcpServer = require('./server/nodbus_tcp_server.js')
+module.exports.NodbusTcpServer = NodbusTcpServer;
 
 /**
- * ModbusTcpServer.
- * @module nodbus/ModbusTcpServer
- */
-/** Constructor for ModbusTcpServer Class. */
-//module.exports.ModbusTcpServer = ModbusTcpServer;
-
-/**
- * ModbusSerialServer.
- * @module nodbus/ModbusSerialServer
- */
-/** Constructor for ModbusSerialServer Class. */
-//module.exports.ModbusSerialServer = ModbusSerialServer;
-
-/**
- * ModbusSlave.
- * @module nodbus/ModbusSlave
- */
-/** Constructor for ModbusSlave base Class. */
-//module.exports.ModbusSlave = ModbusSlave;
-
-/**
- * ModbusTcpClient.
- * @module nodbus/ModbusTcpClient
- */
-/** Constructor for ModbusTcpClient Class. */
-//module.exports.ModbusTcpClient = ModbusTcpClient;
-
-/**
- * ModbusSerialClient.
- * @module nodbus/ModbusSerialClient
- */
-/** Constructor for ModbusTcpClient Class. */
-//module.exports.ModbusSerialClient = ModbusSerialClient;
-
-/**
- * ModbusMaster.
- * @module nodbus/ModbusMaster
- */
-/** Constructor for ModbusMaster Class. */
-//module.exports.ModbusMaster = ModbusMaster;
-
-/**
-* Create a Slave instance
-* @param {number|string} port tcp port or string indicating serial port.
-* @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
-* @param {number} modbusAddress modbus addres 1 to 247 for serial slave or tcp for ethernet.
-* @param {string} mode Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
+* Create a tcp server instance
+* @param {string} net:  Type of network to use, Can be 'tcp', 'udp4', 'udp6'. Default 'tcp'.
+* @param {Object} serverCfg: Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-/*
-module.exports.CreateTcpServer = function (server_cfg){
+module.exports.CreateTcpServer = function (net = 'tcp', serverCfg){
 
-  var server = new ModbusTcpServer(server_cfg);
-  
+  let netType
+  switch(net){
+      case 'tcp':
+          netType = 0;
+          break
+      case 'udp4':
+          netType = 1;
+          break
+      case 'udp6':
+          netType = 2;
+          break
+      default:
+          netType = 0;
+  }
+  let server = new NodbusTcpServer(netType, serverCfg);
+
   return server;
 
 }
-*/
+
 /**
 * Create a Slave instance
 * @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
