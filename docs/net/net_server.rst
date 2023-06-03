@@ -9,229 +9,214 @@ API: Net Server
 .. contents:: Table of Contents
    :depth: 3
 
-Modbus TCP or serial servers ready to use from Nodbus Plus use a netServer object to implement the network layer. This object can be one of the following types:
+Nodbus implementation for a  modbus TCP or serial servers use a netServer object to implement the network layer. This object can be one of the following types:
 
-* **tcpServer**: A wrapper around node `net.Server <https://nodejs.org/api/net.html#class-netserver>`_ .
+* **tcpServer**: A wrapper around node `net.Server <https://nodejs.org/api/net.html#class-netserver>`_.
 
-* **udpserver**: A wrapper around node `dgram.Socket <https://nodejs.org/api/dgram.html#class-dgramsocket>`_ .
+* **udpserver**: A wrapper around node `dgram.Socket <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
 
-* **serialServer**: A wrapper around serialport 
+* **serialServer**: A wrapper around node `serialport <https://serialport.io/>`_ .
 
 
 Creating a ModbusServer Instance
 ================================
 
-nodbus-plus.createServer([options])
-------------------------------------
+new NetServer([options])
+-------------------------
+
+* **options** <object>: Configuration object with the following properties:
+
+   * port <number> : The tcp or udp port to listen. Default 502.
+
+   * maxConnections <number>: Max number of simultaneous connection supported. (Only tcp net server). Default 32.
+
+   * type <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
+
+Constructor for new NetServer instance.
 
 
+Event's Hooks
+=============
 
-
-Hooks
-======
-
-onDataHook
------------
-
-This atribute store the function that will be called when data arrives to net interface. the function will be called with folowing arguments:
-
-* **socket** <object>: socket
-* **data** <Buffer>: Raw data received.
-
-onMbAduHook
--------------
-
-This atribute holds the function 
-
-* **index** <number>: id 
-* **data** <Buffer>: Valid data received. Tcp coalesing.
-
-Se emite cuando se verifica que el frame tiene una longitud mayor de 8 y menor que 252, adicionalmente se verifica el tcp coalesing.
-Se asegura de enviar un adu correcto en cuanto a numero de bytes.
-
-onListeningHook
-----------------
-
-onConnectionRequestHook
-------------------------
-
-Only for tcp server object
+The net server object is not a event emitter, instead it uses the core server events to call hooks functions.
 
 onConnectionAcceptedHook
 -------------------------
 
-Only for tcp server object
+* **socket** <object>: socket created
+
+This function is called when the core server emits the 'connection' event and the connection is accepted by the server.
+
+onDataHook
+-----------
+
+* **socket** <object>: socket that emit the data event
+* **data** <Buffer>: Data received.
+
+This function is called when the core server emits the data event.
 
 onErrorHook
-------------
+-----------
 
-* **error** <object>
+* **e** <object>: error object.
+
+This function is called when the core server emits the 'error' event.
+
+onListeningHook
+----------------
+
+This function is called when the core server emit the 'listening' event. It is called with no arguments.
+
+onMbAduHook
+-------------
+
+* **socket** <object>: socket that emit the data event
+* **data** <Buffer>: Data received.
+
+This hook function is similar to onDataHook, but is only called when the buffer received has been validated and has correct length for modbus tcp or correct checksum
+for modbus serial.
+
 
 onServerCloseHook
 ------------------
 
-onConnectionCloseHook
-----------------------
+This hook function is called when core server emits the 'close' event. It is called with no arguments.
 
 onWriteHook
-------------
+-----------
 
-Event: 'error'
---------------
+* **socket** <object>: socket that emit the data event
+* **data** <Buffer>: Data received.
 
-* **e** <Error>: The error object.
-
-Emitted when a error occurs.
-
-
-Event: 'write'
---------------
-
-* **register** <number> Indicate wich register was written. 
-
-  * 0: Coils.
-
-  * 4: Holding registers.
-
-* **values** <Map>: A Map object.
-
-  * *key* <number>: The register offset. An integer between 0 and 65535.
-  
-  * *value* <boolean|Buffer>: The register value, a boolean for coils or a buffer with a length of 2 bytes for holding registers.
-
-  .. code-block:: javascript
-
-      modbusServer.on('write', (reg, val) => {
-         if (reg === 0) {
-            // coil written
-            for (const coil of val.entries()) {
-               console.log('Coil 0x' + coil[0] + ' was modified by the client with a value of ' + coil[1]);
-            }
-         } else {
-            // holding register written
-            for (const holding of val.entries()) {
-               console.log('Holding register 4x' + holding[0] + ' was modified by the client with a value of ' + holding[1].readUInt16BE());
-            }
-         }
-      })
+This hook function is called when data has been sennded by server to a client. It is called when connection socket write some data.
 
 
 Atributes
 ==========
 
-Atribute: modbusServer._internalFunctionCode
+Atribute: netServer.activeConnections
 --------------------------------------------
 
-* <Map>
+* <array>: An array with active connections.
 
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
 
-.. code-block:: javascript
+Atribute: netServer.coreServer
+-------------------------------
 
-      //Example of how to add new custom modbus function code handle function
-      class ModbusServerExtended extends ModbusServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
+* <object>
+
+   * **net.Server**: For tcp `node <https://nodejs.org/api/net.html#class-netserver>`_. 
+
+   * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
+
+   * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
+
+This property is a node net.Server in nodbus tcpServer class or node udp.Socket in nodbus udpServer or serialport from serialport library in nodbus serialServer. 
+The netServer class in Nodbus-Plus library is a wrapper around one of this main class.
       
 
-Atribute: modbusServer.supportedFunctionCode
---------------------------------------------
 
-* <iterator>
+Atribute: netServer.port
+-----------------------------
 
-This is a getter that return an iterator object trhough modbusServer._internalFunctionCode keys. It's the same that call modbusServer._internalFunctionCode.keys().
+* <number>
 
-.. code-block:: javascript
+Port to listen to.
 
-      //Example of getting all suported function code.       
-      for(const functionCode of modbusServer.supportedFunctionCode){
-         console.log(functionCode)
-      }
 
-Atribute: modbusServer.holdingRegisters
----------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-Atribute: modbusServer.inputRegisters
+Atribute: netServer.maxConnections
 -------------------------------------
 
-* <Buffer>
+* <number>
 
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
+Atribute: netServer.onConnectionAcceptedHook
+----------------------------------------------
 
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
+* <function>
 
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusServer.setWordToBuffer(value, targetBuffer, [offset])>`.
+This property is a reference for a hook function. See :ref:`onConnectionAcceptedHook`
 
-Atribute: modbusServer.inputs
------------------------------
 
-* <Buffer>
+Atribute: netServer.onDataHook
+----------------------------------
 
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
+* <function>
 
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+This property is a reference for a hook function. See :ref:`onDataHook`
 
-Atribute: modbusServer.coils
------------------------------
 
-* <Buffer>
+Atribute: netServer.onErrorHook
+----------------------------------
 
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
+* <function>
 
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+This property is a reference for a hook function. See :ref:`onErrorHook`
+
+
+Atribute: netServer.onListeningHook
+------------------------------------
+
+* <function>
+
+This property is a reference for a hook function. See :ref:`onListeningHook`
+
+
+Atribute: netServer.onMbAduHook
+----------------------------------
+
+* <function>
+
+This property is a reference for a hook function. See :ref:`onMbAduHook`
+
+
+Atribute: netServer.onServerCloseHook
+--------------------------------------
+
+* <function>
+
+This property is a reference for a hook function. See :ref:`onServerCloseHook`
+
+
+Atribute: netServer.onWriteHook
+----------------------------------
+
+* <function>
+
+This property is a reference for a hook function. See :ref:`onWriteHook`
+
+
+Atribute: netServer.validateFrame
+----------------------------------
+
+* <function>
+
+This property is a reference to a function that performs validation.
+ It defines how the nodbus server executes certain protocols for validating data at the network layer level.
+
+ It is called with a Buffer as argument with the modbus frame received.
 
 
 Methods
 =======
 
-.. _modbus_server_methods:
 
 Method: netServer.Start()
-------------------------------------------------
+-------------------------------
 
-* **reqPduBuffer** <Buffer>: A buffer containind the data part from request pdu.
-* **Returns** <Buffer>: Complete response pdu's buffer.
 
-This is the server's main function. Receive a request pdu buffer, and return a response pdu that can be a normal response or exception response.
+This method start the server.
+
 
 Method: netServer.Stop()
-------------------------------------------------------------------------
+-----------------------------
 
-* **mbFunctionCode** <number>: The function code that cause the exception.
-* **exceptionCode** <number>: See available exception code on :ref:`Event: 'mb_exception'`
-* **Returns** <Buffer>: Exception response pdu
+This functions stop the server. No further connection are accepted.
 
-This functions create a exception response pdu by add 0x80 to function code and appending the exception code.
-
-Method: netServer.write(index, frame)
+Method: netServer.write(socket, frame)
 -------------------------------------------------
 
-* **pduReqData** <Buffer>: buffer containig the pdu's data.
-* **Return** <Buffer>: buffer with response pdu.
+* **socket** <object>: buffer containig the pdu's data.
+* **frame** <Buffer>: buffer with response pdu.
+
+function to write data to a client. It takes a srteam object and a buffer to wrie to. When data has been send, the function calls onWriteHook funtion.
 

@@ -23,6 +23,8 @@ module.exports.ModbusServer = ModbusServer;
 
 //Modbus full implementation*********************************************************************************************
 const NodbusTcpServer = require('./server/nodbus_tcp_server.js')
+const NetTcpServer = require('./server/net/tcpserver.js')
+const NetUdpServer = require('./server/net/udpserver.js')
 module.exports.NodbusTcpServer = NodbusTcpServer;
 
 /**
@@ -36,18 +38,18 @@ module.exports.CreateTcpServer = function (net = 'tcp', serverCfg){
   let netType
   switch(net){
       case 'tcp':
-          netType = 0;
+          netType = NetTcpServer;
           break
       case 'udp4':
-          netType = 1;
+          netType = NetUdpServer;
           break
       case 'udp6':
-          netType = 2;
+          netType = NetUdpServer;
           break
       default:
-          netType = 0;
+          netType = NetTcpServer;
   }
-  let server = new NodbusTcpServer(netType, serverCfg);
+  let server = new NodbusTcpServer(serverCfg, netType);
 
   return server;
 

@@ -27,7 +27,7 @@ describe("Instanciate a nodbus tcp server with tcp net", () => {
 describe("tcp server", () => {
 
        
-    let server1 = Nodbus.CreateTcpServer('tcp', serverCfg);
+    let server1 = Nodbus.CreateTcpServer(serverCfg);
     //let server2 = Nodbus.CreateTcpServer('tcp', serverCfg);
     testClient = new net.Socket()  
 
@@ -48,7 +48,7 @@ describe("tcp server", () => {
                 let adu1 = Buffer.from([0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03, 
                                         0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);  
 
-                let conectedClients = server1.activeConnections;
+                let conectedClients = server1.net.activeConnections;
                 expect(conectedClients[0]).toBeInstanceOf(net.Socket)   
                 expect(conectedClients.length).toEqual(1);                     
 

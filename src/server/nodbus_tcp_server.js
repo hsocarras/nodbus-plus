@@ -25,12 +25,12 @@ const defaultCfg = {
 */
 class NodbusTcpServer extends ModbusTcpServer {
     /**
-    * Create a Modbus Tcp Server.
-    * @param {number} netType : 0,  //0 - tcp, 1- udp4, 2 - udp6
+    * Create a Modbus Tcp Server.    
     * @param {object} config object.
+    * @param {number} netClass: Constructor for network object
     * 
     */
-    constructor(netType = 0, mbTcpServerCfg = defaultCfg){
+    constructor(mbTcpServerCfg = defaultCfg, netClass = TcpServer){
         super(mbTcpServerCfg);
         let self = this;
 
@@ -42,7 +42,14 @@ class NodbusTcpServer extends ModbusTcpServer {
         * network layer
         * @type {object}
         */
-        this.net = createNetObject(netType, mbTcpServerCfg);     
+        try {
+            this.net = new netClass(mbTcpServerCfg);
+        }
+        catch(e){
+            this.emit('error', e);
+            this.net = new TcpServer(mbTcpServerCfg);
+        }
+             
         
         //Adding listeners to netServer events
         //function to call by net interface when data arrive.
@@ -164,6 +171,10 @@ class NodbusTcpServer extends ModbusTcpServer {
         
         };
         
+        //Function to validate data in net layer
+        this.net.validateFrame = (frame)=>{
+            return frame.length > 7
+        }
         
         //Sellando el netServer
         Object.defineProperty(self, 'netServer', {
@@ -197,10 +208,6 @@ class NodbusTcpServer extends ModbusTcpServer {
         this.net.port = newport
     }
 
-    get activeConnections(){
-        return this.net.activeConnections;
-    }
-
     /**
     * Function to start the server
     */
@@ -222,25 +229,3 @@ class NodbusTcpServer extends ModbusTcpServer {
 
 module.exports = NodbusTcpServer;
 
-/**
- * 
- * @param {number} type: type of net object. 0 -tcp, 1-udp4, 2-udp6
- * @param {*} config: Configuration object. {port, maxNumberConection}  Acces control for future version
- * @returns 
- */
-function createNetObject(type, config){
-    
-    switch(type){
-      case 0:
-          return new TcpServer(config);
-          break
-      case 1:
-          return new UdpServer(config, 'udp4');
-          break;
-      case 2:
-        return new UdpServer(config, 'udp6');
-          break;
-      default:
-          return new TcpServer(config);
-    }
-}

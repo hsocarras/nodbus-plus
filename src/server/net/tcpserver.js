@@ -12,7 +12,7 @@ const defaultCfg = {
   port : 502,
   maxConnections : 32,
   accessControlEnable: false,
-  connectionTimeout : 0
+  //connectionTimeout : 0
 }
 
 //No operation default function for listeners
@@ -31,7 +31,7 @@ class TcpServer {
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.connectionTimeout == undefined){ netCfg.connectionTimeout = defaultCfg.connectionTimeout}
+        //if(netCfg.connectionTimeout == undefined){ netCfg.connectionTimeout = defaultCfg.connectionTimeout}
 
         let self = this;
 
@@ -39,7 +39,7 @@ class TcpServer {
         * tcp server
         * @type {Object}
         */
-        this.tcpServer = net.createServer();
+        this.coreServer = net.createServer();
 
         //array whit connections
         this.activeConnections = [];
@@ -58,7 +58,7 @@ class TcpServer {
         *  Inactivity time to close a connection
         * @type {number}
         */
-        this.connectionTimeout = netCfg.connectionTimeout;
+        //this.connectionTimeout = netCfg.connectionTimeout;
 
         //API Callback interfaces****************************************************************************************************************************************
 
@@ -78,7 +78,7 @@ class TcpServer {
         *  function to executed when event listening is emited
         */
         this.onListeningHook = noop;
-        this.tcpServer.on('listening', () => {          
+        this.coreServer.on('listening', () => {          
             self.onListeningHook();          
         });
 
@@ -99,7 +99,7 @@ class TcpServer {
         * @param {Object} error
         */
         this.onErrorHook = noop;
-        this.tcpServer.on('error', (e) => {            
+        this.coreServer.on('error', (e) => {            
                 self.onErrorHook(e);            
         });
 
@@ -107,7 +107,7 @@ class TcpServer {
         *  function to executed when event close is emited
         */
         this.onServerCloseHook = noop;
-        this.tcpServer.on('close', function(){
+        this.coreServer.on('close', function(){
             
             self.activeConnections = [];          
             self.onServerCloseHook();
@@ -126,12 +126,12 @@ class TcpServer {
         this.onWriteHook = noop;
         //******************************************************************************************************************************************************
 
+        //function for validating data****************************************************************
+        this.validateFrame = ()=>{ return false}
 
-        this.tcpServer.on('connection', function(socket) {                     
+        this.coreServer.on('connection', function(socket) {  
+           
 
-            //adding sockets to connections pool
-            self.activeConnections.push(socket)
-            
             //disabling nagle algorithm
             socket.setNoDelay(true);
           
@@ -142,7 +142,7 @@ class TcpServer {
                     self.onDataHook(socket, data);
                 }
 
-                let messages = self.splitTcpFrame(data);
+                let messages = self.resolveTcpCoalescing(data);
 
                 messages.forEach((message) => {
                     if(self.onMbAduHook  instanceof Function){
@@ -167,7 +167,10 @@ class TcpServer {
                 if(self.onConnectionCloseHook instanceof Function){
                     self.onConnectionCloseHook(had_error);
                 }
-            });
+            });            
+
+            //adding sockets to connections pool
+            self.activeConnections.push(socket)
 
             if(self.onConnectionAcceptedHook instanceof Function){
               self.onConnectionAcceptedHook(socket);
@@ -178,11 +181,11 @@ class TcpServer {
     }  
 
     get maxConnections(){
-      return this.tcpServer.maxConnections;
+      return this.coreServer.maxConnections;
     }
 
     set maxConnections(max){
-      this.tcpServer.maxConnections = max;
+      this.coreServer.maxConnections = max;
     }
 
     /**
@@ -190,7 +193,7 @@ class TcpServer {
     * @type {boolean}
     */
     get isListening(){
-      return this.tcpServer.listening;
+      return this.coreServer.listening;
     }
 
       
@@ -199,7 +202,7 @@ class TcpServer {
     */
     start (){
         try {
-          this.tcpServer.listen(this.port)
+          this.coreServer.listen(this.port)
         }
         catch(error){
             this.onErrorHook(error);
@@ -215,7 +218,7 @@ class TcpServer {
             element.destroy();
         });
        
-        this.tcpServer.close(); 
+        this.coreServer.close(); 
     }
 
     /**
@@ -238,7 +241,7 @@ class TcpServer {
      * @param {Buffer Object} dataFrame 
      * @return {Buffer array}
      */
-    splitTcpFrame(dataFrame){
+    resolveTcpCoalescing(dataFrame){
       //get de first tcp header length
       let indicationsList = [];
 
@@ -253,7 +256,7 @@ class TcpServer {
           else if (dataFrame.length > expectedlength + 6){
             dataFrame.copy(indication,  0, 0, expectedlength + 6);
             indicationsList.push(indication);
-            indicationsList = indicationsList.concat(this.splitTcpFrame(dataFrame.slice(expectedlength + 6)));          
+            indicationsList = indicationsList.concat(this.resolveTcpCoalescing(dataFrame.slice(expectedlength + 6)));          
           }          
       }   
 
