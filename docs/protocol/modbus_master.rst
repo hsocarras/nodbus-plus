@@ -15,6 +15,7 @@ This class is an EventEmitter. It provides the basic functionalities to make Mod
 
    *Modbus Protocol Data Unis*
 
+
 Creating a ModbusClient Instance
 ================================
 
@@ -31,8 +32,8 @@ Constructor for new ModbusClient instance.
       let modbusClient = new ModbusClient();                
 
 
-Methods
-=======
+ModbusClient's Methods
+======================
 
 .. _modbus_client_methods:
 

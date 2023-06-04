@@ -52,8 +52,8 @@ Constructor for new ModbusSerialServer instance.
       let modbusSerialServer = new ModbusSerialServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
 
-Atributes
-==========
+ModbusSerialServer's Atributes
+==============================
 
 Atribute: modbusSerialServer.address
 ------------------------------------
@@ -172,8 +172,8 @@ Atribute: modbusSerialServer.transmitionMode
 
 Accessor property to get and set the modbus's transmition mode. Allowed values are 0, 1 and 2 for auto, rtu and ascii mode.
 
-Methods
-=======
+ModbusSerialServer's Methods
+============================
 
 See :ref:`ModbusServer Class Methods <modbus_server_methods>` for base class inherited methods.
 

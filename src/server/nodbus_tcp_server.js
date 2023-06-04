@@ -11,13 +11,15 @@ const UdpServer = require('./net/udpserver');
 
 //Default Server's Configuration object
 const defaultCfg = {
-  inputs : 2048,
-  coils : 2048,
-  holdingRegisters : 2048,
-  inputRegisters : 2048,  
-  port : 502,
-  maxConnections : 32
-}
+    inputs : 2048,
+    coils : 2048,
+    holdingRegisters : 2048,
+    inputRegisters : 2048,  
+    port : 502,
+    maxConnections : 32,
+    udpType : 'udp4',
+    tcpCoalescingDetection: true
+    }
 
 /**
  * Class representing a modbus tcp server fully functionl.
@@ -37,7 +39,8 @@ class NodbusTcpServer extends ModbusTcpServer {
         //arguments check        
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
-      
+        if(mbTcpServerCfg.tcpCoalescingDetection == undefined){ mbTcpServerCfg.connectionTimeout = defaultCfg.tcpCoalescingDetection}
+
         /**
         * network layer
         * @type {object}
@@ -89,12 +92,12 @@ class NodbusTcpServer extends ModbusTcpServer {
         */
         this.net.onConnectionAcceptedHook = (socket) => {
             /**
-           * connection event.
-           * Emited when new connecton is sablished
-           * @event ModbusnetServer#connection
-           * @type {object}
-           * @see https://nodejs.org/api/net.html
-           */
+             * connection event.
+             * Emited when new connecton is sablished
+             * @event ModbusnetServer#connection
+             * @type {object}
+             * @see https://nodejs.org/api/net.html
+             */
             this.emit('connection',socket);
         };
 
@@ -106,11 +109,11 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @fires ModbusnetServer#connection-closed
         */
         this.net.onConnectionCloseHook = (socket) => {
-          /**
-         * connection-closed event.
-         * @event ModbusnetServer#connection-closed
-         * @type {object}
-         */
+            /**
+             * connection-closed event.
+             * @event ModbusnetServer#connection-closed
+             * @type {object}
+             */
             this.emit('connection-closed', socket)
         };
 
@@ -122,12 +125,12 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @fires ModbusnetServer#listening
         */
         this.net.onListeningHook  = () => {
-          /**
-         * listening event.
-         * @event ModbusNetServer#listening
-         * @type {number}
-         */
-          this.emit('listening',self.port);
+            /**
+             * listening event.
+             * @event ModbusNetServer#listening
+             * @type {number}
+             */
+            this.emit('listening',self.port);
         };
 
         /**
@@ -150,11 +153,11 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @fires ModbusNetServer#error
         */
         this.net.onErrorHook = (err) =>{
-          /**
-         * error event.
-         * @event ModbusNetServer#error
-         */
-          this.emit('error', err);
+            /**
+             * error event.
+             * @event ModbusNetServer#error
+             */
+            this.emit('error', err);
         };
 
         /**
@@ -163,11 +166,11 @@ class NodbusTcpServer extends ModbusTcpServer {
         * @fires ModbusnetServer#response
         */
         this.net.onWriteHook = (sock, resAdu) => {
-          /**
-         * response event.
-         * @event ModbusnetServer#response
-         */
-          this.emit('write', sock, resAdu);
+            /**
+             * response event.
+             * @event ModbusnetServer#response
+             */
+            this.emit('write', sock, resAdu);
         
         };
         
@@ -178,9 +181,9 @@ class NodbusTcpServer extends ModbusTcpServer {
         
         //Sellando el netServer
         Object.defineProperty(self, 'netServer', {
-          enumerable:false,
-          writable:false,
-          configurable:false
+            enumerable:false,
+            writable:false,
+            configurable:false
         })
             
     }
@@ -212,16 +215,14 @@ class NodbusTcpServer extends ModbusTcpServer {
     * Function to start the server
     */
     start(){
-      
-      this.net.start();
+        this.net.start();
     }
 
     /**
     * Function to stop the server
     */
-    stop(){
-      
-      this.net.stop();
+    stop(){      
+        this.net.stop();
     }
 
         

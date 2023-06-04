@@ -31,8 +31,8 @@ Constructor for new ModbusSerialClient instance.
       let modbusSerialClient = new ModbusSerialClient();
 
 
-Events
-======
+ModbusSerialClient's Events
+===========================
 
 Event: 'req_timeout'
 --------------------
@@ -60,8 +60,8 @@ Event: 'transaction'
 This event is emmited when the :ref:`Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])` is called to manage a server response.
 
 
-Atributes
-=========
+ModbusSerialClient's Atributes
+===============================
 
 Atribute: modbusSerialClient.activeRequest
 ------------------------------------------
@@ -86,8 +86,8 @@ Atribute: modbusSerialClient.turnAroundDelay
 When the serial client send a broadcast request have to await for the turnaround timer to send a new request. This property staore the value in milliseconds for this timer.
 Default value is 10 ms.
 
-Methods
-=======
+ModbusSerialClient's Methods
+============================
 
 See :ref:`ModbusClient Class Methods <modbus_client_methods>` for base class inherited methods.
 

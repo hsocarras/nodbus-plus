@@ -9,10 +9,11 @@ const net = require('node:net');
 
 //Default Server's Configuration object
 const defaultCfg = {
-  port : 502,
-  maxConnections : 32,
-  accessControlEnable: false,
-  //connectionTimeout : 0
+    port : 502,
+    maxConnections : 32,
+    accessControlEnable: false,
+    tcpCoalescingDetection : false
+    //connectionTimeout : 0
 }
 
 //No operation default function for listeners
@@ -31,7 +32,7 @@ class TcpServer {
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        //if(netCfg.connectionTimeout == undefined){ netCfg.connectionTimeout = defaultCfg.connectionTimeout}
+        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.connectionTimeout = defaultCfg.tcpCoalescingDetection}
 
         let self = this;
 
@@ -53,6 +54,8 @@ class TcpServer {
         this.maxConnections = netCfg.maxConnections;
         
         this.accessControlEnable = true;
+
+        this.tcpCoalescingDetection = netCfg.tcpCoalescingDetection;
         
         /**
         *  Inactivity time to close a connection
@@ -100,7 +103,7 @@ class TcpServer {
         */
         this.onErrorHook = noop;
         this.coreServer.on('error', (e) => {            
-                self.onErrorHook(e);            
+            self.onErrorHook(e);            
         });
 
         /**
@@ -142,13 +145,28 @@ class TcpServer {
                     self.onDataHook(socket, data);
                 }
 
-                let messages = self.resolveTcpCoalescing(data);
+                if(self.validateFrame(data)){
+                    let messages = [];
+                    //Active tcp coalesing detection
+                    if(self.tcpCoalescingDetection){
+                        //one tcp message can have more than one modbus indication.
+                        //each modbus tcp message have a length field
+                        messages = self.resolveTcpCoalescing(data);
 
-                messages.forEach((message) => {
-                    if(self.onMbAduHook  instanceof Function){
-                      self.onMbAduHook(socket, message);
+                        messages.forEach((message) => {
+                            if(self.onMbAduHook  instanceof Function){
+                                self.onMbAduHook(socket, message);
+                            }
+                        })
+
                     }
-                })
+                    else{
+                        //if tcpcoalesing is not active only one indication per tcp frame will be processed.
+                        if(self.onMbAduHook  instanceof Function){
+                            self.onMbAduHook(socket, data);
+                        }
+                    }
+                }
                           
             });
 
@@ -173,7 +191,7 @@ class TcpServer {
             self.activeConnections.push(socket)
 
             if(self.onConnectionAcceptedHook instanceof Function){
-              self.onConnectionAcceptedHook(socket);
+                self.onConnectionAcceptedHook(socket);
             }
             
         });
@@ -181,11 +199,11 @@ class TcpServer {
     }  
 
     get maxConnections(){
-      return this.coreServer.maxConnections;
+        return this.coreServer.maxConnections;
     }
 
     set maxConnections(max){
-      this.coreServer.maxConnections = max;
+        this.coreServer.maxConnections = max;
     }
 
     /**
@@ -193,7 +211,7 @@ class TcpServer {
     * @type {boolean}
     */
     get isListening(){
-      return this.coreServer.listening;
+        return this.coreServer.listening;
     }
 
       
@@ -202,7 +220,7 @@ class TcpServer {
     */
     start (){
         try {
-          this.coreServer.listen(this.port)
+            this.coreServer.listen(this.port)
         }
         catch(error){
             this.onErrorHook(error);
@@ -242,25 +260,25 @@ class TcpServer {
      * @return {Buffer array}
      */
     resolveTcpCoalescing(dataFrame){
-      //get de first tcp header length
-      let indicationsList = [];
+        //get de first tcp header length
+        let indicationsList = [];
 
-      if (dataFrame.length > 7){
-          let expectedlength = dataFrame.readUInt16BE(4);
-          let indication = Buffer.alloc(expectedlength + 6);
+        if (dataFrame.length > 7){
+            let expectedlength = dataFrame.readUInt16BE(4);
+            let indication = Buffer.alloc(expectedlength + 6);
 
-          if(dataFrame.length == expectedlength + 6){
-            dataFrame.copy(indication);
-            indicationsList.push(indication);          
-          }
-          else if (dataFrame.length > expectedlength + 6){
-            dataFrame.copy(indication,  0, 0, expectedlength + 6);
-            indicationsList.push(indication);
-            indicationsList = indicationsList.concat(this.resolveTcpCoalescing(dataFrame.slice(expectedlength + 6)));          
-          }          
-      }   
+            if(dataFrame.length == expectedlength + 6){
+                dataFrame.copy(indication);
+                indicationsList.push(indication);          
+            }
+            else if (dataFrame.length > expectedlength + 6){
+                dataFrame.copy(indication,  0, 0, expectedlength + 6);
+                indicationsList.push(indication);
+                indicationsList = indicationsList.concat(this.resolveTcpCoalescing(dataFrame.slice(expectedlength + 6)));          
+            }          
+        }   
 
-      return indicationsList;
+        return indicationsList;
     }
   
 

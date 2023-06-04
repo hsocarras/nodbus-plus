@@ -1,7 +1,7 @@
-.. _modbus_server:
+.. _nodbus_tcp_server:
 
 ===========================
-Class: ModbusServer
+Class: NodbusTcpServer
 ===========================
 
 **Nodbus-Plus v1.0 Documentation**
@@ -11,12 +11,7 @@ Class: ModbusServer
 
        
 
-The ModbusServer class is an EventEmitter that provides basic functionalities to handle Modbus Protocol Data Units (PDU).
-
-.. Figure:: /images/modbus_pdu.png
-
-   *Modbus Protocol Data Unis*
-
+The NodbusTcpServer class extends the :ref:`ModbusTcpServer Class <modbus_tcp_server>`. This class implements a fully funcional modbus tcp server.
 
 Creating a ModbusServer Instance
 ================================
@@ -44,8 +39,8 @@ Constructor for new ModbusServer instance.
       let modbusServer = new ModbusServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
 
-ModbusServer's Events
-=====================
+NodbusTcpServer's Events
+=========================
 
 
 Event: 'error'
@@ -153,8 +148,8 @@ Event: 'write'
       })
 
 
-ModbusServer's Atributes
-========================
+NodbusTcpServer's Atributes
+===========================
 
 Atribute: modbusServer._internalFunctionCode
 --------------------------------------------
@@ -244,8 +239,8 @@ This property is a Buffer that store the servers' digital coils. The byte 0 stor
 To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
 
 
-ModbusServer's Methods
-=======================
+NodbusTcpServer's Methods
+=========================
 
 .. _modbus_server_methods:
 

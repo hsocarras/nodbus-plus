@@ -13,7 +13,7 @@ const defaultCfg = {
     maxConnections : 32,
     accessControlEnable: false,  
     //connectionTimeout : 0,
-    type: 'udp4'
+    udpType: 'udp4'
 }
 
 //No operation default function for listeners
@@ -32,7 +32,7 @@ class UdpServer {
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.type == undefined){ netCfg.type = defaultCfg.type}
+        if(netCfg.udpType != 'udp4' || netCfg.udpType != 'udp6'){ netCfg.udpType = defaultCfg.udpType}
         
         var self = this;
 
@@ -40,7 +40,7 @@ class UdpServer {
         * udp server
         * @type {Object}
         */
-        this.coreServer = dgram.createSocket(netCfg.type);
+        this.coreServer = dgram.createSocket(netCfg.udpType);
 
         //array whit connections
         this.activeConnections = [];
@@ -53,28 +53,16 @@ class UdpServer {
 
         this.maxConnections = netCfg.maxConnections;
 
-        this.accessControlEnable = true;
-
-        //array whit connections
-        this.connections = new Array (this.coreServer.maxConnections);
-
-        for(let i = 0; i < self.connections.length; i++){        
-          this.connections[i] = 0;
-        }  
-            
-        /**
-        * list of connections
-        * @type {Object[]}
+        this.accessControlEnable = true;       
+        
+         /**
+        * listening status
+        * @type {boolean}
         */
-        Object.defineProperty(self,'activeConnections',{
-            get: function(){
-              let index = this.connections.indexOf(0);            
-              return this.connections.slice(0, index);
-            }
-        })      
-        
-        
-        //User listeners
+        this.isListening = false;       
+                
+        //Hoocks functions***************************************************************************************************
+
         /**
         *  function to executed when event data is emited
         * @param {Buffer} data
@@ -91,7 +79,8 @@ class UdpServer {
         *  function to executed when event listening is emited
         */
         this.onListeningHook = noop;
-        this.tcpServer.on('listening', () => {          
+        this.coreServer.on('listening', () => {         
+            self.isListening = true; 
             self.onListeningHook();          
         });
 
@@ -112,17 +101,17 @@ class UdpServer {
         * @param {Object} error
         */
         this.onErrorHook = noop;
-        this.tcpServer.on('error', (e) => {            
-                self.onErrorHook(e);            
+        this.coreServer.on('error', (e) => {            
+            self.onErrorHook(e);            
         });
 
         /**
         *  function to executed when event close is emited
         */
         this.onServerCloseHook = noop;
-        this.tcpServer.on('close', function(){
-            
-            self.activeConnections = [];          
+        this.coreServer.on('close', function(){
+
+            self.coreServer.isListening = false;       
             self.onServerCloseHook();
                
         });
@@ -139,74 +128,59 @@ class UdpServer {
         this.onWriteHook = noop;
 
       
-    }   
-
-    get maxConnections(){
-        this.coreServer.maxConnections
-    }
-    
-    set maxConnections(max){   
-        var self = this;
-        this.coreServer.maxConnections  
-        if(typeof max == 'number') {
-          let extend = new Array(max);
-
-          for(let i = 0; i < extend.length; i++){
-            extend[i] = 0;
-          }
-          
-          self.connections.concat(extend);
-        }
-        else{
-          throw new TypeError('parameter must be a number')
-        }
-    }
-    
-    /**
-    * listening status
-    * @type {boolean}
-    */
-    get isListening(){
-        return this.coreServer.listening;
-    }
-    
+    } 
+        
     /**
     * Start the tcp server
     */
     Start (){
-      var self = this;
+        var self = this; 
 
-      this.coreServer.on('error', function(err){
-        self.onError(err);
-      });
+        this.coreServer.on('message', function(msg, rinfo){
 
-      this.coreServer.on('close', () => {
-        self.coreServer.listening = false;
-        self.onServerClose
-      });
+            //udp is conexionless protocol.
 
-      this.coreServer.on('listening', () => {
-        self.coreServer.listening = true;
-        self.onListening();
-      });
+            rinfo.remoteAddress = rinfo.address;
+            rinfo.remotePort = rinfo.port;                 
+            
+            if(self.onDataHook instanceof Function){
+                self.onDataHook(rinfo, msg);
+            }
 
-      this.coreServer.on('message', function(msg, rinfo){
+            if(self.validateFrame(msg)){
 
-        //udp is conexionless protocol. connections array is used for compatibility for the 
-        //tcp api
-        let id = self.connections.indexOf(0)
-        rinfo.remoteAddress = rinfo.address;
-        rinfo.remotePort = rinfo.port;
-        self.connections[id] = rinfo;      
-        self.onData(id, msg);
+                let messages = [];
 
-      });
-      try {
-        this.coreServer.bind(this.port)
-      }
-      catch(error){
-          this.onError(error);
-      }
+                //Active tcp coalesing detection
+                if(self.tcpCoalescingDetection){
+                    //one tcp message can have more than one modbus indication.
+                    //each modbus tcp message have a length field
+                    messages = self.resolveTcpCoalescing(msg);
+
+                    messages.forEach((message) => {
+                        if(self.onMbAduHook  instanceof Function){
+                            self.onMbAduHook(rinfo, message);
+                        }
+                    })
+
+                }
+                else{
+                    //if tcpcoalesing is not active only one indication per tcp frame will be processed.
+                    if(self.onMbAduHook  instanceof Function){
+                        self.onMbAduHook(rinfo, msg);
+                    }
+                }
+            }
+
+        });
+
+        try {
+            this.coreServer.bind(this.port)
+        }
+        catch(error){
+            this.onError(error);
+        }
+
     }
 
     /**
@@ -222,15 +196,14 @@ class UdpServer {
     * @param {number} socketIndex. Index to socket in connections array
     * @param {buffer} data
     */
-    Write (socketIndex, resp){
-      let self = this;    
-      let rinfo = self.connections[socketIndex];    
-      self.connections[socketIndex] = 0;
-      self.coreServer.send(resp.adu.aduBuffer, 0, resp.adu.aduBuffer.length, rinfo.port, rinfo.address, function(){
-        if(self.onWrite){
-          self.onWrite(resp);
-        }
-      })    
+    Write (rinfo, frame){
+        let self = this;    
+        
+        self.coreServer.send(frame, 0, frame.length, rinfo.port, rinfo.address, function(){
+            if(self.onWrite){
+                self.onWrite(rinfo, frame);
+            }
+        })    
     }
 }
 

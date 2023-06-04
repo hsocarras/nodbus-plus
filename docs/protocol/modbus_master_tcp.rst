@@ -31,8 +31,8 @@ Constructor for new ModbusTcpClient instance.
       let modbusTcpClient = new ModbusTcpClient();
 
 
-Events
-======
+ModbusTcpClient's Events
+========================
 
 Event: 'req_timeout'
 --------------------
@@ -59,8 +59,8 @@ Event: 'transaction'
 
 This event is emmited when the :ref:`Method: modbusTcpClient.processResAdu(bufferAdu)` is called to manage a server response.
 
-Atributes
-=========
+ModbusTcpClient's Atributes
+===========================
 
 Atribute: modbusTcpClient._transactionCount
 --------------------------------------------
@@ -101,8 +101,8 @@ Atribute: modbusTcpClient.transactionCount
    
 Accesor property to get and set the transaction counter.
 
-Methods
-=======
+ModbusTcpClient's Methods
+=========================
 
 See :ref:`ModbusClient Class Methods <modbus_client_methods>` for base class inherited methods.
 

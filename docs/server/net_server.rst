@@ -18,8 +18,8 @@ Nodbus implementation for a  modbus TCP or serial servers use a netServer object
 * **serialServer**: A wrapper around node `serialport <https://serialport.io/>`_ .
 
 
-Creating a ModbusServer Instance
-================================
+Creating a Nodbus NetServer Instance
+====================================
 
 new NetServer([options])
 -------------------------
@@ -35,8 +35,8 @@ new NetServer([options])
 Constructor for new NetServer instance.
 
 
-Event's Hooks
-=============
+NetServer Event's Hooks
+========================
 
 The net server object is not a event emitter, instead it uses the core server events to call hooks functions.
 
@@ -91,8 +91,8 @@ onWriteHook
 This hook function is called when data has been sennded by server to a client. It is called when connection socket write some data.
 
 
-Atributes
-==========
+NetServer's Atributes
+=====================
 
 Atribute: netServer.activeConnections
 --------------------------------------------
@@ -113,21 +113,21 @@ Atribute: netServer.coreServer
 
 This property is a node net.Server in nodbus tcpServer class or node udp.Socket in nodbus udpServer or serialport from serialport library in nodbus serialServer. 
 The netServer class in Nodbus-Plus library is a wrapper around one of this main class.
-      
 
+Atribute: netServer.isListening
+-------------------------------------
 
-Atribute: netServer.port
------------------------------
+* <bool> 
 
-* <number>
-
-Port to listen to.
+True if the coreServer is listening.
 
 
 Atribute: netServer.maxConnections
 -------------------------------------
 
 * <number>
+
+The max number of connection accepted in the tcpServer type of netServer. In udpServer has no efect.
 
 Atribute: netServer.onConnectionAcceptedHook
 ----------------------------------------------
@@ -184,6 +184,20 @@ Atribute: netServer.onWriteHook
 
 This property is a reference for a hook function. See :ref:`onWriteHook`
 
+Atribute: netServer.port
+-----------------------------
+
+* <number>
+
+Port to listen to.
+
+Atribute: netServer.tcpCoalescingDetection
+--------------------------------------------
+
+* <boolean>
+
+Activate o deactivate the tcp coalscing detection function for modbus tcp protocol. Default false.
+
 
 Atribute: netServer.validateFrame
 ----------------------------------
@@ -196,13 +210,12 @@ This property is a reference to a function that performs validation.
  It is called with a Buffer as argument with the modbus frame received.
 
 
-Methods
-=======
+NetServer's Methods
+====================
 
 
 Method: netServer.Start()
 -------------------------------
-
 
 This method start the server.
 

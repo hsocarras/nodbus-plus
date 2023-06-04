@@ -43,8 +43,8 @@ Constructor for new ModbusTcpServer instance.
       let modbusTcpServer = new ModbusTcpServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
 
 
-Methods
-=======
+ModbusTcpServer's Methods
+=========================
 
 See :ref:`ModbusServer Class Methods <modbus_server_methods>` for base class inherited methods.
 
