@@ -39,7 +39,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         //arguments check        
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
-        if(mbTcpServerCfg.tcpCoalescingDetection == undefined){ mbTcpServerCfg.connectionTimeout = defaultCfg.tcpCoalescingDetection}
+        if(mbTcpServerCfg.tcpCoalescingDetection == undefined){ mbTcpServerCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
 
         /**
         * network layer

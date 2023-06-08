@@ -32,7 +32,7 @@ class TcpServer {
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.connectionTimeout = defaultCfg.tcpCoalescingDetection}
+        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
 
         let self = this;
 
@@ -147,12 +147,13 @@ class TcpServer {
 
                 if(self.validateFrame(data)){
                     let messages = [];
+                    
                     //Active tcp coalesing detection
                     if(self.tcpCoalescingDetection){
                         //one tcp message can have more than one modbus indication.
                         //each modbus tcp message have a length field
                         messages = self.resolveTcpCoalescing(data);
-
+                        
                         messages.forEach((message) => {
                             if(self.onMbAduHook  instanceof Function){
                                 self.onMbAduHook(socket, message);

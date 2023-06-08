@@ -42,9 +42,11 @@ module.exports.CreateTcpServer = function (net = 'tcp', serverCfg){
           break
       case 'udp4':
           netType = NetUdpServer;
+          serverCfg.udpType = 'udp4';
           break
       case 'udp6':
           netType = NetUdpServer;
+          serverCfg.udpType = 'udp6';
           break
       default:
           netType = NetTcpServer;

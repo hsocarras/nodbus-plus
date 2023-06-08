@@ -11,7 +11,8 @@ const dgram = require('node:dgram');
 const defaultCfg = {
     port : 502,
     maxConnections : 32,
-    accessControlEnable: false,  
+    accessControlEnable: false, 
+    tcpCoalescingDetection : false, 
     //connectionTimeout : 0,
     udpType: 'udp4'
 }
@@ -28,11 +29,13 @@ class UdpServer {
     * @param {object} netCfg configuration object.
     */
     constructor(netCfg = defaultCfg, type){
-
+        
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.udpType != 'udp4' || netCfg.udpType != 'udp6'){ netCfg.udpType = defaultCfg.udpType}
+        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
+        if(netCfg.udpType != 'udp4' & netCfg.udpType != 'udp6'){ netCfg.udpType = defaultCfg.udpType}
+        
         
         var self = this;
 
@@ -53,7 +56,9 @@ class UdpServer {
 
         this.maxConnections = netCfg.maxConnections;
 
-        this.accessControlEnable = true;       
+        this.accessControlEnable = true;    
+        
+        this.tcpCoalescingDetection = netCfg.tcpCoalescingDetection;
         
          /**
         * listening status
@@ -111,7 +116,7 @@ class UdpServer {
         this.onServerCloseHook = noop;
         this.coreServer.on('close', function(){
 
-            self.coreServer.isListening = false;       
+            self.isListening = false;       
             self.onServerCloseHook();
                
         });
@@ -127,13 +132,15 @@ class UdpServer {
         */
         this.onWriteHook = noop;
 
+        //function for validating data****************************************************************
+        this.validateFrame = ()=>{ return false}
       
     } 
         
     /**
     * Start the tcp server
     */
-    Start (){
+    start (){
         var self = this; 
 
         this.coreServer.on('message', function(msg, rinfo){
@@ -152,6 +159,7 @@ class UdpServer {
                 let messages = [];
 
                 //Active tcp coalesing detection
+                
                 if(self.tcpCoalescingDetection){
                     //one tcp message can have more than one modbus indication.
                     //each modbus tcp message have a length field
@@ -186,7 +194,7 @@ class UdpServer {
     /**
     * Stop the tcp server
     */
-    Stop (){
+    stop (){
         //cerrando el server
         this.coreServer.close();      
     }
@@ -196,7 +204,7 @@ class UdpServer {
     * @param {number} socketIndex. Index to socket in connections array
     * @param {buffer} data
     */
-    Write (rinfo, frame){
+    write (rinfo, frame){
         let self = this;    
         
         self.coreServer.send(frame, 0, frame.length, rinfo.port, rinfo.address, function(){
@@ -204,6 +212,35 @@ class UdpServer {
                 self.onWrite(rinfo, frame);
             }
         })    
+    }
+
+    /**
+     * Split the input buffer in several indication buffer baset on length property
+     * of modbus tcp header. The goal of this funcion is suport several modbus indication
+     * on same tcp frame due to tcp coalesing.
+     * @param {Buffer Object} dataFrame 
+     * @return {Buffer array}
+     */
+    resolveTcpCoalescing(dataFrame){
+        //get de first tcp header length
+        let indicationsList = [];
+
+        if (dataFrame.length > 7){
+            let expectedlength = dataFrame.readUInt16BE(4);
+            let indication = Buffer.alloc(expectedlength + 6);
+
+            if(dataFrame.length == expectedlength + 6){
+                dataFrame.copy(indication);
+                indicationsList.push(indication);          
+            }
+            else if (dataFrame.length > expectedlength + 6){
+                dataFrame.copy(indication,  0, 0, expectedlength + 6);
+                indicationsList.push(indication);
+                indicationsList = indicationsList.concat(this.resolveTcpCoalescing(dataFrame.slice(expectedlength + 6)));          
+            }          
+        }   
+
+        return indicationsList;
     }
 }
 

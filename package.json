@@ -13,7 +13,7 @@
   ],
   "main": "src/nodbus-plus.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest --detectOpenHandles"
   },
   "author": {
     "name": "Héctor E. Socarrás Cabrera",
