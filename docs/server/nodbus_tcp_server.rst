@@ -13,10 +13,10 @@ Class: NodbusTcpServer
 
 The NodbusTcpServer class extends the :ref:`ModbusTcpServer Class <modbus_tcp_server>`. This class implements a fully funcional modbus tcp server.
 
-Creating a ModbusServer Instance
+Creating a NodbusTcpServer Instance
 ================================
 
-new ModbusServer([options])
+new ModbusServer([options], [netType])
 ---------------------------
 
 * **options** <object>: Configuration object with following properties:
@@ -29,18 +29,55 @@ new ModbusServer([options])
   
   * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
 
-* **Returns:** <ModbusServer>
+  * port <number>: TCP port on which the server will listen. Default 502
 
-Constructor for new ModbusServer instance.
+  * maxConnections <number>: Simultaneous conextions allowed by the server. Default 32.  
+
+  * tcpCoalescingDetection <boolean>: If this option is active the nodbus server can handle more than one modbus tcp adu in the same tcp package, 
+      otherwise only one adu per package will be accepted. Default true.
+
+  * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
+
+* **netType** <Class>: This argument define the constructor for the net layer. See :ref:`NetServer Class <nodbus_net_server>`
+
+* **Returns:** <NodbusTcpServer>
+
+NodbusPlus expose the function createServer([netConstructor], [options]) to create new instances for NodbusTcpClass
 
 .. code-block:: javascript
 
-      const ModbusServer = require('nodbus-plus').ModbusServer;
-      let modbusServer = new ModbusServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
+      const nodbus = require('nodbus-plus');
+      let nodbusTcpServer = nodbus.createTcpServer('tcp'); //default settings, net layer is tcp
 
+      let config = {
+         port:1502
+      }
+      // modbus tcp server listen to port 1502 and udp6
+      let nodbusTcpServer2 = nodbus.createTcpServer('udp6', config); 
+      //or udp version 4
+      let nodbusTcpServer3 = nodbus.createTcpServer('udp4', config); 
+
+However new Nodbus plus instance can be created with customs :ref:`NetServer <nodbus_net_server>` importing the NodbusTcpServer Class.
+
+.. code-block:: javascript
+
+      const NodbusTcpServer = require('nodbus-plus').NodbusTcpServer;
+      const NetServer = require('custom\net\custome_server.js');
+
+      let config = {};
+      let nodbusTcpServer = new NodbusTcpServer(config, NetServer);
+
+     
 
 NodbusTcpServer's Events
 =========================
+
+Event: 'connection'
+--------------
+
+* **socket** <Object>: A node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_
+
+Emitted when a client connect. Is only emmited when 'tcp' type layer is used.
 
 
 Event: 'error'
@@ -50,102 +87,35 @@ Event: 'error'
 
 Emitted when a error occurs.
 
-Event: 'mb_exception'
+
+Event: 'data'
 ---------------------
 
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
 
-.. raw:: html
+* **data** <Buffer>: Data received.
 
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
+Emitted when the underlaying net server emit the data event.
 
-Emitted when a Modbus exception occurs.
 
-Event: 'write'
+Event: 'request'
 --------------
 
-* **register** <number> Indicate wich register was written. 
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
 
-  * 0: Coils.
+* **request** <object>: A with following properties:
 
-  * 4: Holding registers.
-
-* **values** <Map>: A Map object.
-
-  * *key* <number>: The register offset. An integer between 0 and 65535.
+  * *timeStamp* <number>: A timestamp for the request.
   
-  * *value* <boolean|Buffer>: The register value, a boolean for coils or a buffer with a length of 2 bytes for holding registers.
+  * *transactionId* <number>: The header's transaction id field value.
 
-  .. code-block:: javascript
+  * *unitId* <number>: The header's unit id field value.
 
-      modbusServer.on('write', (reg, val) => {
-         if (reg === 0) {
-            // coil written
-            for (const coil of val.entries()) {
-               console.log('Coil 0x' + coil[0] + ' was modified by the client with a value of ' + coil[1]);
-            }
-         } else {
-            // holding register written
-            for (const holding of val.entries()) {
-               console.log('Holding register 4x' + holding[0] + ' was modified by the client with a value of ' + holding[1].readUInt16BE());
-            }
-         }
-      })
+  * *functionCode* <number>: The modbus request's function code.
+
+  * *data* <Buffer>: The pdu's data.
+
+  Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
 
 
 NodbusTcpServer's Atributes

@@ -7,14 +7,15 @@ let serverCfg = {
     inputs : 524,
     coils : 0,
     holdingRegisters : 512,
-    inputRegisters : 256,   
+    inputRegisters : 256,
+    tcpCoalescingDetection : false,   
     udpType : 'udp6', 
 }
 
 describe("Instanciate a nodbus tcp server with tcp net", () => {
 
        
-    let server1 = Nodbus.CreateTcpServer('tcp', serverCfg);
+    let server1 = Nodbus.createTcpServer('tcp', serverCfg);
     //let server2 = new ModbusTcpServer();
     
     it("instanciate transaction", () => {
@@ -29,7 +30,7 @@ describe("Instanciate a nodbus tcp server with tcp net", () => {
 describe("tcp server", () => {
 
        
-    let server1 = Nodbus.CreateTcpServer(serverCfg);
+    let server1 = Nodbus.createTcpServer();
     //let server2 = Nodbus.CreateTcpServer('tcp', serverCfg);
     let testClient = new net.Socket()  
 
@@ -112,7 +113,7 @@ describe("tcp server", () => {
 describe("udp server", () => {
 
        
-    let server2 = Nodbus.CreateTcpServer('udp6', serverCfg);
+    let server2 = Nodbus.createTcpServer('udp6', serverCfg);
     server2.port = 1502;
     
     let testClient2 = dgram.createSocket('udp6');

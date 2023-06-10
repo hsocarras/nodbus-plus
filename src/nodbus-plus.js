@@ -33,7 +33,7 @@ module.exports.NodbusTcpServer = NodbusTcpServer;
 * @param {Object} serverCfg: Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-module.exports.CreateTcpServer = function (net = 'tcp', serverCfg){
+module.exports.createTcpServer = function (net = 'tcp', serverCfg){
 
   let netType
   switch(net){

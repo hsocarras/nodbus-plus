@@ -1,4 +1,4 @@
-var nodbus = require('..');
+var nodbus = require('../');
 
 var mbTcpServerCfg = {};
 

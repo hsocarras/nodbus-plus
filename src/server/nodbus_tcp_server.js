@@ -40,7 +40,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
         if(mbTcpServerCfg.tcpCoalescingDetection == undefined){ mbTcpServerCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
-
+        if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
         /**
         * network layer
         * @type {object}
@@ -176,7 +176,12 @@ class NodbusTcpServer extends ModbusTcpServer {
         
         //Function to validate data in net layer
         this.net.validateFrame = (frame)=>{
-            return frame.length > 7
+            if(frame.length > 7){
+
+                let expectedLength = frame.readUInt16BE(4) + 6;
+                return frame.length == expectedLength;
+            }
+            return false;
         }
         
         //Sellando el netServer

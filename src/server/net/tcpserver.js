@@ -145,7 +145,7 @@ class TcpServer {
                     self.onDataHook(socket, data);
                 }
 
-                if(self.validateFrame(data)){
+                if(data.length > 7){
                     let messages = [];
                     
                     //Active tcp coalesing detection
@@ -155,7 +155,7 @@ class TcpServer {
                         messages = self.resolveTcpCoalescing(data);
                         
                         messages.forEach((message) => {
-                            if(self.onMbAduHook  instanceof Function){
+                            if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
                                 self.onMbAduHook(socket, message);
                             }
                         })
@@ -163,9 +163,14 @@ class TcpServer {
                     }
                     else{
                         //if tcpcoalesing is not active only one indication per tcp frame will be processed.
-                        if(self.onMbAduHook  instanceof Function){
-                            self.onMbAduHook(socket, data);
-                        }
+                        let expectedLength = data.readUInt16BE(4) + 6;
+                        if(data.length >= expectedLength){
+
+                            let message = data.subarray(0, expectedLength);
+                            if(self.onMbAduHook  instanceof Function & self.validateFrame(message)){
+                                self.onMbAduHook(socket, message);
+                            }
+                        }                        
                     }
                 }
                           

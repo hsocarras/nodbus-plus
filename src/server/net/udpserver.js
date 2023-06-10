@@ -154,7 +154,7 @@ class UdpServer {
                 self.onDataHook(rinfo, msg);
             }
 
-            if(self.validateFrame(msg)){
+            if(msg.length > 7){
 
                 let messages = [];
 
@@ -166,7 +166,7 @@ class UdpServer {
                     messages = self.resolveTcpCoalescing(msg);
 
                     messages.forEach((message) => {
-                        if(self.onMbAduHook  instanceof Function){
+                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
                             self.onMbAduHook(rinfo, message);
                         }
                     })
@@ -174,9 +174,14 @@ class UdpServer {
                 }
                 else{
                     //if tcpcoalesing is not active only one indication per tcp frame will be processed.
-                    if(self.onMbAduHook  instanceof Function){
-                        self.onMbAduHook(rinfo, msg);
-                    }
+                    let expectedLength = msg.readUInt16BE(4) + 6;
+                    if(msg.length >= expectedLength){
+
+                        let message = msg.subarray(0, expectedLength);
+                        if(self.onMbAduHook  instanceof Function & self.validateFrame(message)){
+                            self.onMbAduHook(rinfo, message);
+                        }
+                    }   
                 }
             }
 
