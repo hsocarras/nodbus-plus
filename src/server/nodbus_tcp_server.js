@@ -81,6 +81,7 @@ class NodbusTcpServer extends ModbusTcpServer {
                 this.emit('request', sock, req);
 
                 let resAdu = this.getResponseAdu(adu)
+                //this.emit('transaction', adu, resAdu)
                 this.net.write(sock, resAdu)
             }
             else return
@@ -185,7 +186,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         }
         
         //Sellando el netServer
-        Object.defineProperty(self, 'netServer', {
+        Object.defineProperty(self, 'net', {
             enumerable:false,
             writable:false,
             configurable:false
