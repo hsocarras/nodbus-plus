@@ -81,12 +81,20 @@ describe("tcp server", () => {
 
                 server1.on('request', reqCallback);
 
+                function resCallback(sock, res){
+                    expect(res.unitId).toEqual(255);
+                    expect(res.functionCode).toEqual(1);
+                    expect(res.data.length).toEqual(2);   
+                }
+
+                server1.on('response', resCallback);
+
                 function writeCallback(socket, frame){
                     expect(socket).toBeInstanceOf(net.Socket)
                     expect(frame[2]).toEqual(0);
                     expect(frame[6]).toEqual(255);
                 }
-
+                
                 testClient.write(adu1)    
                 
             }

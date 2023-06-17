@@ -168,9 +168,9 @@ A diagnostic counter. See Modbus spec for more details.
 Atribute: modbusSerialServer.transmitionMode
 ---------------------------------------------
 
-* <number>
+* <boolean>
 
-Accessor property to get and set the modbus's transmition mode. Allowed values are 0, 1 and 2 for auto, rtu and ascii mode.
+Property to define the modbus serial transmition mode. Allowed values are 0, 1 rtu and ascii mode. Default 0, 'rtu'.
 
 ModbusSerialServer's Methods
 ============================
@@ -219,15 +219,6 @@ Method: modbusSerialServer.getAddress(reqAduBuffer)
 * **Returns** <numkber>: Modbus Rtu address field.
 
 This method return the address field on a modbus rtu request.
-
-
-Method: modbusSerialServer.getChecksum(reqAduBuffer)
------------------------------------------------------
-
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
-* **Returns** <Buffer>: Modbus Rtu checksum field.
-
-This method return the 2 bytes length buffer containing the adu checksum field.
 
 
 Method: modbusSerialServer.getPdu(reqAduBuffer)

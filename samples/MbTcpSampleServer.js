@@ -1,11 +1,22 @@
 const nodbus = require('../');
 
-let server = nodbus.CreateTcpServer('tcp');
+//Default Server's Configuration object
+const cfg = {
+    inputs : 2048,
+    coils : 2048,
+    holdingRegisters : 10000,
+    inputRegisters : 10000,  
+    port : 502,
+    maxConnections : 32,
+    udpType : 'udp4',
+    tcpCoalescingDetection: true
+    }
 
+let server = nodbus.createTcpServer('tcp', cfg);
 
 server.on('listening', function(port){
     console.log('Server listening on: ' + port);    
-    repl()
+    //repl()
 });
 
 
@@ -18,6 +29,16 @@ server.on('closed', function(){
     process.exit();
 });
 
+server.on('request',function(sock,req){
+    console.log('Request')
+    console.log(req)
+})
+/*
+server.on('write',function(sock,frame){
+    console.log('Response')
+    console.log(frame)
+})
+*/
 function repl(){
 
     process.stdout.write(">>> ")
@@ -37,6 +58,16 @@ function repl(){
         }
     })
 }
-
+console.log(server.holdingRegisters.length)
+server.holdingRegisters.writeFloatBE(1.0,2*3507);
+server.holdingRegisters.writeFloatBE(1.0,2*3509);
+server.holdingRegisters.writeFloatBE(1.0,2*3597);
+server.holdingRegisters.writeFloatBE(1.0,2*3623);
+server.holdingRegisters.writeFloatBE(1.0,2*3539);
+server.holdingRegisters.writeFloatBE(1.0,2*3537);
+server.holdingRegisters.writeFloatBE(1.0,2*3547);
+server.holdingRegisters.writeFloatBE(1.0,2*3571);
+server.holdingRegisters.writeFloatBE(1.0,2*3577);
+server.holdingRegisters.writeFloatBE(1.0,2*3579);
 
 server.start();

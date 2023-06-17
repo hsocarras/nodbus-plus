@@ -5,70 +5,106 @@
 * @version 0.4.0
 */
 
-const ModbusSlave = require('../protocol/modbus_slave');
-const tcpServer = require('./net/tcpserver');
-const udpServer = require('./net/udpserver');
-const Request = require('../common/request');
-const Response = require('../common/response');
+const ModbusSerialServer = require('../protocol/modbus_server_serial');
+const SerialServer = require('./net/serialserver');
+
+
+//Default Server's Configuration object
+const defaultCfg = {
+    transmitionMode : 0, //transmition mode 0-auto, 1-rtu, 2-ascii
+    address : 1,
+    inputs : 2048,
+    coils : 2048,
+    holdingRegisters : 2048,
+    inputRegisters : 2048,  
+    maxConnections : 32,
+    udpType : 'udp4',    
+}
 
 
 /**
- * Class representing a modbus serial over tcp server.
- * @extends ModbusSlave
+ * Class representing a modbus serial server fully functional.
+ * @extends ModbusSerialServer
 */
-class ModbusSerialServer extends ModbusSlave {
+class NodbusSerialServer extends ModbusSerialServer {
   /**
-  * Create a Modbus Tcp Server.
-  * @param {number} p Port to listen.
-  * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
-  * @param {number} modbusAddress. address based on modbus protocol
-  * @param {string} mode mode of work. 'rtu' frame rtu only, 'ascii' frame ascii only, 'auto' (default) both mode
-  */
-    constructor(p = 502, tp='tcp', modbusAddress = 1, mode = 'rtu'){
-      super(modbusAddress);
+    * Create a Modbus Tcp Server.    
+    * @param {object} config object.
+    * @param {number} netClass: Constructor for network object
+    * 
+    */
+    constructor(mbTcpServerCfg = defaultCfg, netClass = SerialServer){
+        super(mbTcpServerCfg);
 
-      var self = this;
+        var self = this;
 
-      var transportProtocol
-      if(typeof tp == 'string'){
-        transportProtocol = tp
-      }
-      else{
-        throw new TypeError('transport protocol should be a string')
-      }
+        //arguments check        
+        mbTcpServerCfg.tcpCoalescingDetection = false;
+        if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}      
+        if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
 
-      /**
-      * network layer
-      * @type {object}
-      */
-      switch(transportProtocol){
-        case 'udp4':
-          this.netServer = new udpServer(p, 'udp4');
-          break;
-        case 'udp6':
-          this.netServer = new udpServer(p, 'udp6');
-          break;
-        default:
-            this.netServer = new tcpServer(p);
-      }
-      
-      //Adding listeners to netServer events
+        /**
+         * network layer
+         * @type {object}
+         */
+        try {
+            this.net = new netClass(mbTcpServerCfg);
+        }
+        catch(e){
+            this.emit('error', e);
+            this.net = new TcpServer(mbTcpServerCfg);
+        }
 
-      this.netServer.onData = this.ProcessModbusIndication.bind(this);
+        //Adding listeners to netServer events
+        //function to call by net interface when data arrive.
+        this.net.onDataHook = (socket, dataFrame) => {
+            /**
+             * indication event.
+             * @event ModbusnetServer#indication
+             */
+            this.emit('data', socket, dataFrame);
+        };
+
+        this.net.onMbAduHook = (sock, adu) =>{
+          
+            let pdu = adu.subarray(1, adu.length - 2);
+            let req = {};
+
+            req.timeStamp = Date.now();
+            req.address = adu[0];
+            req.checkSum = this.;
+              req.functionCode = pdu[0];
+              req.data = pdu.subarray(1);
+
+              this.emit('request', sock, req);
+
+              let resAdu = this.getResponseAdu(adu)
+              let res = {};
+
+              res.timeStamp = Date.now();
+              res.transactionId = resAdu.readUint16BE(0);
+              req.unitId = resAdu[6];
+              req.functionCode = resAdu[7];
+              req.data = resAdu.subarray(8);
+              this.emit('response',sock, resAdu)
+              this.net.write(sock, resAdu)
+          
+          
+      };
 
       /**
       * @fires ModbusnetServer#connection
       */
-       this.netServer.onConnection = function EmitConnection (socket) {
+      this.net.onConnectionAcceptedHook = (socket) => {
           /**
-         * connection event.
-         * Emited when new connecton is sablished
-         * @event ModbusnetServer#connection
-         * @type {object}
-         * @see https://nodejs.org/api/net.html
-         */
+           * connection event.
+           * Emited when new connecton is sablished
+           * @event ModbusnetServer#connection
+           * @type {object}
+           * @see https://nodejs.org/api/net.html
+           */
           this.emit('connection',socket);
-      }.bind(this);
+      };
 
 
       /**
@@ -283,4 +319,4 @@ class ModbusSerialServer extends ModbusSlave {
     
 }
 
-module.exports = ModbusSerialServer;
+module.exports = NodbusSerialServer;

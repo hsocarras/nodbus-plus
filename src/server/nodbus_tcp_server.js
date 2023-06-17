@@ -22,7 +22,7 @@ const defaultCfg = {
     }
 
 /**
- * Class representing a modbus tcp server fully functionl.
+ * Class representing a modbus tcp server fully functional.
  * @extends ModbusTcpServer
 */
 class NodbusTcpServer extends ModbusTcpServer {
@@ -81,7 +81,14 @@ class NodbusTcpServer extends ModbusTcpServer {
                 this.emit('request', sock, req);
 
                 let resAdu = this.getResponseAdu(adu)
-                //this.emit('transaction', adu, resAdu)
+                let res = {};
+
+                res.timeStamp = Date.now();
+                res.transactionId = resAdu.readUint16BE(0);
+                res.unitId = resAdu[6];
+                res.functionCode = resAdu[7];
+                res.data = resAdu.subarray(8);
+                this.emit('response',sock, res)
                 this.net.write(sock, resAdu)
             }
             else return

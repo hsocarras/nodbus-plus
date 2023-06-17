@@ -12,7 +12,7 @@ const valByte2Chars = require('./utils.js').valByteToChars
 
 //Default Server's Configuration object
 const defaultCfg = {
-    transmitionMode : 0, //transmition mode 0-auto, 1-rtu, 2-ascii
+    transmitionMode : 0, //transmition mode 0 - rtu or 1 - ascii
     address : 1,
     inputs : 2048,
     coils : 2048,
@@ -33,9 +33,11 @@ class ModbusSerialServer extends ModbusServer {
 
         var self = this;
 
-         //arguments check
-         if(mbSerialServerCfg.transmitionMode == undefined){mbSerialServerCfg.transmitionMode = defaultCfg.transmitionMode;}
-         if(mbSerialServerCfg.address == undefined){ mbSerialServerCfg.address = defaultCfg.address;}  
+        //arguments check
+        if(mbSerialServerCfg.transmitionMode == undefined | (mbSerialServerCfg.transmitionMode != 0 & mbSerialServerCfg.transmitionMode != 1)){
+            mbSerialServerCfg.transmitionMode = defaultCfg.transmitionMode;
+        }
+        if(mbSerialServerCfg.address == undefined){ mbSerialServerCfg.address = defaultCfg.address;}  
         
         /**
         * address property       
@@ -50,7 +52,7 @@ class ModbusSerialServer extends ModbusServer {
         * @type {number}
         * @private
         */
-        this._transmitionMode = mbSerialServerCfg.transmitionMode;   
+        this.transmitionMode = mbSerialServerCfg.transmitionMode;   
         
         //add serial function codes
         this._internalFunctionCode.set(7, 'readExceptionCoilsService');
@@ -116,52 +118,44 @@ class ModbusSerialServer extends ModbusServer {
         else{
             this._address = 1;
         }
-    }
-
-    get transmitionMode(){
-        return this._transmitionMode;
-    }
-    set transmitionMode(mode){
-        if(mode instanceof Number){
-            if(mode >= 0 & mode <= 2){
-                this._transmitionMode = mode;
-            }
-            else{
-                this._transmitionMode = 0;
-            }
-        }
-        else{
-            this._transmitionMode = 0;
-        }
-    }    
+    } 
 
     /**
-     * Function to get the address on a serial adu request.
+     * Function to get the address on a serial adu request in rtu format.
      * @param {Buffer} reqAduBuffer 
      * @returns {number} server address on requesr.
      */
     getAddress(reqAduBuffer){
-        return reqAduBuffer[0];
+        
+        if(this.transmitionMode == 1){
+            //Modbus Ascii Frame            
+            return  parseInt('0x' + String.fromCharCode(reqAduBuffer[1]) + String.fromCharCode(reqAduBuffer[2]));
+        }
+        else {
+            //Modbus Rtu Frame
+            return reqAduBuffer[0];
+        }
     }
     
     /**
-     * Function to get the pdu buffer from a serial adu request.
+     * Function to get the pdu buffer from a serial adu request in rtu format
      * @param {Buffer} reqAduBuffer 
      * @returns {Buffer} Pdu's buffer.
      */
     getPdu(reqAduBuffer){
-        return reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+        if(this.transmitionMode == 1){
+            //Modbus Ascii Frame
+            let reqAduRtuBuffer = this.aduAsciiToRtu(reqAduBuffer);            
+            return reqAduRtuBuffer.subarray(1,reqAduBuffer.length-2);
+        }
+        else {
+            //Modbus Rtu Frame
+            return reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+        }
+        
     }
 
-    /**
-     * Function to get the checsum buffer from a serial adu request.
-     * @param {Buffer} reqAduBuffer 
-     * @returns {Buffer} Two bytes Buffer length with the checksum.
-     */
-    getChecksum(reqAduBuffer){
-        return reqAduBuffer.subarray(reqAduBuffer.length - 2);
-    }
-    
+        
     /**
     * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
     * See MODBUS over serial line specification and implementation guide V1.02
@@ -181,18 +175,17 @@ class ModbusSerialServer extends ModbusServer {
                 
                 this.busMessageCount++;
                 let reqPduBuffer
-                if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
-                    let reqAduRtuBuffer = aduAscciiToRtu(reqAduBuffer)
-                    reqPduBuffer = reqAduRtuBuffer.subarray(1,reqAduRtuBuffer.length-2);
+                if(this.transmitionMode == 1){
+                    reqAduBuffer = this.aduAsciiToRtu(reqAduBuffer);                                               
+                    reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
                 }
                 else {
                     reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
                 }
-                
-              
+                            
                 //checking message address
                 if(this.address == reqAduBuffer[0] || reqAduBuffer[0] == 0){
-
+                    
                     this.slaveMessageCount++;
                     
 
@@ -204,6 +197,7 @@ class ModbusSerialServer extends ModbusServer {
                         if(noResPdu[0] == reqPduBuffer[0] + 0x80){
                             this.slaveExceptionErrorCount++;
                         }
+                        
                         return null
                     }
                     else{
@@ -216,9 +210,9 @@ class ModbusSerialServer extends ModbusServer {
                         let resRtuAduBuffer = Buffer.alloc(resPduBuffer.length + 3);
                         resRtuAduBuffer[0] = this.address;                        
                         resPduBuffer.copy(resRtuAduBuffer, 1)
-
-                        if(this.transmitionMode == 2 | (this.transmitionMode == 0 & reqAduBuffer[0] == 0x3A)){
-                            resAduBuffer = aduRtuToAscii(resRtuAduBuffer)
+                        
+                        if(this.transmitionMode == 1){
+                            resAduBuffer = this.aduRtuToAscii(resRtuAduBuffer)
                         }
                         else {
                             //calculating CRC
@@ -232,16 +226,16 @@ class ModbusSerialServer extends ModbusServer {
 
                     }
                 }
-                else{ 
+                else{ console.log('null 3')     
                     return null;
                 }
             }
-            else{                    
+            else{                       
                 this.busCommunicationErrorCount++;
                 return null;
             }
         }
-        else{                
+        else{           
             this.busCommunicationErrorCount++;
             return null;
         }
@@ -329,7 +323,7 @@ class ModbusSerialServer extends ModbusServer {
         let calcErrorCheck = 0;
         let frameErrorCheck = 0;
 
-        if(this.transmitionMode == 2 | (this.transmitionMode == 0 & frame[0] == 0x3A)){
+        if(this.transmitionMode == 1){
             //Modbus Ascii Frame
             calcErrorCheck = this.calcLRC(frame);
             frameErrorCheck = Number('0x' + frame.toString('ascii', frame.length-4, frame.length-2));

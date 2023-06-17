@@ -1,0 +1,179 @@
+/**
+**  Serial server module.
+* @module net/tcpserver.
+* @author Hector E. Socarras.
+* @version 1.0.0
+*/
+
+const { SerialPort } = require('serialport') 
+
+//Default Server's Configuration object
+const defaultCfg = {
+    
+    speed : 7, //Enum startin at 0
+    dataBits : 8,    
+    stopBits : 1,
+    parity : 0,
+}
+
+//No operation default function for listeners
+const noop = () => {};
+
+//BaudRates Map
+const allowedBaudRates = [110, 300, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200];
+const allowedParity = ['none', 'even', 'odd'];
+
+/**
+ * Class to wrap a serial port.
+ */
+class SerialServer {
+    /**
+    * Create a Serial Server.
+    * @param {object} netCfg configuration object.
+    */
+    constructor(netCfg = defaultCfg){
+
+        netCfg.autoOpen = false;
+        if(netCfg.speed == undefined){ netCfg.speed = defaultCfg.speed}
+        netCfg.baudRate = allowedBaudRates[netCfg.speed];
+        if(netCfg.dataBits == undefined){ netCfg.dataBits = defaultCfg.dataBits}
+        if(netCfg.stopBits == undefined){ netCfg.stopBits = defaultCfg.stopBits}
+        if(netCfg.parity == undefined | netCfg.parity < 0 | netCfg.parity > 2){ netCfg.parity = allowedParity[defaultCfg.parity]}
+
+        let self = this;
+
+        /**
+        * tcp server
+        * @type {Object}
+        */
+        this.coreServer = new SerialPort(netCfg);
+
+        //array whit connections
+        this.activeConnections = [];
+      
+        /**
+        * port
+        * @type {number}
+        */
+        this.port = netCfg.port;  
+                
+        
+
+        //API Callback interfaces****************************************************************************************************************************************
+
+        /**
+        *  function to executed when event data is emited
+        * @param {Buffer} data
+        */
+        this.onDataHook = noop;
+        coreServer.on('data',function(data){
+                
+            if(self.onDataHook instanceof Function){
+                self.onDataHook(self, data);
+            }      
+
+                        
+            if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){
+                self.onMbAduHook(self, data);
+            }                 
+                      
+        });
+
+        /**
+        *  function to executed when modbus message is detected
+        * @param {Buffer} data
+        */
+        this.onMbAduHook = noop;
+
+        /**
+        *  function to executed when event listening is emited
+        */
+        this.onListeningHook = noop;
+        this.coreServer.on('open', () => {          
+            self.onListeningHook();          
+        });
+
+        
+        /**
+        *  function to executed when event error is emited
+        * @param {Object} error
+        */
+        this.onErrorHook = noop;
+        this.coreServer.on('error', (e) => {            
+            self.onErrorHook(e);            
+        });
+
+        /**
+        *  function to executed when event close is emited
+        */
+        this.onServerCloseHook = noop;
+        this.coreServer.on('close', function(){            
+             
+            self.onServerCloseHook();
+               
+        });
+
+
+        /**
+        *  function to executed when event write is emited
+        * @param {Buffer} buff
+        */
+        this.onWriteHook = noop;
+        //******************************************************************************************************************************************************
+
+        //function for validating data****************************************************************
+        this.validateFrame = ()=>{ return false}
+
+        
+
+    }     
+
+    /**
+    * listening status
+    * @type {boolean}
+    */
+    get isListening(){
+        return this.coreServer.isOpen;
+    }
+
+      
+    /**
+    * Start the tcp server
+    */
+    start (){
+        
+        this.coreServer.open(function (err) {
+            if (err) {
+                self.onErrorHook(e); 
+            }
+          
+        })
+          
+    }
+
+    /**
+    * Stop the tcp server
+    */
+    stop (){
+        //cerrando el server 
+        this.coreServer.close(); 
+    }
+
+    /**
+    * function to write in a conection. Callback to onWriteHook hook function.
+    * @param {number} socketIndex. Index to socket in connections array
+    * @param {buffer} data
+    */
+    write (socket, frame){
+        let self = this;   
+        
+        let writePromise = this.coreServer.write(frame);
+        writePromise.then(function(){
+            self.onWriteHook(socket, frame);
+        })
+    }
+    
+
+}
+
+module.exports = SerialServer;

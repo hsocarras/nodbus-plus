@@ -132,6 +132,26 @@ Event: 'request'
   Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
 
 
+Event: 'response'
+----------------
+
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+
+* **response** <object>: A with following properties:
+
+  * *timeStamp* <number>: A timestamp for the request.
+  
+  * *transactionId* <number>: The header's transaction id field value.
+
+  * *unitId* <number>: The header's unit id field value.
+
+  * *functionCode* <number>: The modbus request's function code.
+
+  * *data* <Buffer>: The pdu's data.
+
+  Emited before to send the response adu's buffer to the socket to be sended.
+
+
 Event: 'write'
 ---------------------
 
