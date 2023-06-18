@@ -47,7 +47,7 @@ describe("getPdu", () => {
         expect(pdu1[0]).toEqual(3);        
         expect(pdu1[3]).toEqual(0);  
         expect(pdu1[4]).toEqual(10);  
-        expect(pdu1.length).toEqual(7);        
+        expect(pdu1.length).toEqual(5);        
     } );
     it("pdu 2", () => {
         let pdu2 = server2.getPdu(adu2)  
@@ -62,6 +62,25 @@ describe("getPdu", () => {
     
 });
 
+describe("get checksum", ()=>{
+
+    let adu1 = Buffer.from([0x3A, 0x30, 0x31, 0x30, 0x33, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x41, 0x46, 0x32, 0x0D, 0x0A]); //01 03 00 00 00 0A C5 CD
+    let adu2 = Buffer.from([0x0A, 0x02, 0x00, 0x01, 0x00, 0x16, 0x7F, 0xA9]);   
+   
+    let server1 = new ModbusSerialServer(server1Cfg);
+    let server2 = new ModbusSerialServer();
+    
+    it("cheksum1", () => {
+        let lrc = server1.getChecksum(adu1)        
+          
+        expect(lrc).toEqual(0xF2);        
+    } );
+    it("pdu 2", () => {
+        let crc = server2.getChecksum(adu2)          
+        expect(crc).toEqual(0xA97F);  
+        
+    } );
+})
 
 //calcLRC Test
 describe("Testing calcLRC method", () => {
@@ -229,29 +248,38 @@ describe("Read Exception Coils status", () => {
 });
 
 //test broatcast logic
-describe("Receiving a broadcast pdu", () =>{
-    let pdu1 = Buffer.from([0x03, 0x00, 0x00, 0x00, 0x06]);
-    let pdu2 = Buffer.from([0x06, 0x00, 0x01, 0x00, 0x16]); 
-
+describe("Receiving a broadcast adu", () =>{
+    let adu1 = Buffer.from([0x0A, 0x02, 0x00, 0x01, 0x00, 0x16, 0xA9, 0x7F]);
+    let adu2 = Buffer.from([0x01, 0x03, 0x15, 0xB3, 0x00, 0x0A, 0x30, 0x26]);
     let server1 = new ModbusSerialServer();
 
-    it("testing pdu1", () => {
+    test("test1", () => {
         
-        let res1 = server1.processBroadcastReqPdu(pdu1)  
+        let slaveMessageCount = server1.slaveMessageCount;
+        let slaveNoResponseCount = server1.slaveNoResponseCount;
+
+        let res1 = server1.executeBroadcastReq(adu1)  
        
-        expect(res1[0]).toEqual(0x83);     
-        expect(res1[1]).toEqual(1);  
-        expect(res1.length).toEqual(2);      
+        expect(slaveMessageCount + 1).toEqual(server1.slaveMessageCount);     
+        expect(slaveNoResponseCount + 1).toEqual(server1.slaveNoResponseCount);  
+            
           
     });
-    it("testing adu2", () => {
+
+    test("test2", () => {
         
-        let res2 = server1.processBroadcastReqPdu(pdu2)  
+        let slaveMessageCount = server1.slaveMessageCount;
+        let slaveNoResponseCount = server1.slaveNoResponseCount;
+        let slaveExceptionErrorCount = server1.slaveExceptionErrorCount
+
+        let res1 = server1.executeBroadcastReq(adu2)  
        
-        expect(res2[0]).toEqual(0x6);     
-        expect(res2[4]).toEqual(0x16);  
+        expect(slaveMessageCount + 1).toEqual(server1.slaveMessageCount);     
+        expect(slaveNoResponseCount + 1).toEqual(server1.slaveNoResponseCount);
+        expect(slaveExceptionErrorCount + 1).toEqual(server1.slaveExceptionErrorCount);             
           
     });
+    
 });
 
 //test main function
@@ -266,32 +294,14 @@ describe("Receiving adu", () =>{
     let server1 = new ModbusSerialServer();
     let server2 = new ModbusSerialServer(server1Cfg);
     
-    it("bus error", () => {
-        let resp = server1.getResponseAdu(adu1) 
-        //less than 4 bytes
-        expect(server1.busCommunicationErrorCount).toEqual(1);
-        expect(resp).toEqual(null);
-        //wrong crc
-        resp = server1.getResponseAdu(adu2)
-        expect(server1.busCommunicationErrorCount).toEqual(2);
-        expect(resp).toEqual(null);   
-        
-        
-    } );
-
+    
     it("wrong address", () => {
-        let resp = server1.getResponseAdu(adu3);
-        expect(resp).toEqual(null);
+        let resp = server1.validateAddress(adu3);
+        expect(resp).toEqual(false);
     });
 
     it("valid adu", () => {
-        let resp = server1.getResponseAdu(adu4);
         
-        expect(server1.slaveMessageCount).toEqual(1);
-        expect(server1.slaveNoResponseCount).toEqual(1);
-        expect(server1.slaveExceptionErrorCount).toEqual(1);
-        expect(resp).toEqual(null);
-
         resp = server1.getResponseAdu(adu5);
         
         expect(resp[0]).toEqual(0x01);
@@ -302,7 +312,7 @@ describe("Receiving adu", () =>{
     
     test('ascii', ()=>{
         let resp = server2.getResponseAdu(adu6);
-       
+        
         expect(resp[0]).toEqual(0x3A);
         expect(resp[1]).toEqual(0x30);
         expect(resp[2]).toEqual(0x41);

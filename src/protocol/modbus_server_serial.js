@@ -55,21 +55,7 @@ class ModbusSerialServer extends ModbusServer {
         this.transmitionMode = mbSerialServerCfg.transmitionMode;   
         
         //add serial function codes
-        this._internalFunctionCode.set(7, 'readExceptionCoilsService');
-
-        /**
-        * Get server's modbus functions code supported on broadcast network
-        * @return {set object} a set objects with funcion codes suported for the server
-        *
-        */
-        this._broadcastFunctionCode = new Map();        
-        this._broadcastFunctionCode.set(5, 'writeSingleCoilService');
-        this._broadcastFunctionCode.set(6, 'writeSingleRegisterService');
-        this._broadcastFunctionCode.set(15, 'writeMultipleCoilsService');
-        this._broadcastFunctionCode.set(16, 'writeMultipleRegistersService');
-        this._broadcastFunctionCode.set(22, 'maskWriteRegisterService');
-        this._broadcastFunctionCode.set(23, 'readWriteMultipleRegistersService');
-         
+        this._internalFunctionCode.set(7, 'readExceptionCoilsService');         
         
         /**
         * Exception Coils      
@@ -146,11 +132,28 @@ class ModbusSerialServer extends ModbusServer {
         if(this.transmitionMode == 1){
             //Modbus Ascii Frame
             let reqAduRtuBuffer = this.aduAsciiToRtu(reqAduBuffer);            
-            return reqAduRtuBuffer.subarray(1,reqAduBuffer.length-2);
+            return reqAduRtuBuffer.subarray(1,reqAduRtuBuffer.length-2);
         }
         else {
             //Modbus Rtu Frame
             return reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+        }
+        
+    }
+
+    /**
+     * Function to get the pdu buffer from a serial adu request in rtu format
+     * @param {Buffer} reqAduBuffer 
+     * @returns {Buffer} Pdu's buffer.
+     */
+    getChecksum(reqAduBuffer){
+        if(this.transmitionMode == 1){
+            //Modbus Ascii Frame                        
+            return this.calcLRC(reqAduBuffer);
+        }
+        else {
+            //Modbus Rtu Frame
+            return this.calcCRC(reqAduBuffer);
         }
         
     }
@@ -160,84 +163,54 @@ class ModbusSerialServer extends ModbusServer {
     * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
     * See MODBUS over serial line specification and implementation guide V1.02
     * @param {Buffer}  modbus indication's frame
-    * @return {Buffer} Adu  if success, otherwise null
+    * @return {Buffer} Response Adu 
     * 
     */
     getResponseAdu(reqAduBuffer){
 
-        var self = this;
-        
+        var self = this;        
          
-        if(reqAduBuffer.length > 3){
+        if(reqAduBuffer instanceof Buffer){
             
             //check CRC or LRC 
-            if(this.validateCheckSum(reqAduBuffer)){
+            if(reqAduBuffer.length >= 3){                
                 
-                this.busMessageCount++;
-                let reqPduBuffer
+                let reqPduBuffer = this.getPdu(reqAduBuffer);
+                    
+                this.slaveMessageCount++;
+                
+                let resPduBuffer = this.processReqPdu(reqPduBuffer);
+
+                if(resPduBuffer[0] == reqPduBuffer[0] + 0x80){      //exception response
+                    this.slaveExceptionErrorCount++;
+                }
+
+                //calculando la adu
+                let resAduBuffer;
+                let resRtuAduBuffer = Buffer.alloc(resPduBuffer.length + 3);
+                resRtuAduBuffer[0] = this.address;                        
+                resPduBuffer.copy(resRtuAduBuffer, 1)
+                        
                 if(this.transmitionMode == 1){
-                    reqAduBuffer = this.aduAsciiToRtu(reqAduBuffer);                                               
-                    reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+                    resAduBuffer = this.aduRtuToAscii(resRtuAduBuffer)
                 }
                 else {
-                    reqPduBuffer = reqAduBuffer.subarray(1,reqAduBuffer.length-2);
+                    //calculating CRC
+                    let crc = this.calcCRC(resRtuAduBuffer);
+
+                    resAduBuffer = resRtuAduBuffer;                            
+                    resAduBuffer.writeUint16BE(crc, resAduBuffer.length - 2);
                 }
-                            
-                //checking message address
-                if(this.address == reqAduBuffer[0] || reqAduBuffer[0] == 0){
-                    
-                    this.slaveMessageCount++;
-                    
 
-                    if(reqAduBuffer[0] == 0){
-                        //is Broadcast
-                        this.slaveNoResponseCount++;
-
-                        let noResPdu = this.processBroadcastReqPdu(reqPduBuffer);
-                        if(noResPdu[0] == reqPduBuffer[0] + 0x80){
-                            this.slaveExceptionErrorCount++;
-                        }
-                        
-                        return null
-                    }
-                    else{
-                        let resPduBuffer = this.processReqPdu(reqPduBuffer);
-                        if(resPduBuffer[0] == reqPduBuffer[0] + 0x80){
-                            this.this.slaveExceptionErrorCount++;
-                        }
-                        //calculando la adu
-                        let resAduBuffer;
-                        let resRtuAduBuffer = Buffer.alloc(resPduBuffer.length + 3);
-                        resRtuAduBuffer[0] = this.address;                        
-                        resPduBuffer.copy(resRtuAduBuffer, 1)
-                        
-                        if(this.transmitionMode == 1){
-                            resAduBuffer = this.aduRtuToAscii(resRtuAduBuffer)
-                        }
-                        else {
-                            //calculating CRC
-                            let crc = this.calcCRC(resRtuAduBuffer);
-
-                            resAduBuffer = resRtuAduBuffer;                            
-                            resAduBuffer.writeUint16BE(crc, resAduBuffer.length - 2);
-                        }
-
-                        return resAduBuffer;
-
-                    }
-                }
-                else{ console.log('null 3')     
-                    return null;
-                }
+                return resAduBuffer;                    
+                
             }
             else{                       
-                this.busCommunicationErrorCount++;
-                return null;
+                throw new RangeError("Pdu's length must be between 0 an 253");
             }
         }
         else{           
-            this.busCommunicationErrorCount++;
-            return null;
+            throw new TypeError("request adu must be Buffer objects");
         }
         
         
@@ -246,42 +219,41 @@ class ModbusSerialServer extends ModbusServer {
     }  
 
     /**
-    * @brief Server function.Ident to process req pdu but only in broadcast mode, execute de service and return a response pdu.
-    * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
-    * @fires ModbusServer#mb_exception
-    * @fires ModbusServer#write
+    * @brief Similar to getResponseAdu but return nothing, just execute the request service without response. Used when broadcast address is receivedd
+    * @param {Buffer} reqAduBuffer request buffer
+    * @fires ModbusServer#mb_exception    
     * @fires ModbusServer#error
     * @return {Buffer} buffer containing a protocol data unit
     */
-    processBroadcastReqPdu(reqPduBuffer) {
+    executeBroadcastReq(reqAduBuffer) {
 
         let self = this;
-        let functionCode = reqPduBuffer[0];      
         
-        //Check for function code
-        if(this._broadcastFunctionCode.has(functionCode)){
-  
-            try {
-                //gets pdu data
-                let reqPduData = Buffer.alloc(reqPduBuffer.length - 1);
-                reqPduBuffer.copy(reqPduData,0,1);
-  
-                let serviceName = this._broadcastFunctionCode.get(functionCode);      //get de function code prossesing function
-                var resPduBuffer = this[serviceName](reqPduData);                          //execute service procesing
-              
-                return resPduBuffer;
+        if(reqAduBuffer instanceof Buffer){
+            
+            //check CRC or LRC 
+            if(reqAduBuffer.length >= 3){
+                
+                
+                let reqPduBuffer = this.getPdu(reqAduBuffer);
+                    
+                this.slaveMessageCount++;
+                //is Broadcast
+                this.slaveNoResponseCount++;
+
+                let noResPdu = this.processReqPdu(reqPduBuffer);
+
+                if(noResPdu[0] == reqPduBuffer[0] + 0x80){
+                    this.slaveExceptionErrorCount++;
+                }
+                
             }
-            catch(e){
-                //reply modbus exception 4
-                resPduBuffer = this.makeExceptionResPdu(functionCode, 4);    //Slave failure exception response
-                this.emit('error', e);      
-                return resPduBuffer;
+            else{                       
+                throw new RangeError("Pdu's length must be between 0 an 253");
             }
-        }        
-        else{ 
-            //reply modbus exception 1
-            resPduBuffer = this.makeExceptionResPdu(functionCode, 1);           
-            return resPduBuffer;
+        }
+        else{           
+            throw new TypeError("request adu must be Buffer objects");
         }
   
     }
@@ -312,6 +284,23 @@ class ModbusSerialServer extends ModbusServer {
         }
       return resPduBuffer;
     } 
+
+    /**
+    * Check the address field of the frame.
+    * @param {Buffer} frame frame off modbus indication
+    * @return {boolean} return true if the frame's address field match withserver address or is 0.    
+    */
+    validateAddress(frame){
+
+        let addressField = this.getAddress(frame);
+
+        if (addressField == this.address | addressField == 0){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
 
     /**
     * Check the CRC or LRC on the frame.

@@ -216,7 +216,7 @@ Method: modbusSerialServer.getAddress(reqAduBuffer)
 ---------------------------------------------------
 
 * **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
-* **Returns** <numkber>: Modbus Rtu address field.
+* **Returns** <number>: Modbus Rtu address field.
 
 This method return the address field on a modbus rtu request.
 
@@ -228,6 +228,14 @@ Method: modbusSerialServer.getPdu(reqAduBuffer)
 * **Returns** <Buffer>: Modbus Rtu pdu.
 
 This method return the pdu on a modbus rtu request.
+
+Method: modbusSerialServer.getChecksum(reqAduBuffer)
+---------------------------------------------------
+
+* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
+* **Returns** <number>: Modbus message checsum.
+
+This method return the checksum for the modbus's frame.
 
 
 Method: modbusSerialServer.getResponseAdu(reqAduBuffer)
@@ -266,6 +274,14 @@ Method: modbusSerialServer.resetCounters()
 
 This method set to 0 all diagnostic counter in the modbus serial server.
 
+
+Method: modbusSerialServer.validateAddress(frame)
+--------------------------------------------------
+
+* **frame** <Buffer>: A serial adu request buffer received by server.
+* **Returns** <bool>: true if field field is 0 or match the server's address, otherwise false.
+
+This method validate the address field of the modbus frame, if it match the server's address or if is the broadcast address it returns true.
 
 Method: modbusSerialServer.validateCheckSum(frame)
 --------------------------------------------------

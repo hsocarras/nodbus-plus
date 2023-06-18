@@ -67,9 +67,9 @@ class NodbusTcpServer extends ModbusTcpServer {
         this.net.onMbAduHook = (sock, adu) =>{
 
             //Checking PDU Modbus Tcp Implementation Guide Figure 16
-            let header = adu.subarray(0, 7);
+            let header = this.getMbapHeader(adu);
             if(this.validateMbapHeader(header)){
-                let pdu = adu.subarray(7);
+                let pdu = this.getPdu(adu);
                 let req = {};
 
                 req.timeStamp = Date.now();
@@ -192,7 +192,7 @@ class NodbusTcpServer extends ModbusTcpServer {
             return false;
         }
         
-        //Sellando el netServer
+        //Sealling net layer object
         Object.defineProperty(self, 'net', {
             enumerable:false,
             writable:false,

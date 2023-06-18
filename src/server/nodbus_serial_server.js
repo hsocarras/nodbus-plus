@@ -67,44 +67,49 @@ class NodbusSerialServer extends ModbusSerialServer {
 
         this.net.onMbAduHook = (sock, adu) =>{
           
-            let pdu = adu.subarray(1, adu.length - 2);
+            let pdu = this.getPdu;
             let req = {};
 
             req.timeStamp = Date.now();
-            req.address = adu[0];
-            req.checkSum = this.;
-              req.functionCode = pdu[0];
-              req.data = pdu.subarray(1);
+            req.address = this.getAddress(adu)
+            req.checkSum = this.getChecksum(adu);
+            req.functionCode = pdu[0];
+            req.data = pdu.subarray(1);
 
-              this.emit('request', sock, req);
+            this.emit('request', sock, req);
 
-              let resAdu = this.getResponseAdu(adu)
-              let res = {};
+            let resAdu;
+            if(req.address == 0){
+                this.executeBroadcastReq(adu);
+            }
+            else{
+                resAdu = this.getResponseAdu(adu);
+                let res = {};
 
-              res.timeStamp = Date.now();
-              res.transactionId = resAdu.readUint16BE(0);
-              req.unitId = resAdu[6];
-              req.functionCode = resAdu[7];
-              req.data = resAdu.subarray(8);
-              this.emit('response',sock, resAdu)
-              this.net.write(sock, resAdu)
+                res.timeStamp = Date.now();
+                res.transactionId = resAdu.readUint16BE(0);
+                req.unitId = resAdu[6];
+                req.functionCode = resAdu[7];
+                req.data = resAdu.subarray(8);
+                this.emit('response',sock, resAdu)
+                this.net.write(sock, resAdu)
+            }
           
-          
-      };
+        };
 
-      /**
-      * @fires ModbusnetServer#connection
-      */
-      this.net.onConnectionAcceptedHook = (socket) => {
-          /**
-           * connection event.
-           * Emited when new connecton is sablished
-           * @event ModbusnetServer#connection
-           * @type {object}
-           * @see https://nodejs.org/api/net.html
-           */
-          this.emit('connection',socket);
-      };
+        /**
+         * @fires ModbusnetServer#connection
+         */
+        this.net.onConnectionAcceptedHook = (socket) => {
+            /**
+             * connection event.
+             * Emited when new connecton is sablished
+             * @event ModbusnetServer#connection
+             * @type {object}
+             * @see https://nodejs.org/api/net.html
+             */
+            this.emit('connection',socket);
+        };
 
 
       /**
@@ -204,21 +209,40 @@ class NodbusSerialServer extends ModbusSerialServer {
        */
       this.currentRequest = null;  
 
-      //Sellando el netServer
-      Object.defineProperty(self, 'netServer', {
-        enumerable:false,
-        writable:false,
-        configurable:false
-      })
+      //Function to validate data in net layer
+      this.net.validateFrame = (frame)=>{
+            //validating length of message
+            if(frame.length >= 3){
+                //validating crc
+                if(this.validateCheckSum(frame)){
+
+                    this.busMessageCount++; //inc message counter
+
+                    if(this.validateAddress(frame)){
+                        return true
+                    }
+                    else{
+                        return false
+                    }
+                }
+                else{
+                    this.busCommunicationErrorCount++;
+                    return false;
+                }                
+            }
+            else{
+                this.busCommunicationErrorCount++;
+                return false;
+            }           
+        }
+    
+        //Sealling net layer object
+        Object.defineProperty(self, 'net', {
+            enumerable:false,
+            writable:false,
+            configurable:false
+        })
       
-    }
-
-    get maxConnections(){
-      return this.netServer.maxConnections;
-    }
-
-    set maxConnections(max){
-      this.netServer.maxConnections = 1;
     }
 
     /**
