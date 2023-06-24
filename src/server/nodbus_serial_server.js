@@ -19,6 +19,7 @@ const defaultCfg = {
     inputRegisters : 2048,  
     maxConnections : 32,
     udpType : 'udp4',    
+    timeBetweenFrame : 20,
 }
 
 
@@ -47,7 +48,7 @@ class NodbusSerialServer extends ModbusSerialServer {
          * network layer
          * @type {object}
          */
-        try {
+        try {           
             this.net = new netClass(mbTcpServerCfg);
         }
         catch(e){
@@ -67,9 +68,9 @@ class NodbusSerialServer extends ModbusSerialServer {
 
         this.net.onMbAduHook = (sock, adu) =>{
           
-            let pdu = this.getPdu;
+            let pdu = this.getPdu(adu);
             let req = {};
-
+            
             req.timeStamp = Date.now();
             req.address = this.getAddress(adu)
             req.checkSum = this.getChecksum(adu);
@@ -84,138 +85,94 @@ class NodbusSerialServer extends ModbusSerialServer {
             }
             else{
                 resAdu = this.getResponseAdu(adu);
+                let resPdu = this.getPdu(resAdu);
                 let res = {};
 
-                res.timeStamp = Date.now();
-                res.transactionId = resAdu.readUint16BE(0);
-                req.unitId = resAdu[6];
-                req.functionCode = resAdu[7];
-                req.data = resAdu.subarray(8);
-                this.emit('response',sock, resAdu)
-                this.net.write(sock, resAdu)
+                res.timeStamp = Date.now();                
+                res.address = this.address;
+                res.checkSum = this.getChecksum(resAdu);
+                res.functionCode = pdu[0];
+                res.data = resPdu.subarray(1);
+                this.emit('response',sock, res);
+                this.net.write(sock, resAdu);
             }
           
         };
-
+        
+      
         /**
-         * @fires ModbusnetServer#connection
-         */
-        this.net.onConnectionAcceptedHook = (socket) => {
+        * Event listening
+        * Emited when server is listening
+        * @see https://nodejs.org/api/net.html
+        * @fires ModbusnetServer#listening
+        */
+        this.net.onListeningHook  = () => {
             /**
-             * connection event.
-             * Emited when new connecton is sablished
-             * @event ModbusnetServer#connection
-             * @type {object}
-             * @see https://nodejs.org/api/net.html
+             * listening event.
+             * @event ModbusNetServer#listening
+             * @type {number}
              */
-            this.emit('connection',socket);
+            this.emit('listening',self.port);
         };
 
-
-      /**
-      * Event connection closed
-      * Emited when socket closed
-      * @see https://nodejs.org/api/net.html
-      * @fires ModbusnetServer#connection-closed
-      */
-      this.netServer.onConnectionClose = function EmitConnectionClosed(socket){
         /**
-       * connection-closed event.
-       * @event ModbusnetServer#connection-closed
-       * @type {object}
-       */
-          this.emit('connection-closed', socket)
-      }.bind(this);
+        * Event closed
+        * Emited when server is closed
+        * @see https://nodejs.org/api/net.html
+        * @fires ModbusnetServer#closed
+        */
+        this.net.onServerCloseHook = () => {
+            /**
+            * closed event.
+            * @event ModbusNetServer#closed
+            */
+            this.emit('closed');
+        };
+
+        /**
+        * Event error
+        * Emited when error hapen
+        * @fires ModbusNetServer#error
+        */
+        this.net.onErrorHook = (err) =>{
+            /**
+             * error event.
+             * @event ModbusNetServer#error
+             */
+            this.emit('error', err);
+        };
+
+        /**
+        * Event response
+        * Emited when response is send to master
+        * @fires ModbusnetServer#response
+        */
+        this.net.onWriteHook = (sock, resAdu) => {
+            /**
+             * response event.
+             * @event ModbusnetServer#response
+             */
+            this.emit('write', sock, resAdu);
+    
+        };
+
       
-      /**
-      * Event listening
-      * Emited when server is listening
-      * @see https://nodejs.org/api/net.html
-      * @fires ModbusnetServer#listening
-      */
-      this.netServer.onListening  = function EmitListening(port){
+
         /**
-       * listening event.
-       * @event ModbusnetServer#listening
-       * @type {number}
-       */
-        this.emit('listening',self.port);
-      }.bind(this);
+         * current req 
+         * If another req arrive while the current req is not null, exepction 5 should be sended
+         * @type {Array}
+         */
+        this.currentRequest = null;  
 
-      /**
-      * Event closed
-      * Emited when server is closed
-      * @see https://nodejs.org/api/net.html
-      * @fires ModbusnetServer#closed
-      */
-      this.netServer.onServerClose = function EmitClosed(){
-        /**
-       * closed event.
-       * @event ModbusnetServer#closed
-       */
-        this.emit('closed');
-      }.bind(this);
-
-      /**
-      * Event error
-      * Emited when error hapen
-      * @fires ModbusnetServer#error
-      */
-      this.netServer.onError = function EmitError(err){
-        /**
-       * error event.
-       * @event ModbusnetServer#error
-       */
-        this.emit('error', err);
-      }.bind(this);
-
-      /**
-      * Event response
-      * Emited when response is send to master
-      * @fires ModbusnetServer#response
-      */
-      this.netServer.onWrite = function EmitResponse(resp){
-        /**
-       * response event.
-       * @event ModbusnetServer#response
-       */
-        this.emit('response', resp);
-        this.resCounter++;
-      }.bind(this);
-
-      /**
-      * Event client disconnect
-      * Emited when client send fin packet
-      * @fires ModbusnetServer#client-disconnect
-      */
-      this.netServer.onClientEnd = function EmitClientDisconnect(socket){
-        /**
-       * client-disconnect event.
-       * @event ModbusnetServer#client-disconnect
-       */
-        this.emit('client-disconnect',socket);
-      }       
-
-      /**
-      * mode
-      * @type {string}
-      */
-      this.mode = mode;
-
-      /**
-       * current req 
-       * If another req arrive while the current req is not null, exepction 5 should be sended
-       * @type {Array}
-       */
-      this.currentRequest = null;  
-
-      //Function to validate data in net layer
-      this.net.validateFrame = (frame)=>{
+        //Function to validate data in net layer
+        this.net.validateFrame = (frame)=>{
             //validating length of message
-            if(frame.length >= 3){
+            
+            if(frame.length >= 3){                
                 //validating crc
                 if(this.validateCheckSum(frame)){
-
+                                      
                     this.busMessageCount++; //inc message counter
 
                     if(this.validateAddress(frame)){
@@ -234,112 +191,47 @@ class NodbusSerialServer extends ModbusSerialServer {
                 this.busCommunicationErrorCount++;
                 return false;
             }           
-        }
-    
+        };
+          
         //Sealling net layer object
         Object.defineProperty(self, 'net', {
             enumerable:false,
             writable:false,
             configurable:false
         })
-      
+        
     }
 
     /**
       * Getter listening status
       */
      get isListening(){
-      return this.netServer.isListening;
+      return this.net.isListening;
     }
 
     get port(){
-      return this.netServer.port
+      return this.net.port
     }
 
     set port(newport){
-      this.netServer.port = newport
+      this.net.port = newport
     }
 
     /**
     * Function to start the server
     */
-    Start(){
-      this.netServer.Start();
+    start(){
+      this.net.start();
     }
 
     /**
     * Function to stop the server
     */
-    Stop(){
-      this.netServer.Stop();
+    stop(){
+      this.net.stop();
     }
 
-    /**
-    * Function to execute when data are recive
-    * @param {Buffer} aduBuffer frame received by server
-    * @return {Buffer} response;
-    * @fires ModbusnetServer#indication {Buffer}
-    */
-    ProcessModbusIndication(connectionID, dataFrame){
-
-      var self = this;
-      let socket = this.netServer.activeConnections[connectionID];
-
-      /**
-     * indication event.
-     * @event ModbusnetServer#indication
-     */
-      this.emit('indication', socket, dataFrame);
-
-      let req = new Request(self.mode);
-      req.adu.aduBuffer = dataFrame;
-      req.slaveID = self.address;
-
-      let reqADUParsedOk =  req.adu.ParseBuffer();
-      if(reqADUParsedOk){
-
-          //add req to request stack
-          self.reqCounter++;
-          req.id = self.reqCounter;
-          self.emit('request', socket, req);
-
-          //creating Response 
-          var resp = new Response(self.mode);
-          if(this.currentRequest == null){
-
-              let respADU = self.CreateRespSerialADU(req.adu);
-              if(respADU != null){
-                  
-                  resp.connectionID = connectionID;
-
-                  self.currentRequest = req;
-                  resp.adu = self.CreateRespSerialADU(req.adu);
-                  resp.id = self.resCounter;
-                  resp.adu.MakeBuffer();
-                  resp.timeStamp = Date.now();
-                  resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-                  self.resCounter++;
-                  //removing req from req stak
-                  self.currentRequest = null;
-                  self.netServer.Write(connectionID, resp);
-              }
-          }
-          else{
-              //response modbus exeption 6 slave Busy
-              resp.adu.pdu = self.MakeModbusException(req.adu.pdu, 6);              
-              resp.adu.MakeBuffer();
-              resp.timeStamp = Date.now();
-              resp.data = self.ParseResponsePDU(resp.adu.pdu, req.adu.pdu);
-              self.resCounter++
-              self.netServer.Write(connectionID, resp); 
-          }
-            return true;
-      }
-      else {
-          return false;
-      }
-        
-    }
+   
     
 }
 

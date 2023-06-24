@@ -5,7 +5,9 @@
 * @version 1.0.0
 */
 
-const { SerialPort } = require('serialport') 
+const { SerialPort } = require('serialport');
+const { InterByteTimeoutParser } = require('@serialport/parser-inter-byte-timeout')
+const { ReadlineParser } = require('@serialport/parser-readline')
 
 //Default Server's Configuration object
 const defaultCfg = {
@@ -13,7 +15,8 @@ const defaultCfg = {
     speed : 7, //Enum startin at 0
     dataBits : 8,    
     stopBits : 1,
-    parity : 0,
+    parity : 1,    
+    timeBetweenFrame : 20,
 }
 
 //No operation default function for listeners
@@ -34,19 +37,29 @@ class SerialServer {
     constructor(netCfg = defaultCfg){
 
         netCfg.autoOpen = false;
+        netCfg.path = netCfg.port;
         if(netCfg.speed == undefined){ netCfg.speed = defaultCfg.speed}
         netCfg.baudRate = allowedBaudRates[netCfg.speed];
         if(netCfg.dataBits == undefined){ netCfg.dataBits = defaultCfg.dataBits}
         if(netCfg.stopBits == undefined){ netCfg.stopBits = defaultCfg.stopBits}
         if(netCfg.parity == undefined | netCfg.parity < 0 | netCfg.parity > 2){ netCfg.parity = allowedParity[defaultCfg.parity]}
+        if(netCfg.timeBetweenFrame == undefined){netCfg.timeBetweenFrame = defaultCfg.timeBetweenFrame}
 
         let self = this;
-
+        
         /**
         * tcp server
         * @type {Object}
         */
         this.coreServer = new SerialPort(netCfg);
+
+        if(netCfg.transmitionMode == 1){
+            this.parser = this.coreServer.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+        }
+        else{
+            this.parser = this.coreServer.pipe(new InterByteTimeoutParser({ interval: netCfg.timeBetweenFrame }));
+        }
+        
 
         //array whit connections
         this.activeConnections = [];
@@ -61,23 +74,11 @@ class SerialServer {
 
         //API Callback interfaces****************************************************************************************************************************************
 
-        /**
+         /**
         *  function to executed when event data is emited
         * @param {Buffer} data
         */
         this.onDataHook = noop;
-        coreServer.on('data',function(data){
-                
-            if(self.onDataHook instanceof Function){
-                self.onDataHook(self, data);
-            }      
-
-                        
-            if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){
-                self.onMbAduHook(self, data);
-            }                 
-                      
-        });
 
         /**
         *  function to executed when modbus message is detected
@@ -122,9 +123,22 @@ class SerialServer {
         //******************************************************************************************************************************************************
 
         //function for validating data****************************************************************
-        this.validateFrame = ()=>{ return false}
-
+        this.validateFrame = ()=>{           
+            return false
+        }
         
+        this.parser.on('data',function(data){
+            
+            if(self.onDataHook instanceof Function){
+                self.onDataHook(self, data);
+            }      
+
+                     
+            if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){                
+                self.onMbAduHook(self, data);
+            }                 
+                    
+        });
 
     }     
 
@@ -140,13 +154,12 @@ class SerialServer {
     /**
     * Start the tcp server
     */
-    start (){
+    start (){       
         
         this.coreServer.open(function (err) {
             if (err) {
                 self.onErrorHook(e); 
             }
-          
         })
           
     }
@@ -167,10 +180,9 @@ class SerialServer {
     write (socket, frame){
         let self = this;   
         
-        let writePromise = this.coreServer.write(frame);
-        writePromise.then(function(){
+        this.coreServer.write(frame, function(){
             self.onWriteHook(socket, frame);
-        })
+        });        
     }
     
 

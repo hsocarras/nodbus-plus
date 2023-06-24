@@ -38,13 +38,14 @@ class ModbusSerialServer extends ModbusServer {
             mbSerialServerCfg.transmitionMode = defaultCfg.transmitionMode;
         }
         if(mbSerialServerCfg.address == undefined){ mbSerialServerCfg.address = defaultCfg.address;}  
-        
+       
         /**
         * address property       
         * @type {number}
         * @private
         */
-        this._address = mbSerialServerCfg.address;
+        this._address;
+        this.address = mbSerialServerCfg.address;
         
         /**
         * transmition mode property   
@@ -93,8 +94,9 @@ class ModbusSerialServer extends ModbusServer {
         return this._address;
     }    
     set address(addr){
-        if(add instanceof Number){
-            if(addr >0 & addr <= 247){
+
+        if(typeof addr == 'number'){
+            if(addr > 0 & addr <= 247){
                 this._address = addr;
             }
             else{
@@ -135,7 +137,7 @@ class ModbusSerialServer extends ModbusServer {
             return reqAduRtuBuffer.subarray(1,reqAduRtuBuffer.length-2);
         }
         else {
-            //Modbus Rtu Frame
+            //Modbus Rtu Frame           
             return reqAduBuffer.subarray(1,reqAduBuffer.length-2);
         }
         
@@ -192,7 +194,9 @@ class ModbusSerialServer extends ModbusServer {
                 resPduBuffer.copy(resRtuAduBuffer, 1)
                         
                 if(this.transmitionMode == 1){
+                    
                     resAduBuffer = this.aduRtuToAscii(resRtuAduBuffer)
+                    
                 }
                 else {
                     //calculating CRC

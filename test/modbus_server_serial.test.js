@@ -313,6 +313,8 @@ describe("Receiving adu", () =>{
     test('ascii', ()=>{
         let resp = server2.getResponseAdu(adu6);
         
+        expect(server2.address).toEqual(10)
+
         expect(resp[0]).toEqual(0x3A);
         expect(resp[1]).toEqual(0x30);
         expect(resp[2]).toEqual(0x41);

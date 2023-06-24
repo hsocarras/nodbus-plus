@@ -36,10 +36,10 @@ class NodbusTcpServer extends ModbusTcpServer {
         super(mbTcpServerCfg);
         let self = this;
 
-        //arguments check        
+        //arguments check    
+        mbTcpServerCfg.tcpCoalescingDetection = true;
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
-        if(mbTcpServerCfg.tcpCoalescingDetection == undefined){ mbTcpServerCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
         if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
         /**
         * network layer
@@ -191,6 +191,8 @@ class NodbusTcpServer extends ModbusTcpServer {
             }
             return false;
         }
+
+        
         
         //Sealling net layer object
         Object.defineProperty(self, 'net', {

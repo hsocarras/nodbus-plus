@@ -33,9 +33,6 @@ new nodbusTcpServer([options], [netType])
 
   * maxConnections <number>: Simultaneous conextions allowed by the server. Default 32.  
 
-  * tcpCoalescingDetection <boolean>: If this option is active the nodbus server can handle more than one modbus tcp adu in the same tcp package, 
-      otherwise only one adu per package will be accepted. Default true.
-
   * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
 
 * **netType** <Class>: This argument define the constructor for the net layer. See :ref:`NetServer Class <nodbus_net_server>`

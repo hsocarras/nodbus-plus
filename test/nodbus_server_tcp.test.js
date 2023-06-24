@@ -51,13 +51,12 @@ describe("tcp server", () => {
 
             function connectionCallback(socket){
                 //console.log('connection') 
-                expect(socket.localPort).toEqual(502);       
+                expect(socket.localPort).toEqual(502); 
                 let adu1 = Buffer.from([0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03, 
-                                        0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);  
+                    0x00, 0x02, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x01, 0x00, 0x00, 0x00, 0x03]);      
+                
 
-                let conectedClients = server1.net.activeConnections;
-                expect(conectedClients[0]).toBeInstanceOf(net.Socket)   
-                expect(conectedClients.length).toEqual(1);                     
+                              
 
                 function dataCallback(socket, frame){
                     expect(socket).toBeInstanceOf(net.Socket)

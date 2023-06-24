@@ -144,35 +144,29 @@ class TcpServer {
                 if(self.onDataHook instanceof Function){
                     self.onDataHook(socket, data);
                 }
-
-                if(data.length > 7){
-                    let messages = [];
                     
-                    //Active tcp coalesing detection
-                    if(self.tcpCoalescingDetection){
-                        //one tcp message can have more than one modbus indication.
-                        //each modbus tcp message have a length field
-                        messages = self.resolveTcpCoalescing(data);
+                //Active tcp coalesing detection for modbus tcp
+                if(self.tcpCoalescingDetection){
+                    //one tcp message can have more than one modbus indication.
+                    //each modbus tcp message have a length field
+                    let messages = self.resolveTcpCoalescing(data);
                         
-                        messages.forEach((message) => {
-                            if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
-                                self.onMbAduHook(socket, message);
-                            }
-                        })
+                    messages.forEach((message) => {
+                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
+                            self.onMbAduHook(socket, message);
+                        }
+                    })
 
-                    }
-                    else{
-                        //if tcpcoalesing is not active only one indication per tcp frame will be processed.
-                        let expectedLength = data.readUInt16BE(4) + 6;
-                        if(data.length >= expectedLength){
-
-                            let message = data.subarray(0, expectedLength);
-                            if(self.onMbAduHook  instanceof Function & self.validateFrame(message)){
-                                self.onMbAduHook(socket, message);
-                            }
-                        }                        
-                    }
                 }
+                //Non active tcp coalesing detection for modbus serial
+                else{  
+                        
+                    if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){
+                        self.onMbAduHook(socket, data);
+                    }
+                                               
+                }
+                
                           
             });
 

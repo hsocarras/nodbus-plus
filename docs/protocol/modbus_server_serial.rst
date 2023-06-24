@@ -34,13 +34,11 @@ new ModbusSerialServer([options])
   
   * **inputRegisters** <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
 
-  * **transmitionMode** <number>: The mode for serial transmition. Default 0.
-     
-    * *0* Mode auto, the server can process modbus rtu and modbust ascii request.
+  * **transmitionMode** <number>: The mode for serial transmition. Default 0.  
 
-    * *1* Mode Rtu. The server only acept RTU transmition mode.
+    * *0* Mode Rtu. The server only acept RTU transmition mode.
 
-    * *2* Mode Ascii. The server only acept Ascii transmition mode.
+    * *1* Mode Ascii. The server only acept Ascii transmition mode.
 
 * **Returns:** <ModbusSerialServer>
 
@@ -61,35 +59,6 @@ Atribute: modbusSerialServer.address
 * <number>
 
 Accessor property to get and set the modbus's address. Allowed values are any number between 1-247.
-
-
-Atribute: modbusSerialServer._broadcastFunctionCode
----------------------------------------------------
-
-* <Map>
-
-This property stores the Modbus functions code suported by the server for a  broadcast request . 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
-
-.. code-block:: javascript
-
-      //Example of how to add new custom modbus function code handle function
-      class ModbusSErialServerExtended extends ModbusSerialServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-                  //add to broadcast suport handler method
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
 
 
 Atribute: modbusSerialServer.busCharacterOverrunCount
@@ -172,6 +141,7 @@ Atribute: modbusSerialServer.transmitionMode
 
 Property to define the modbus serial transmition mode. Allowed values are 0, 1 rtu and ascii mode. Default 0, 'rtu'.
 
+
 ModbusSerialServer's Methods
 ============================
 
@@ -212,10 +182,19 @@ Method: modbusSerialServer.calcLRC(frame)
 This method calculate the checksum for he buffer request and return it. It receives a complete ascii frame including start character (:) and ending characters.
 
 
+Method: modbusSerialServer.executeBroadcastReq(reqAduBuffer)
+---------------------------------------------------------------
+
+* **reqAduBuffer** <Buffer>: A buffer containing a serial adu.
+
+
+This method is similar to getResponseAdu method, but is only invoqued when a broadcast request (address 0) is processed. It returns no response.
+
+
 Method: modbusSerialServer.getAddress(reqAduBuffer)
 ---------------------------------------------------
 
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
+* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
 * **Returns** <number>: Modbus Rtu address field.
 
 This method return the address field on a modbus rtu request.
@@ -224,7 +203,7 @@ This method return the address field on a modbus rtu request.
 Method: modbusSerialServer.getPdu(reqAduBuffer)
 ---------------------------------------------------
 
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
+* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
 * **Returns** <Buffer>: Modbus Rtu pdu.
 
 This method return the pdu on a modbus rtu request.
@@ -232,7 +211,7 @@ This method return the pdu on a modbus rtu request.
 Method: modbusSerialServer.getChecksum(reqAduBuffer)
 ---------------------------------------------------
 
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
+* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
 * **Returns** <number>: Modbus message checsum.
 
 This method return the checksum for the modbus's frame.
@@ -241,20 +220,11 @@ This method return the checksum for the modbus's frame.
 Method: modbusSerialServer.getResponseAdu(reqAduBuffer)
 -------------------------------------------------------
 
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu serial adu.
+* **reqAduBuffer** <Buffer>: A buffer containing a serial adu.
 * **Returns** <Buffer>: Modbus response adu.
 
 This method make the response adu acording to transmition mode selected and return it.
 
-
-Method: modbusSerialServer.processBroadcastReqPdu(reqPduBuffer)
----------------------------------------------------------------
-
-* **reqPduBuffer** <Buffer>: A buffer containind the data part from request pdu.
-* **Returns** <Buffer>: Complete response pdu's buffer.
-
-This method is similar to processReqPdu method, but is only invoqued when a broadcast request (address 0) is processed.
-Receive a request pdu buffer, and return a response pdu that can be a normal response or exception response.
 
 
 Method: modbusServer.readExceptionCoilsService(pduReqData)

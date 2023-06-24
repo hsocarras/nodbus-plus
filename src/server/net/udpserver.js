@@ -11,8 +11,7 @@ const dgram = require('node:dgram');
 const defaultCfg = {
     port : 502,
     maxConnections : 32,
-    accessControlEnable: false, 
-    tcpCoalescingDetection : false, 
+    accessControlEnable: false,     
     //connectionTimeout : 0,
     udpType: 'udp4'
 }
@@ -32,8 +31,7 @@ class UdpServer {
         
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
-        if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
+        if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}       
         if(netCfg.udpType != 'udp4' & netCfg.udpType != 'udp6'){ netCfg.udpType = defaultCfg.udpType}
         
         
@@ -153,37 +151,28 @@ class UdpServer {
             if(self.onDataHook instanceof Function){
                 self.onDataHook(rinfo, msg);
             }
-
-            if(msg.length > 7){
-
-                let messages = [];
-
-                //Active tcp coalesing detection
-                
-                if(self.tcpCoalescingDetection){
+             
+            //Active tcp coalesing detection for modbus tcp
+            if(self.tcpCoalescingDetection){
                     //one tcp message can have more than one modbus indication.
                     //each modbus tcp message have a length field
-                    messages = self.resolveTcpCoalescing(msg);
-
+                    let messages = self.resolveTcpCoalescing(msg);
+                    
                     messages.forEach((message) => {
                         if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
                             self.onMbAduHook(rinfo, message);
                         }
                     })
 
-                }
-                else{
-                    //if tcpcoalesing is not active only one indication per tcp frame will be processed.
-                    let expectedLength = msg.readUInt16BE(4) + 6;
-                    if(msg.length >= expectedLength){
-
-                        let message = msg.subarray(0, expectedLength);
-                        if(self.onMbAduHook  instanceof Function & self.validateFrame(message)){
-                            self.onMbAduHook(rinfo, message);
-                        }
-                    }   
-                }
             }
+                //Non active tcp coalesing detection for modbus serial
+                else{
+                   
+                    if(self.onMbAduHook  instanceof Function & self.validateFrame(msg)){
+                            self.onMbAduHook(rinfo, msg);
+                    }
+                }
+            
 
         });
 

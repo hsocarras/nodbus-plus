@@ -22,9 +22,11 @@ module.exports.ModbusServer = ModbusServer;
 //***********************************************************************************************************************
 
 //Modbus full implementation*********************************************************************************************
-const NodbusTcpServer = require('./server/nodbus_tcp_server.js')
-const NetTcpServer = require('./server/net/tcpserver.js')
-const NetUdpServer = require('./server/net/udpserver.js')
+const NodbusTcpServer = require('./server/nodbus_tcp_server.js');
+const NodbusSerialServer = require('./server/nodbus_serial_server.js');
+const NetTcpServer = require('./server/net/tcpserver.js');
+const NetUdpServer = require('./server/net/udpserver.js');
+const NetSerialServer = require('./server/net/serialserver.js');
 module.exports.NodbusTcpServer = NodbusTcpServer;
 
 /**
@@ -56,6 +58,39 @@ module.exports.createTcpServer = function (net = 'tcp', serverCfg){
   return server;
 
 }
+
+/**
+* Create a tcp server instance
+* @param {string} net:  Type of network to use, Can be 'tcp', 'udp4', 'udp6'. Default 'tcp'.
+* @param {Object} serverCfg: Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
+* @return {Object} Slave object
+*/
+module.exports.createSerialServer = function (net = 'serial', serverCfg){
+
+    let netType
+    switch(net){
+        case 'tcp':
+            netType = NetTcpServer;
+            break
+        case 'udp4':
+            netType = NetUdpServer;
+            serverCfg.udpType = 'udp4';
+            break
+        case 'udp6':
+            netType = NetUdpServer;
+            serverCfg.udpType = 'udp6';
+            break
+        case 'serial':            
+            netType = NetSerialServer;
+            break
+        default:
+            netType = NetSerialServer;
+    }
+    let server = new NodbusSerialServer(serverCfg, netType);
+  
+    return server;
+  
+  }
 
 /**
 * Create a Slave instance
