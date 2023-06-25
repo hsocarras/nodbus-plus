@@ -16,9 +16,8 @@ const defaultCfg = {
     inputs : 2048,
     coils : 2048,
     holdingRegisters : 2048,
-    inputRegisters : 2048,  
-    maxConnections : 32,
-    udpType : 'udp4',    
+    inputRegisters : 2048,      
+    udpType : 'udp4',      
     timeBetweenFrame : 20,
 }
 
@@ -34,7 +33,7 @@ class NodbusSerialServer extends ModbusSerialServer {
     * @param {number} netClass: Constructor for network object
     * 
     */
-    constructor(mbTcpServerCfg = defaultCfg, netClass = SerialServer){
+    constructor(netClass = SerialServer, mbTcpServerCfg = defaultCfg){
         super(mbTcpServerCfg);
 
         var self = this;

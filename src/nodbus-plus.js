@@ -53,7 +53,7 @@ module.exports.createTcpServer = function (net = 'tcp', serverCfg){
       default:
           netType = NetTcpServer;
   }
-  let server = new NodbusTcpServer(serverCfg, netType);
+  let server = new NodbusTcpServer(netType, serverCfg);
 
   return server;
 
@@ -86,7 +86,7 @@ module.exports.createSerialServer = function (net = 'serial', serverCfg){
         default:
             netType = NetSerialServer;
     }
-    let server = new NodbusSerialServer(serverCfg, netType);
+    let server = new NodbusSerialServer(netType, serverCfg);
   
     return server;
   

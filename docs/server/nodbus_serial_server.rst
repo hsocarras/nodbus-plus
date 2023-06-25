@@ -1,7 +1,7 @@
-.. _nodbus_tcp_server:
+.. _nodbus_serial_server:
 
 ===========================
-Class: NodbusTcpServer
+Class: NodbusSerialServer
 ===========================
 
 **Nodbus-Plus v1.0 Documentation**
@@ -11,17 +11,21 @@ Class: NodbusTcpServer
 
        
 
-The NodbusTcpServer class extends the :ref:`ModbusTcpServer Class <modbus_tcp_server>`. This class implements a fully funcional modbus tcp server.
+The NodbusSerialServer class extends the :ref:`ModbusSerialServer Class <modbus_serial_server>`. This class implements a fully funcional modbus serial server.
 
-Creating a NodbusTcpServer Instance
+Creating a NodbusSerialServer Instance
 ====================================
 
-new nodbusTcpServer([netType], [options])
+new nodbusSerialServer([netType], [options])
 ------------------------------------------
 
 * **netType** <Class>: This argument define the constructor for the net layer. See :ref:`NetServer Class <nodbus_net_server>`
 
 * **options** <object>: Configuration object with following properties:
+
+  * transmitionMode <boolean>: 0- RTU transmition mode, 1 - Ascii mode. Default 0.
+
+  * address <number>: Modbus address, a value between 1 -247. Default 1, any invalid value with set to default.
 
   * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
 
@@ -31,37 +35,81 @@ new nodbusTcpServer([netType], [options])
   
   * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
 
-  * port <number>: TCP port on which the server will listen. Default 502
-
-  * maxConnections <number>: Simultaneous conextions allowed by the server. Default 32.  
+  * port <number|string>: TCP port on which the server will listen or serial port like 'COM1'.   
 
   * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
 
-* **Returns:** <NodbusTcpServer>
+  * speed <number>: Define the serial port baudrate. It's a enum with following values in bits per secconds.
+   
+    *  0: 110
 
-NodbusPlus expose the function createTcpServer([netConstructor], [options]) to create new instances for NodbusTcpClass.
+    *  1: 300
+
+    *  2: 1200
+
+    *  3: 2400
+
+    *  4: 4800
+
+    *  5: 9600
+
+    *  6: 14400
+
+    *  7: 19200 (Default)
+
+    *  8: 38400
+
+    *  9: 57600
+
+    *  10: 115200
+
+  * dataBits <number> 7 or 8.
+
+  * stopBits <number> Default 1.
+
+  * parity <number> Enum with following values:
+
+    *  0: 'none'
+
+    *  1: 'even' (default)
+
+    *  2: 'odd'
+
+  * timeBetweenFrame <number>: The number of milliseconds elapsed without receiving data on the serial port to consider that the RTU frame has finished.
+
+
+* **Returns:** <NodbusSerialServer>
+
+NodbusPlus expose the function createSerialServer([netConstructor], [options]) to create new instances for NodbusSerialClass
 
 .. code-block:: javascript
 
       const nodbus = require('nodbus-plus');
-      let nodbusTcpServer = nodbus.createTcpServer('tcp'); //default settings, net layer is tcp
 
-      let config = {
-         port:1502
+      let config1 = {
+         port: 502, //mandatory to define port
       }
-      // modbus tcp server listen to port 1502 and udp6
-      let nodbusTcpServer2 = nodbus.createTcpServer('udp6', config); 
-      //or udp version 4
-      let nodbusTcpServer3 = nodbus.createTcpServer('udp4', config); 
 
-However new NodbusTcpServer instance can be created with customs :ref:`NetServer <nodbus_net_server>` importing the NodbusTcpServer Class.
+      let config2 = {
+         port: 'COM1', //mandatory to define port
+      }
+
+      let nodbusSerialServer = nodbus.createSerialServer('tcp', config1); //default settings, net layer is serial
+
+      
+      // modbus serial server 
+      let nodbusTcpServer2 = nodbus.createTcpServer('serial', config2); 
+       
+
+
+However new NodbusSerialServer instance can be created with customs :ref:`NetServer <nodbus_net_server>` importing the NodbusTcpServer Class.
 
 .. code-block:: javascript
 
       const NodbusTcpServer = require('nodbus-plus').NodbusTcpServer;
       const NetServer = require('custom\net\custome_server.js');
 
-      let config = {};
+      let config = {port: 502};
       let nodbusTcpServer = new NodbusTcpServer(NetServer, config);
 
      
@@ -73,14 +121,6 @@ Event: 'closed'
 ----------------
 
 Emitted when the server is closed.
-
-
-Event: 'connection'
--------------------
-
-* **socket** <Object>: A node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_
-
-Emitted when a client connect. Only emmited when 'tcp' type layer is used.
 
 
 Event: 'error'
@@ -178,14 +218,6 @@ Atribute: nodbusTcpServer.net
 A instance of a NetServer Class. See :ref:`NetServer Class <nodbus_net_server>`.
 
 
-Atribute: nodbusTcpServer.maxConnections
---------------------------------------------
-
-* <number>
-
-Max number of simultaneous connections allowed by the server.
-
-
 Atribute: nodbusTcpServer.port
 --------------------------------------------
 
@@ -201,9 +233,9 @@ NodbusTcpServer's Methods
 Method: nodbusTcpServer.start()
 ------------------------------------------------
 
-Start the server. The server will emit the event 'listening' whhen is ready for accept connections.
+Start the server. The server will emit the event 'listening' whhen is ready for accept connections or data.
 
 Method: nodbusTcpServer.stop()
 ------------------------------------------------
 
-Stop the server. The server will emit the event 'closed' when all connection are destroyed.
+Stop the server. The server will emit the event 'closed' when all connection are destroyed or the serial port is closed.

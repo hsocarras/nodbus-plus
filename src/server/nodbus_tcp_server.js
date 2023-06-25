@@ -32,7 +32,7 @@ class NodbusTcpServer extends ModbusTcpServer {
     * @param {number} netClass: Constructor for network object
     * 
     */
-    constructor(mbTcpServerCfg = defaultCfg, netClass = TcpServer){
+    constructor(netClass = TcpServer, mbTcpServerCfg = defaultCfg){
         super(mbTcpServerCfg);
         let self = this;
 
