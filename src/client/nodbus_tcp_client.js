@@ -5,55 +5,43 @@
 * @version 0.8.0
 */
 
-const ModbusMaster = require('../protocol/modbus_master');
+const ModbusTcpMaster = require('../protocol/modbus_master_tcp');
 const TcpClient = require('./net/tcpclient');
 const UdpClient = require('./net/udpclient');
-const Request = require('../common/request');
-const Response = require('../common/response');
-const Slave = require('./master_common/slave_endpoint');
+
+
 
 
 /**
- * Class representing a modbus tcp client.
- * @extends ModbusMaster
+ * Class representing a modbus tcp client ready to use.
+ * @extends ModbusTcpMaster
 */
-class ModbusTCPClient extends  ModbusMaster {
+class NodbusTCPClient extends  ModbusTcpMaster {
   /**
   * Create a Modbus Tcp Client.
-  * @param {string} tp. Transport layer. Can be tcp, udp4 or udp6
+  * @param {object} netClass. Transport layer. Can be tcp, udp4 or udp6
   */
-    constructor(tp = 'tcp'){
+    constructor(netClass = TcpClient){
         super();
 
         var self = this; 
 
-        var transportProtocol
-        if(typeof tp == 'string'){
-          transportProtocol = tp
-        }
-        else{
-          throw new TypeError('transport protocol should be a string')
-        }
-
         /**
-        * tcp layer
+        * network layer
         * @type {object}
         */
-        switch(transportProtocol){
-          case 'udp4':
-            this.netClient = new UdpClient('udp4');
-            break;
-          case 'udp6':
-            this.netClient = new UdpClient('udp6');
-            break;
-          default:
-            this.netClient = new TcpClient();
+        try {
+            this.net = new netClass();
+        }
+        catch(e){
+            this.emit('error', e);
+            this.net = new TcpServer();
         }
         
         this.slaveList = new Map();
         
         //asociando el evento data del netClient con la funcion ProcessResponse
-        this.netClient.onData = this.ProcessResponse.bind(this);
+        this.net.onDataHook = this.ProcessResponse.bind(this);
 
         /**
         * Emit connect and ready events
@@ -311,28 +299,6 @@ class ModbusTCPClient extends  ModbusMaster {
 
 }
 
-ModbusTCPClient.prototype.ProcessResponse = require('./master_common/process_response').ProcessResponse;
 
-ModbusTCPClient.prototype.ReadCoilStatus = require('./master_common/master_functions').ReadCoilStatus;
 
-ModbusTCPClient.prototype.ReadInputStatus = require('./master_common/master_functions').ReadInputStatus;
-
-ModbusTCPClient.prototype.ReadHoldingRegisters = require('./master_common/master_functions').ReadHoldingRegisters;
-
-ModbusTCPClient.prototype.ReadInputRegisters = require('./master_common/master_functions').ReadInputRegisters;
-
-ModbusTCPClient.prototype.ForceSingleCoil = require('./master_common/master_functions').ForceSingleCoil;
-
-ModbusTCPClient.prototype.PresetSingleRegister = require('./master_common/master_functions').PresetSingleRegister;
-
-ModbusTCPClient.prototype.ForceMultipleCoils = require('./master_common/master_functions').ForceMultipleCoils;
-
-ModbusTCPClient.prototype.PresetMultipleRegisters = require('./master_common/master_functions').PresetMultipleRegisters;
-
-ModbusTCPClient.prototype.MaskHoldingRegister = require('./master_common/master_functions').MaskHoldingRegister;
-
-ModbusTCPClient.prototype.EmitConnect = require('./master_common/master_functions').EmitConnect;
-
-ModbusTCPClient.prototype.EmitTimeout = require('./master_common/master_functions').EmitTimeout;
-
-module.exports = ModbusTCPClient;
+module.exports = NodbusTCPClient;

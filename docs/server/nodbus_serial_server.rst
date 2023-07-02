@@ -114,7 +114,7 @@ However new NodbusSerialServer instance can be created with customs :ref:`NetSer
 
      
 
-NodbusTcpServer's Events
+NodbusSerialServer's Events
 =========================
 
 Event: 'closed'
@@ -135,6 +135,7 @@ Event: 'data'
 ---------------------
 
 * **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
+                        or a node serial port object.
 
 * **data** <Buffer>: Data received.
 
@@ -144,15 +145,16 @@ Emitted when the underlaying net server emit the data event.
 Event: 'listening'
 ------------------
 
-* **port** <number>: TCP port on which the server is listening.
+* **port** <number| string>: TCP port on which the server is listening or serial port.
 
-Emitted when the server is listening.
+Emitted when the server is listening or the serial port is opened.
 
 
 Event: 'request'
 ----------------
 
 * **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+        or node serial port object.
 
 * **request** <object>: A with following properties:
 
@@ -173,6 +175,7 @@ Event: 'response'
 ----------------
 
 * **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+                or node serial port object.
 
 * **response** <object>: A with following properties:
 
@@ -193,16 +196,17 @@ Event: 'write'
 ---------------------
 
 * **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
+                        or node serial port object.
 
 * **res** <Buffer>: Server's response.
 
 Emitted when the underlaying net server write data to the socket.
 
 
-NodbusTcpServer's Atributes
+NodbusSerialServer's Atributes
 ===========================
 
-Atribute: nodbusServer.isListening
+Atribute: nodbusSerialServer.isListening
 --------------------------------------------
 
 * <boolean>
@@ -210,7 +214,7 @@ Atribute: nodbusServer.isListening
 A getter that return the listening status.
       
 
-Atribute: nodbusTcpServer.net
+Atribute: nodbusSerialServer.net
 --------------------------------------------
 
 * <Object>
@@ -218,7 +222,7 @@ Atribute: nodbusTcpServer.net
 A instance of a NetServer Class. See :ref:`NetServer Class <nodbus_net_server>`.
 
 
-Atribute: nodbusTcpServer.port
+Atribute: nodbusSerialServer.port
 --------------------------------------------
 
 * <number>
@@ -226,16 +230,16 @@ Atribute: nodbusTcpServer.port
 TCP port on which the server will listen.
 
 
-NodbusTcpServer's Methods
-=========================
+NodbusSerialServer's Methods
+=============================
 
 
-Method: nodbusTcpServer.start()
+Method: nodbusSerialServer.start()
 ------------------------------------------------
 
 Start the server. The server will emit the event 'listening' whhen is ready for accept connections or data.
 
-Method: nodbusTcpServer.stop()
+Method: nodbusSerialServer.stop()
 ------------------------------------------------
 
 Stop the server. The server will emit the event 'closed' when all connection are destroyed or the serial port is closed.

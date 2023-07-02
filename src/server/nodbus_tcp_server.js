@@ -41,6 +41,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
         if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
+        
         /**
         * network layer
         * @type {object}
