@@ -138,6 +138,14 @@ describe("write multiple Coils", () => {
     val1[0] = 0x36;
     val2[0] = 0x74;
     val2[1] = 0x25;
+
+    test("bools to buffer", () => {
+        let valBuffer = testMaster.boolsToBuffer([0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1]);
+        expect(valBuffer.length).toEqual(2);
+        expect(valBuffer[0]).toEqual(0xC2);
+        expect(valBuffer[1]).toEqual(0x04);
+    })
+
     it("request 1", () => {
        let req1 = testMaster.forceMultipleCoilsPdu(val1, 3, 5);        
        expect(req1[0]).toEqual(15);     
@@ -146,6 +154,7 @@ describe("write multiple Coils", () => {
        expect(req1[5]).toEqual(1);  
        expect(req1[6]).toEqual(0x36);          
     } );
+
     it("request 2", () => {
         let req2 = testMaster.forceMultipleCoilsPdu(val2, 10, 12);
         expect(req2[0]).toEqual(15);     
@@ -214,6 +223,7 @@ describe("mask holding register", () => {
        expect(req1[2]).toEqual(20); 
        expect(req1.length).toEqual(7);    
     } );
+
     it("mask", () => {
         //masks
         let andMask =  maskBuffer.readUInt16BE(0);     

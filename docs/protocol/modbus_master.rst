@@ -229,4 +229,25 @@ If the number is 0, then the corresponding bit will be set to 0. If the number i
     //Output
     //<Buffer 9a fb>
     //<Buffer db 3d>
+
+Method: modbusClient.boolsToBuffer(value)
+---------------------------------------------------------------------
+
+* **value** <Array>: A boolean array.
+* **Return** <Buffer>: a buffer with binary representation of boolean array. 
+
+This is a utility method that return a buffer from a boolean array for modbus function code 15. 
+
+The value argument is a array of boolean with values to bu force to coils. For example:
+
+.. code-block:: javascript
+
+    let values = [0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1]; //at 0 index stat LSB Byte
+    valBuffer = modbusClient.boolsToBuffer(values);
+
+    //result valBuffer [0xC2 0x04]
+    // calling force multiples colis
+    let pdu = modbusClient.forceMultipleCoilsPdu(valBuffer, 10, values.length)  //calling force multiples coils at coil 10 and 11 coils to force
+
+
         

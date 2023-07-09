@@ -166,7 +166,7 @@ class ModbusTcpClient extends ModbusClient {
         //first, check thar the request exist on the request pool.
         if(this.reqPool.has(transactionId) & typeof timeout === 'number' & timeout >= 1){
 
-            let req =self.reqPool.get(transactionId);
+            let req = self.reqPool.get(transactionId);
             let timerId = setTimeout(()=>{
                 self.emit('req_timeout', transactionId, req); //what to do when timeout occurs is decision for the user app
             }, timeout);

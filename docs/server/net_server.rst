@@ -86,7 +86,7 @@ onWriteHook
 -----------
 
 * **socket** <object>: socket that emit the data event
-* **data** <Buffer>: Data received.
+* **data** <Buffer>: Data sended to client.
 
 This hook function is called when data has been sennded by server to a client. It is called when connection socket write some data.
 
@@ -214,13 +214,13 @@ NetServer's Methods
 ====================
 
 
-Method: netServer.Start()
+Method: netServer.start()
 -------------------------------
 
 This method start the server.
 
 
-Method: netServer.Stop()
+Method: netServer.stop()
 -----------------------------
 
 This functions stop the server. No further connection are accepted.

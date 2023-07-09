@@ -149,6 +149,34 @@ function getMaskRegisterBuffer(valueArray){
 }
 
 /**
+ * Function to get a Buffer from an Array of boolean
+ * @param {Array} boolArray Boolena Array to encoded to a buffer
+ * @return {Buffer}
+ */
+function boolsToBuffer(boolArray){
+
+    let bufValue = Buffer.alloc(Math.ceil(boolArray.length/8)); //Example 10 bools arrays need two bytes length buffer
+    let index = 0;
+    let byteOffset = 0;
+    let orMask = 0x01;
+   
+
+    for(i = 0; i < boolArray.length; i++){
+        index = Math.floor((i)/8); //get the index in the buffer. example 0 for values between 0 -7;
+        byteOffset = i % 8;
+        orMask = 0x01;
+       
+
+        if(boolArray[i]){            
+            bufValue[index] = bufValue[index] | (orMask << byteOffset);            
+        }
+        
+    }
+
+    return bufValue;
+}
+
+/**
  * Function to convert a asccii frame to rtu to be processed
  * @param {Buffer} asciiFrame 
  * @returns {Buffer} a equivalent rtu buffer
@@ -211,6 +239,8 @@ module.exports.calcLRC = calcLRC;
 module.exports.valByteToChars = valByte2Chars;
 
 module.exports.getMaskRegisterBuffer = getMaskRegisterBuffer;
+
+module.exports.boolsToBuffer = boolsToBuffer;
 
 module.exports.aduAsciiToRtu = aduAsciiToRtu;
 

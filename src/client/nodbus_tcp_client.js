@@ -6,8 +6,8 @@
 */
 
 const ModbusTcpMaster = require('../protocol/modbus_master_tcp');
-const TcpClient = require('./net/tcpclient');
-const UdpClient = require('./net/udpclient');
+const TcpChannel = require('./net/tcpchanel.js');
+//const UdpClient = require('./net/udpclient');
 
 
 
@@ -21,27 +21,44 @@ class NodbusTCPClient extends  ModbusTcpMaster {
   * Create a Modbus Tcp Client.
   * @param {object} netClass. Transport layer. Can be tcp, udp4 or udp6
   */
-    constructor(netClass = TcpClient){
+    constructor(channelClass = TcpChannel){
         super();
 
         var self = this; 
 
         /**
-        * network layer
+        * channel's constructor
         * @type {object}
         */
         try {
-            this.net = new netClass();
+            this.Channel = channelClass;
         }
         catch(e){
             this.emit('error', e);
-            this.net = new TcpServer();
+            this.Channel = TcpChannel;
         }
         
-        this.slaveList = new Map();
-        
-        //asociando el evento data del netClient con la funcion ProcessResponse
-        this.net.onDataHook = this.ProcessResponse.bind(this);
+        this.channels = new Map();
+                
+    }
+
+    /**
+     * Function to add a channel object to master
+     * @param {string} id: channel's id. Unique por channel
+     * @param {string} ip: channel's ip address. Default 'localhost'
+     * @param {number} port: channel's port. Default 502
+     * @param {number} timeout time in miliseconds to emit timeout for a request.
+     * @returns {boolean} : true if success
+     */
+    addChannel(id, ip = 'localhost', port = 502, timeout = 250){
+      
+        let channelCfg = {
+            ip : ip,
+            port: port,
+            tcpCoalescingDetection : true,
+        };
+      
+        let channel = new this.Channel(channelCfg);
 
         /**
         * Emit connect and ready events
@@ -49,229 +66,137 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         * @fires ModbusTCPClient#connect {object}
         * @fires ModbusTCPClient#ready
         */
-        this.netClient.onConnect = self.EmitConnect.bind(this);
-
-
-        /**
-        *Emit disconnect event
-        * @param {string} id
-        * @param {object} had_error
-        * @fires ModbusTCPClient#disconnect {object}
-        */
-        function EmitDisconnect(id, had_error){
-
-          let slave = this.slaveList.get(id);
-            
+        channel.onConnectHook = () => {
             /**
-           * disconnect event.
-           * @event ModbusTCPClient#disconnect
-           */
-            this.emit('disconnect',id, had_error);
-            slave.isConnected = false;
+             * connection event.
+             * Emited when new connecton is sablished
+             * @event NodbusTcpClient#connection
+             * @type {object}
+             * @see https://nodejs.org/api/net.html
+             */
+            this.emit('connection', id);
+        };
+
+        channel.onCloseHook = () => {
+            /**
+             * connection-closed event.
+             * @event ModbusnetServer#connection-closed
+             * @type {object}
+             */
+            this.emit('connection-closed', id)
+        };
+
+        channel.onDataHook = (dataFrame) => {
+            /**
+            * indication event.
+            * @event ModbusnetServer#indication
+            */
+            this.emit('data', id, dataFrame);
+        };
+
+        channel.onMbAduHook = (resAdu) => {
+
+            this.processResAdu(resAdu);
+            let res = {};
+
+            res.timeStamp = Date.now();
+            res.transactionId = resAdu.readUint16BE(0);
+            res.unitId = resAdu[6];
+            res.functionCode = resAdu[7];
+            res.data = resAdu.subarray(8);
+
+            this.emit('response', id, res)
         }
-        this.netClient.onClose = EmitDisconnect.bind(this);
 
-        /**
-        *Emit error event
-        * @param {object} error
-        * @fires ModbusTCPClient#error {object}
-        */
-        function EmitError (id, err){
+        channel.onErrorHook = (err) =>{
+            /**
+             * error event.
+             * @event ModbusNetServer#error
+             */
+            this.emit('error', id, err);
+        };
 
-          /**
-         * error event.
-         * @event ModbusTCPClient#error
-         * @type {object}
-         */
-            this.emit('error',id, err);
-        }
-        this.netClient.onError = EmitError.bind(this);
+        channel.onWriteHook = (reqAdu) => {           
+            
+            let req = {};
 
+            req.timeStamp = Date.now();
+            req.transactionId = reqAdu.readUint16BE(0);
+            req.unitId = reqAdu[6];
+            req.functionCode = reqAdu[7];
+            req.data = reqAdu.subarray(8);
+            
+            this.setReqTimer(req.transactionId, timeout);   //start the timer for timeout event
+            this.emit('request', id, req);
+
+            /**
+             * response event.
+             * @event ModbusnetServer#response
+             */
+            this.emit('write', id, reqAdu);
         
-        /**
-        * Emit timeout event on inactive socket      *
-        * @fires ModbusTCPClient#inactive
-        */
-       function EmitInactive (id){
-          this.emit('inactive', id)
-       }
-       this.netClient.onTimeOut = EmitInactive.bind(this);
+        };
 
-        /**
-        * Emit Indication event        *
-        * @fires ModbusTCPClient#indication
-        */
-        function EmitIndication(id, req){
-          /**
-         * indication event.
-         * @event ModbusTCPClient#indication
-         */
-          this.emit('indication',id, req.adu.aduBuffer);
-          this.emit('request',id, req);
+        channel.validateFrame = (frame)=>{
+            if(frame.length > 7){
+
+                let expectedLength = frame.readUInt16BE(4) + 6;
+                let protocolId = frame.readUInt16BE(2);
+                return frame.length == expectedLength & protocolId == 0;
+            }
+            return false;
         }
-        this.netClient.onWrite = EmitIndication.bind(this);        
-               
-        this._currentRequest = null;
-        
-    }
 
-    /**
-     * Function to add a slave object to master's slave list
-     * @param {string} id: Slave'id. Should be unique per slave
-     * @param {Object} slave: Object {ip, port, timeout, address}
-     */
-    AddSlave(id, slave){
-      
-      let slaveDevice = new Slave();
-      slaveDevice.id = id;
-      slaveDevice.type = 'tcp';      
-      slaveDevice.address = slave.address || 247;      
-      slaveDevice.timeout = slave.timeout || 1000; //timeout in ms      
-      slaveDevice.ip = slave.ip || '127.0.0.1';
-      slaveDevice.port = slave.port || 502;     
-      slaveDevice.maxRetries = slave.maxRetries || 1;  
-      slaveDevice.maxRequests = 16; 
-
-      //Emiting the idle event
-      let EmitIdle = function(){
-        this.emit('idle', slaveDevice.id)
-      }.bind(this)      
-      slaveDevice.on('drain', EmitIdle);
-      
-      this.slaveList.set(id, slaveDevice);
+        this.channels.set(id, channel);
     }
     
     /**
     * 
     * @param {string} id 
     */
-    RemoveSlave(id){
-        if(this.slaveList.has(id)){
-          this.slaveList.delete(id);      
+    delChannel(id){
+
+        if(this.channels.has(id)){
+          this.channels.delete(id);      
         }      
     }
 
-    isSlaveReady(id){
-        if(this.slaveList.has(id)){
-          let slave = this.slaveList.get(id);
-          return slave.isConnected;
+    isChannelReady(id){
+
+        if(this.channels.has(id)){
+          let channel = this.channels.get(id);
+          return channel.isConnected();
         }
         else return false;      
     }
 
-    /**
-    * function to create a modbust tcp request
-    * @param {number} id id of slave in slave list
-    * @param {object} pdu of request
-    * @return {object} adu request
+   
+	/**
+    *Stablish connection
     */
-    CreateRequest(id, adu){
-      var req = new Request('tcp');     
-      
-      req.adu = adu;        
-      req.adu.MakeBuffer();   
-      req.id = adu.transactionCounter;      
-      req.slaveID = id;
-      req.OnTimeout = this.EmitTimeout.bind(this);
-      
-      return req;
-    }
+	connect(id){
 
-    /**
-    * function to pasrse server response
-    * @param {Buffer} aduBuffer frame of response
-    * @return {object} map Object whit register:value pairs
-    * @fires ModbusTCPClient#modbus_exception {object}
-    * @fires ModbusTCPClient#error {object}
-    */
-    ParseResponse(slave, aduBuffer) {
-      
-        let resp = new Response('tcp');
-        resp.adu.aduBuffer = aduBuffer;
-        let respADUParsedOk = resp.adu.ParseBuffer();
+        let self = this;
+        let successPromise;
+        let channel = self.channels.get(id);
 
-        if(respADUParsedOk){
-          
-          resp.id = resp.adu.mbapHeader.transactionID;
-          resp.connectionID = slave.id;
-
-          //chekeo el transactionID
-          if(slave.SearchRequest(resp.id) == undefined){
-            this.emit('modbus_exception', slave.id, "Wrong Transaction ID");            
-              return null;
-          }
-          else{ 
-            if((aduBuffer.length - 6) != resp.adu.mbapHeader.length) {
-              this.emit('modbus_exception',slave.id,  "Header ByteCount Mismatch");
-              return null;
-            }
-            else {
-              return resp;
-            }
-          }
-        } 
-        else{
-            this.emit('modbus_exception',slave.id,  "Unknow Frame Error");
-            return null
-        } 
-
-    }
-
-	  /**
-    *Stablish connection to servers
-    */
-	  Start(id){
-      let self = this;
-      let successPromise;
-
-      if(id){
-        let slave = self.slaveList.get(id);
-        if(slave == undefined){
-          return Promise.reject(id);
+        if(channel == undefined){
+            return Promise.reject(id);
         }
-        else if(slave.isConnected){
-          return Promise.resolve(id);
+        else if(channel.isConnected()){
+            return Promise.resolve(id);
         }
         else{
-          successPromise = self.netClient.Connect(slave);
-          successPromise.then(function(){
-             /**
-              * ready event.
-              * @event ModbusTCPClient#ready
-            */
-            self.emit('ready');
-          },function(id, err){
-            self.emit('error', id, err);
-          })
-          return successPromise
+            successPromise = self.channel.connect();
+            return successPromise
         }
-      }
-      else{
-        let promiseList = [];
-        this.slaveList.forEach(function(slave, key){          
-          let promise;                    
-          promise = self.netClient.Connect(slave);
-          promiseList.push(promise);
-        })
-        successPromise = Promise.all(promiseList);        
-        successPromise.then(function(){
-          /**
-           * ready event.
-           * @event ModbusTCPClient#ready
-         */
-         self.emit('ready');
-       }, function(id, err){
-        self.emit('error', id, err);
-      })
-        return successPromise;
-      }
 		  
     }
     
     /**
     *disconnect from server
     */
-	  Stop(id){
+	disconnect(id){
 		  if(id){
         let slave = this.slaveList.get(id);
         if(slave.isConnected){
@@ -293,9 +218,257 @@ class NodbusTCPClient extends  ModbusTcpMaster {
       }
     }
 
-    checkMaxRequest(slave){
-        return slave.isMaxRequest;
+    /**
+     * Function to send read coils status request to a modbus server.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startCoil Starting coils at 0 address
+     * @param {number} coilsCuantity 
+     * @returns true if succses otherwise false
+     */
+    readCoils(channelId, unitId, startCoil, coilsCuantity){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let pdu = this.readCoilStatusPdu(startCoil, coilsCuantity);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+
     }
+
+    /**
+     * Function to send read inputs status request to a modbus server.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startInput Starting inputs at 0 address
+     * @param {number} inputsCuantity 
+     * @returns true if succses otherwise false
+     */
+    readInputs(channelId, unitId, startInput, inputsCuantity){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let pdu = this.readInputsStatusPdu(startInput, inputsCuantity);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }
+
+    /**
+     * Function to send read holding registers request to a modbus server.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startRegister Starting coils at 0 address
+     * @param {number} registersCuantity 
+     * @returns true if succses otherwise false
+     */
+    readHoldingRegisters(channelId, unitId, startRegister, registersCuantity){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }   
+
+    /**
+     * Function to send read inputs registers request to a modbus server.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startRegister Starting register at 0 address
+     * @param {number} registersCuantity 
+     * @returns true if succses otherwise false
+     */
+    readInputsRegisters(channelId, unitId, startRegister, registersCuantity){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
+    /**
+     * Function to send read inputs registers request to a modbus server.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startRegister Starting register at 0 address
+     * @param {number} registersCuantity 
+     * @returns true if succses otherwise false
+     */
+    readInputsRegisters(channelId, unitId, startRegister, registersCuantity){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
+    /**
+     * Function to send forse single coil request to a modbus server.
+     * @param {boolean} value to force.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startCoil Starting coils at 0 address     
+     * @returns true if succses otherwise false
+     */
+    forceSingleCoil(value, channelId, unitId, startCoil){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);
+            let bufValue = this.boolToBuffer(value);
+            let pdu = this.forceSingleCoilPdu(bufValue, startCoil);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
+    /**
+     * Function to send preset single register request to a modbus server.
+     * @param {Buffer} value Two bytes length buffer.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startRegister Starting coils at 0 address     
+     * @returns true if succses otherwise false
+     */
+    presetSingleRegister(value, channelId, unitId, startRegister){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);            
+            let pdu = this.presetSingleRegisterPdu(value, startRegister);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
+    /**
+     * Function to send force multiples coils request to a modbus server.
+     * @param {Array} values a boolen array with values to force. arrays index 0 correspond to start coil. Arrays length correspond to numbers of coils to force.
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1 -255
+     * @param {number} startCoil Starting coils at 0 address 
+     * @returns true if succses otherwise false
+     */
+    forceMultipleCoils(values, channelId, unitId, startCoil){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);    
+            let bufValues =  this.boolsToBuffer(values); 
+            let pdu = this.forceMultipleCoils(bufValues, startCoil, values.length);
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
 
 }
 

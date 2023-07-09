@@ -289,4 +289,6 @@ class ModbusClient extends EventEmitter {
 
 ModbusClient.prototype.getMaskRegisterBuffer = utils.getMaskRegisterBuffer;
 
+ModbusClient.prototype.boolsToBuffer = utils.boolsToBuffer;
+
 module.exports = ModbusClient;

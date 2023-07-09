@@ -21,123 +21,98 @@ Nodbus implementation for a  modbus TCP or serial client use a netChanner object
 Creating a Nodbus NetChannel Instance
 ====================================
 
-new NetServer([options])
+new NetChannel([options])
 -------------------------
 
 * **options** <object>: Configuration object with the following properties:
 
    * port <number> : The tcp or udp port to listen. Default 502.
 
-   * maxConnections <number>: Max number of simultaneous connection supported. (Only tcp net server). Default 32.
+   * ip <string>: Ip address
 
-   * type <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
-
-Constructor for new NetServer instance.
+Constructor for new NetChannel instance.
 
 
-NetServer Event's Hooks
+NetChannel Event's Hooks
 ========================
 
-The net server object is not a event emitter, instead it uses the core server events to call hooks functions.
+The net channel object is not a event emitter, instead it uses the core channel's events to call hooks functions.
 
-onConnectionAcceptedHook
+onConnectHook
 -------------------------
 
-* **socket** <object>: socket created
-
-This function is called when the core server emits the 'connection' event and the connection is accepted by the server.
+This function is called when the core channel object emits the 'connect' event.
 
 onDataHook
 -----------
 
-* **socket** <object>: socket that emit the data event
+
 * **data** <Buffer>: Data received.
 
-This function is called when the core server emits the data event.
+This function is called when the core channel emits the data event.
 
 onErrorHook
 -----------
 
 * **e** <object>: error object.
 
-This function is called when the core server emits the 'error' event.
+This function is called when the core channel emits the 'error' event.
 
-onListeningHook
-----------------
-
-This function is called when the core server emit the 'listening' event. It is called with no arguments.
 
 onMbAduHook
 -------------
 
-* **socket** <object>: socket that emit the data event
+
 * **data** <Buffer>: Data received.
 
-This hook function is similar to onDataHook, but is only called when the buffer received has been validated and has correct length for modbus tcp or correct checksum
-for modbus serial.
+This hook function is similar to onDataHook, but is only called when the buffer received has been validated.
 
 
-onServerCloseHook
+onCloseHook
 ------------------
 
-This hook function is called when core server emits the 'close' event. It is called with no arguments.
+This hook function is called when core channel emits the 'close' event. It is called with no arguments.
 
 onWriteHook
 -----------
 
-* **socket** <object>: socket that emit the data event
-* **data** <Buffer>: Data received.
+* **data** <Buffer>: Data sended.
 
-This hook function is called when data has been sennded by server to a client. It is called when connection socket write some data.
-
-
-NetServer's Atributes
-=====================
-
-Atribute: netServer.activeConnections
---------------------------------------------
-
-* <array>: An array with active connections.
+This hook function is called when data has been sennded to a server. It is called when connection socket write some data.
 
 
-Atribute: netServer.coreServer
--------------------------------
+NetChannel's Atributes
+=======================
+
+Atribute: netChannel.coreChannel
+---------------------------------
 
 * <object>
 
-   * **net.Server**: For tcp `node <https://nodejs.org/api/net.html#class-netserver>`_. 
+   * **net.Socket**: For tcp `node <https://nodejs.org/api/net.html#class-netsocket>`_. 
 
    * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
 
    * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
 
-This property is a node net.Server in nodbus tcpServer class or node udp.Socket in nodbus udpServer or serialport from serialport library in nodbus serialServer. 
-The netServer class in Nodbus-Plus library is a wrapper around one of this main class.
+This property is a node net.Socket or  udp.Socket in nodbus tcpClient class or serialport from serialport library in nodbus serial client. 
+The netChannel class in Nodbus-Plus library is a wrapper around one of this main class.
 
-Atribute: netServer.isListening
--------------------------------------
+Atribute: netChannel.ip
+--------------------------------------------
 
-* <bool> 
-
-True if the coreServer is listening.
+* <string>: server's ip address.
 
 
-Atribute: netServer.maxConnections
--------------------------------------
-
-* <number>
-
-The max number of connection accepted in the tcpServer type of netServer. In udpServer has no efect.
-
-Atribute: netServer.onConnectionAcceptedHook
+Atribute: netChannel.onConnectHook
 ----------------------------------------------
 
 * <function>
 
-This property is a reference for a hook function. See :ref:`onConnectionAcceptedHook`
+This property is a reference for a hook function. See :ref:`onConnectHook`
 
 
-Atribute: netServer.onDataHook
+Atribute: netChannel.onDataHook
 ----------------------------------
 
 * <function>
@@ -145,7 +120,7 @@ Atribute: netServer.onDataHook
 This property is a reference for a hook function. See :ref:`onDataHook`
 
 
-Atribute: netServer.onErrorHook
+Atribute: netChannel.onErrorHook
 ----------------------------------
 
 * <function>
@@ -153,15 +128,8 @@ Atribute: netServer.onErrorHook
 This property is a reference for a hook function. See :ref:`onErrorHook`
 
 
-Atribute: netServer.onListeningHook
-------------------------------------
 
-* <function>
-
-This property is a reference for a hook function. See :ref:`onListeningHook`
-
-
-Atribute: netServer.onMbAduHook
+Atribute: netChannel.onMbAduHook
 ----------------------------------
 
 * <function>
@@ -169,29 +137,22 @@ Atribute: netServer.onMbAduHook
 This property is a reference for a hook function. See :ref:`onMbAduHook`
 
 
-Atribute: netServer.onServerCloseHook
---------------------------------------
 
-* <function>
-
-This property is a reference for a hook function. See :ref:`onServerCloseHook`
-
-
-Atribute: netServer.onWriteHook
+Atribute: netChannel.onWriteHook
 ----------------------------------
 
 * <function>
 
 This property is a reference for a hook function. See :ref:`onWriteHook`
 
-Atribute: netServer.port
+Atribute: netChannel.port
 -----------------------------
 
 * <number>
 
-Port to listen to.
+Port where the server is listening.
 
-Atribute: netServer.tcpCoalescingDetection
+Atribute: netChannel.tcpCoalescingDetection
 --------------------------------------------
 
 * <boolean>
@@ -199,7 +160,7 @@ Atribute: netServer.tcpCoalescingDetection
 Activate o deactivate the tcp coalscing detection function for modbus tcp protocol. Default false.
 
 
-Atribute: netServer.validateFrame
+Atribute: netChannel.validateFrame
 ----------------------------------
 
 * <function>
@@ -210,25 +171,33 @@ This property is a reference to a function that performs validation.
  It is called with a Buffer as argument with the modbus frame received.
 
 
-NetServer's Methods
+netChannel's Methods
 ====================
 
 
-Method: netServer.Start()
+Method: netChannel.connect()
 -------------------------------
 
-This method start the server.
+* **Return** <Promise>: Promise that will be resolve when the connection is stabished whit  a socket as argument, or rejected with ip and port as parameter.
+
+This method try to connect to channels ip and port, return a promise that resolve if the connectios is stablished successfully, otherwhise is rejected.
 
 
-Method: netServer.Stop()
------------------------------
+Method: netChannel.disconnect()
+-------------------------------
 
-This functions stop the server. No further connection are accepted.
+* **Return** <Promise>: Promise that will be resolve when the connection is closed.
 
-Method: netServer.write(socket, frame)
+Method: netChannel.isConnected()
+-------------------------------
+
+* **Return** <bool>: Return true is the socket is connected.
+
+
+Method: netChannel.write(socket, frame)
 -------------------------------------------------
 
 * **socket** <object>: buffer containig the pdu's data.
 * **frame** <Buffer>: buffer with response pdu.
 
-function to write data to a client. It takes a srteam object and a buffer to wrie to. When data has been send, the function calls onWriteHook funtion.
+function to write data to a server. It takes a srteam object and a buffer to write to. When data has been send, the function calls onWriteHook funtion.

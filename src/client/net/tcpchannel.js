@@ -89,7 +89,7 @@ class TcpChannel {
         
         this.onConnectHook = noop;
         this.coreChannel.on('connect', ()=>{
-            self.onConnectHook(self.coreChannel);
+            self.onConnectHook();
         })
 
         this.onErrorHook = noop;
@@ -129,7 +129,7 @@ class TcpChannel {
     /**
     * Init a connection with a server 
     * @returns {Promise} A promise that will be resolve once the connection is stablished with the socket as argument, or will 
-    * be rejected with ip and por as parameters.
+    * be rejected with ip and port as parameters.
     */
     connect(){
 
@@ -193,7 +193,7 @@ class TcpChannel {
 
             isSuccesfull = this.coreChannel.write(frame, 'utf8', function(){
               
-                self.onWriteHook(self.coreChannel, frame);               
+                self.onWriteHook(frame);               
               
             });            
 

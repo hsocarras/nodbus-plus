@@ -188,7 +188,8 @@ class NodbusTcpServer extends ModbusTcpServer {
             if(frame.length > 7){
 
                 let expectedLength = frame.readUInt16BE(4) + 6;
-                return frame.length == expectedLength;
+                let protocolId = frame.readUInt16BE(2);
+                return frame.length == expectedLength & protocolId == 0;
             }
             return false;
         }
