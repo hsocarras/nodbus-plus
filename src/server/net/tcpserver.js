@@ -185,6 +185,7 @@ class TcpServer {
                 if(self.onConnectionCloseHook instanceof Function){
                     self.onConnectionCloseHook(had_error);
                 }
+                
             });            
 
             //adding sockets to connections pool

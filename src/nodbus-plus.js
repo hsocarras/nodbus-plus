@@ -21,13 +21,14 @@ module.exports.ModbusClient = ModbusClient;
 module.exports.ModbusServer = ModbusServer;
 //***********************************************************************************************************************
 
-//Modbus full implementation*********************************************************************************************
+//Nodbus Server full implementation*********************************************************************************************
 const NodbusTcpServer = require('./server/nodbus_tcp_server.js');
 const NodbusSerialServer = require('./server/nodbus_serial_server.js');
 const NetTcpServer = require('./server/net/tcpserver.js');
 const NetUdpServer = require('./server/net/udpserver.js');
 const NetSerialServer = require('./server/net/serialserver.js');
 module.exports.NodbusTcpServer = NodbusTcpServer;
+module.exports.NodbusSerialServer = NodbusSerialServer;
 
 /**
 * Create a tcp server instance
@@ -92,46 +93,34 @@ module.exports.createSerialServer = function (net = 'serial', serverCfg){
   
   }
 
-/**
-* Create a Slave instance
-* @param {string} tp transport layer. Can be 'tcp', 'udp4', 'udp6'
-* @param {string} mode Serial or TCP.
-* @return {Object} Master object
-*/
-/*
-module.exports.CreateMaster = function (tp = 'tcp', mode = 'tcp'){
+//Nodbus Plus clients full implementation***************************************************************************************
 
-  switch(tp){
-    case 'tcp':
-        if(mode == 'serial'){
-          return new ModbusSerialClient('tcp');
-        }
-        else{
-          return new ModbusTcpClient('tcp');
-        }
-      break;
-    case 'udp4':
-        if(mode == 'serial'){
-          return new ModbusSerialClient('udp4');
-        }
-        else{
-          return new ModbusTcpClient('udp4');
-        }
-      break;
-    case 'udp6':
-        if(mode == 'serial'){
-          return new ModbusSerialClient('udp6');
-        }
-        else{
-          return new ModbusTcpClient('udp6');
-        }
-      break;
-    default:
-      throw new RangeError('Transport layer not supported')
-      break;
-  }
+const NodbusTcpClient = require('./client/nodbus_tcp_client.js');
+
+const NetTcpChannel = require('./client/net/tcpchannel.js');
+
+module.exports.createTcpClient = function (channel = 'tcp'){
+
+    let channelType
+    switch(channel){
+        case 'tcp':
+            channelType = NetTcpChannel;
+            break
+        case 'udp4':
+            //netType = NetUdpServer;
+            //serverCfg.udpType = 'udp4';
+            break
+        case 'udp6':
+            //netType = NetUdpServer;
+            //serverCfg.udpType = 'udp6';
+            break
+        default:
+            channelType = NetTcpServer;
+    }
+    let client = new NodbusTcpClient(channelType);
+
+    return client;
 
 }
-*/
 
 

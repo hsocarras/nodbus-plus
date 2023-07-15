@@ -88,7 +88,7 @@ class TcpChannel {
         });
         
         this.onConnectHook = noop;
-        this.coreChannel.on('connect', ()=>{
+        this.coreChannel.on('connect', ()=>{  
             self.onConnectHook();
         })
 
@@ -96,10 +96,11 @@ class TcpChannel {
         this.coreChannel.on('error', (e)=>{
             this.onErrorHook(e);
         })
+
         /*
         this.onEndHook = noop;
         this.coreChannel.on('end', () =>{
-
+            
         })
 
         this.onTimeOutHook = noop;
@@ -117,7 +118,7 @@ class TcpChannel {
 
     isConnected(){
         
-        if(this.coreChannel.readyState == 'open'){
+        if(this.coreChannel.pending == false){
             return true;
         }
         else {
@@ -132,27 +133,29 @@ class TcpChannel {
     * be rejected with ip and port as parameters.
     */
     connect(){
-
+        
         let self = this;
         let promise = new Promise(function(resolve, reject){
 
             try{
 
                 function rejectConnection(e){
+                    
                     reject(self.ip, self.port);
                 }
 
                 self.coreChannel.once('error', rejectConnection)
-
+               
                 self.coreChannel.connect(self.port,self.ip, ()=>{
-                    self.coreChannel.removeListener('error', rejectConnection);
+                   
+                    self.coreChannel.removeListener('error', rejectConnection);                   
                     resolve(self.coreChannel);
                 });
                      
                 
             }
-            catch(e){
-                self.onError(e);
+            catch(e){                
+                self.onError(e);                
                 reject(self.ip, self.port);
             }
         })
@@ -160,12 +163,12 @@ class TcpChannel {
         return promise;
     }
 
-    disconnet(){
+    disconnect(){
         let self = this;
        
         let promise = new Promise(function(resolve, reject){
             
-            self.coreChannel.end(()=>{
+            self.coreChannel.end(()=>{                
                 resolve()
             });
                 

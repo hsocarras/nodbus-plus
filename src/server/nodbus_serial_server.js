@@ -7,7 +7,7 @@
 
 const ModbusSerialServer = require('../protocol/modbus_server_serial');
 const SerialServer = require('./net/serialserver');
-
+const TcpServer = require('./net/tcpserver');
 
 //Default Server's Configuration object
 const defaultCfg = {
@@ -127,6 +127,7 @@ class NodbusSerialServer extends ModbusSerialServer {
             */
             this.emit('closed');
         };
+        
 
         /**
         * Event error

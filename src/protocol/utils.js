@@ -176,6 +176,7 @@ function boolsToBuffer(boolArray){
     return bufValue;
 }
 
+
 /**
  * Function to convert a asccii frame to rtu to be processed
  * @param {Buffer} asciiFrame 

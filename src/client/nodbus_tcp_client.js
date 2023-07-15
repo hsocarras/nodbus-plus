@@ -6,7 +6,7 @@
 */
 
 const ModbusTcpMaster = require('../protocol/modbus_master_tcp');
-const TcpChannel = require('./net/tcpchanel.js');
+const TcpChannel = require('./net/tcpchannel');
 //const UdpClient = require('./net/udpclient');
 
 
@@ -73,7 +73,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
              * @event NodbusTcpClient#connection
              * @type {object}
              * @see https://nodejs.org/api/net.html
-             */
+             */          
             this.emit('connection', id);
         };
 
@@ -180,14 +180,15 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         let successPromise;
         let channel = self.channels.get(id);
 
-        if(channel == undefined){
-            return Promise.reject(id);
+        if(channel == undefined){            
+            return Promise.reject(channel.ip, channel.port);
         }
-        else if(channel.isConnected()){
+        else if(channel.isConnected()){  
+                  
             return Promise.resolve(id);
         }
-        else{
-            successPromise = self.channel.connect();
+        else{            
+            successPromise = channel.connect();
             return successPromise
         }
 		  
@@ -197,25 +198,23 @@ class NodbusTCPClient extends  ModbusTcpMaster {
     *disconnect from server
     */
 	disconnect(id){
-		  if(id){
-        let slave = this.slaveList.get(id);
-        if(slave.isConnected){
-          return this.netClient.Disconnet(id);          
+        
+        let self = this;
+        let successPromise;
+        let channel = self.channels.get(id)
+
+		if(channel == undefined){            
+            return Promise.resolve(id);
+                    
+        }
+        else if(channel.isConnected()){ 
+            successPromise = channel.disconnect();
+            return successPromise;
         }
         else{
-          return Promise.resolve(id);
-        }        
-      }
-      else{
-        let promiseList = [];
-        this.slaveList.forEach(function(slave, key){
-          let promise;
-          promise = this.netClient.Disconnet(id);
-          promiseList.push(promise);
-        })
-        successPromise = Promise.all(promiseList);
-        return successPromise;
-      }
+            return Promise.resolve(id);
+            
+        }
     }
 
     /**
@@ -439,7 +438,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
 
     /**
      * Function to send force multiples coils request to a modbus server.
-     * @param {Array} values a boolen array with values to force. arrays index 0 correspond to start coil. Arrays length correspond to numbers of coils to force.
+     * @param {Array} values a boolean array with values to force. arrays index 0 correspond to start coil. Arrays length correspond to numbers of coils to force.
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address 
@@ -469,6 +468,103 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         }
     }  
 
+    /**
+     * Function to send preset multiples registers request to a modbus server.
+     * @param {Buffer} values an buffer with values to force. arrays index 0 correspond to start register.     
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1-255
+     * @param {number} startRegister Starting register at 0 address.
+     * @returns true if succses otherwise false
+     */
+    presetMultiplesRegisters(values, channelId, unitId, startRegister){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);    
+            let bufValues =  this.boolsToBuffer(values); 
+            let pdu = this.presetMultiplesRegisters(bufValues, startRegister, Math.floor(values.length/2));
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
+
+    /**
+     * Function to send preset multiples registers request to a modbus server.
+     * @param {Buffer} values an 16 number length array with values to force. Index 0 is de less significant bit.
+     * A value off 1 force to 1 the corresponding bit, 0 force to 0, other values don't change the bit value.     
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1-255
+     * @param {number} startRegister Starting register at 0 address.
+     * @returns true if succses otherwise false
+     */
+    maskHoldingRegister(values, channelId, unitId, startRegister){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);    
+            let bufValues =  this.getMaskRegisterBufferk(values); 
+            let pdu = this.presetMultiplesRegisters(bufValues, startRegister, Math.floor(values.length));
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    } 
+
+    /**
+     * Function to send preset multiples registers request to a modbus server.
+     * @param {Buffer} values a buffer with values to writes. arrays index 0 correspond to start register.     
+     * @param {string} channelId Identifier use as key on channels dictionary.
+     * @param {number} unitId Modbus address. A value between 1-255
+     * @param {number} readStartingRegister Starting register at 0 address.
+     * @param {number} readRegisterCuantity Number of register to read
+     * @param {number} writeStartingRegister Starting register at 0 address to write.
+     * @returns true if succses otherwise false
+     */
+    readWriteMultiplesRegisters(values, channelId, unitId, readStartingRegister, readRegisterCuantity, writeStartingRegister){
+        let self = this;
+        //check if channel is connected
+        if(this.isChannelReady(channelId)){
+
+            let channel = this.channels.get(id);               
+            let pdu = this.readWriteMultipleRegistersPdu(values,  readStartingRegister, readRegisterCuantity, writeStartingRegister, Math.floor(values.length/2));
+            let reqAdu = this.makeRequest(unitId, pdu);
+
+            if(self.storeRequest(reqAdu)){                
+                    
+                return channel.write(reqAdu);                    
+               
+            }
+            else{
+                return false
+            }
+        }
+        else{
+            return false
+        }
+    }  
 
 }
 

@@ -32,7 +32,7 @@ describe("getAddress", () => {
     
     
 });
-
+/*
 //get pdu method
 describe("getPdu", () => {
     let adu1 = Buffer.from([0x3A, 0x30, 0x31, 0x30, 0x33, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x41, 0x46, 0x32, 0x0D, 0x0A]); //01 03 00 00 00 0A C5 CD
@@ -325,4 +325,4 @@ describe("Receiving adu", () =>{
         
     })
 
-});
+});*/

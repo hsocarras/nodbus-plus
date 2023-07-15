@@ -69,6 +69,7 @@ However new NodbusTcpServer instance can be created with customs :ref:`NetServer
 NodbusTcpServer's Events
 =========================
 
+
 Event: 'closed'
 ----------------
 
@@ -81,6 +82,11 @@ Event: 'connection'
 * **socket** <Object>: A node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_
 
 Emitted when a client connect. Only emmited when 'tcp' type layer is used.
+
+Event: 'connection-closed'
+---------------------------
+
+Emitted when the client's socket is closed and destroyed.
 
 
 Event: 'error'

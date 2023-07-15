@@ -155,7 +155,7 @@ class NodbusTcpServer extends ModbusTcpServer {
             */
             this.emit('closed');
         };
-
+        
         /**
         * Event error
         * Emited when error hapen
