@@ -188,8 +188,8 @@ describe("write multiple register", () => {
         expect(req2[0]).toEqual(16);     
         expect(req2[2]).toEqual(10); 
         expect(req2[4]).toEqual(3); 
-        expect(req2[5]).toEqual(4);   
-        expect(req2.length).toEqual(10); 
+        expect(req2[5]).toEqual(6);   
+        expect(req2.length).toEqual(12); 
     });
     
 });
@@ -266,14 +266,14 @@ describe("read and write multiple register", () => {
        expect(req1.length).toEqual(14);    
     } );
     it("request 2", () => {
-        let req2 = testMaster.readWriteMultipleRegistersPdu(val1, 10, 3, 20, 5);        
+        let req2 = testMaster.readWriteMultipleRegistersPdu(val1, 10, 3, 20, 5);              
         expect(req2[0]).toEqual(23);     
         expect(req2[2]).toEqual(10); 
         expect(req2[4]).toEqual(3); 
         expect(req2[6]).toEqual(20);   
         expect(req2[8]).toEqual(5);  
-        expect(req2[9]).toEqual(4);  
-        expect(req2.length).toEqual(14); 
+        expect(req2[9]).toEqual(10);  
+        expect(req2.length).toEqual(20); 
     });
     
 });

@@ -95,8 +95,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         };
 
         channel.onMbAduHook = (resAdu) => {
-
-            this.processResAdu(resAdu);
+            
             let res = {};
 
             res.timeStamp = Date.now();
@@ -105,7 +104,9 @@ class NodbusTCPClient extends  ModbusTcpMaster {
             res.functionCode = resAdu[7];
             res.data = resAdu.subarray(8);
 
+            this.processResAdu(resAdu);
             this.emit('response', id, res)
+            
         }
 
         channel.onErrorHook = (err) =>{
@@ -223,14 +224,14 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address
      * @param {number} coilsCuantity 
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     readCoils(channelId, unitId, startCoil, coilsCuantity){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);
+            let channel = this.channels.get(channelId);
             let pdu = this.readCoilStatusPdu(startCoil, coilsCuantity);
             let reqAdu = this.makeRequest(unitId, pdu);
 
@@ -255,15 +256,15 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startInput Starting inputs at 0 address
      * @param {number} inputsCuantity 
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     readInputs(channelId, unitId, startInput, inputsCuantity){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);
-            let pdu = this.readInputsStatusPdu(startInput, inputsCuantity);
+            let channel = this.channels.get(channelId);
+            let pdu = this.readInputStatusPdu(startInput, inputsCuantity);
             let reqAdu = this.makeRequest(unitId, pdu);
 
             if(self.storeRequest(reqAdu)){                
@@ -286,15 +287,15 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startRegister Starting coils at 0 address
      * @param {number} registersCuantity 
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     readHoldingRegisters(channelId, unitId, startRegister, registersCuantity){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);
-            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
+            let channel = this.channels.get(channelId);
+            let pdu = this.readHoldingRegistersPdu(startRegister, registersCuantity);
             let reqAdu = this.makeRequest(unitId, pdu);
 
             if(self.storeRequest(reqAdu)){                
@@ -317,46 +318,15 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startRegister Starting register at 0 address
      * @param {number} registersCuantity 
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
-    readInputsRegisters(channelId, unitId, startRegister, registersCuantity){
+    readInputRegisters(channelId, unitId, startRegister, registersCuantity){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);
-            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
-            let reqAdu = this.makeRequest(unitId, pdu);
-
-            if(self.storeRequest(reqAdu)){                
-                    
-                return channel.write(reqAdu);                    
-               
-            }
-            else{
-                return false
-            }
-        }
-        else{
-            return false
-        }
-    }  
-
-    /**
-     * Function to send read inputs registers request to a modbus server.
-     * @param {string} channelId Identifier use as key on channels dictionary.
-     * @param {number} unitId Modbus address. A value between 1 -255
-     * @param {number} startRegister Starting register at 0 address
-     * @param {number} registersCuantity 
-     * @returns true if succses otherwise false
-     */
-    readInputsRegisters(channelId, unitId, startRegister, registersCuantity){
-        let self = this;
-        //check if channel is connected
-        if(this.isChannelReady(channelId)){
-
-            let channel = this.channels.get(id);
-            let pdu = this.readInputsStatusPdu(startRegister, registersCuantity);
+            let channel = this.channels.get(channelId);
+            let pdu = this.readInputRegistersPdu(startRegister, registersCuantity);
             let reqAdu = this.makeRequest(unitId, pdu);
 
             if(self.storeRequest(reqAdu)){                
@@ -379,14 +349,14 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address     
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     forceSingleCoil(value, channelId, unitId, startCoil){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);
+            let channel = this.channels.get(channelId);
             let bufValue = this.boolToBuffer(value);
             let pdu = this.forceSingleCoilPdu(bufValue, startCoil);
             let reqAdu = this.makeRequest(unitId, pdu);
@@ -411,14 +381,14 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startRegister Starting coils at 0 address     
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     presetSingleRegister(value, channelId, unitId, startRegister){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);            
+            let channel = this.channels.get(channelId);            
             let pdu = this.presetSingleRegisterPdu(value, startRegister);
             let reqAdu = this.makeRequest(unitId, pdu);
 
@@ -442,18 +412,18 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address 
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     forceMultipleCoils(values, channelId, unitId, startCoil){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);    
+            let channel = this.channels.get(channelId);    
             let bufValues =  this.boolsToBuffer(values); 
-            let pdu = this.forceMultipleCoils(bufValues, startCoil, values.length);
+            let pdu = this.forceMultipleCoilsPdu(bufValues, startCoil, values.length);
             let reqAdu = this.makeRequest(unitId, pdu);
-
+            
             if(self.storeRequest(reqAdu)){                
                     
                 return channel.write(reqAdu);                    
@@ -474,18 +444,17 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1-255
      * @param {number} startRegister Starting register at 0 address.
-     * @returns true if succses otherwise false
+     * @returns {Boolean} true if succses otherwise false
      */
     presetMultiplesRegisters(values, channelId, unitId, startRegister){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);    
-            let bufValues =  this.boolsToBuffer(values); 
-            let pdu = this.presetMultiplesRegisters(bufValues, startRegister, Math.floor(values.length/2));
+            let channel = this.channels.get(channelId); 
+            let pdu = this.presetMultipleRegistersPdu(values, startRegister, Math.floor(values.length/2));
             let reqAdu = this.makeRequest(unitId, pdu);
-
+            
             if(self.storeRequest(reqAdu)){                
                     
                 return channel.write(reqAdu);                    
@@ -502,7 +471,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
 
     /**
      * Function to send preset multiples registers request to a modbus server.
-     * @param {Buffer} values an 16 number length array with values to force. Index 0 is de less significant bit.
+     * @param {Array} values an 16 number length array with values to force. Index 0 is de less significant bit.
      * A value off 1 force to 1 the corresponding bit, 0 force to 0, other values don't change the bit value.     
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1-255
@@ -514,9 +483,9 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);    
-            let bufValues =  this.getMaskRegisterBufferk(values); 
-            let pdu = this.presetMultiplesRegisters(bufValues, startRegister, Math.floor(values.length));
+            let channel = this.channels.get(channelId);    
+            let bufValues =  this.getMaskRegisterBuffer(values); 
+            let pdu = this.maskHoldingRegisterPdu(bufValues, startRegister, Math.floor(values.length));
             let reqAdu = this.makeRequest(unitId, pdu);
 
             if(self.storeRequest(reqAdu)){                
@@ -548,7 +517,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
-            let channel = this.channels.get(id);               
+            let channel = this.channels.get(channelId);               
             let pdu = this.readWriteMultipleRegistersPdu(values,  readStartingRegister, readRegisterCuantity, writeStartingRegister, Math.floor(values.length/2));
             let reqAdu = this.makeRequest(unitId, pdu);
 

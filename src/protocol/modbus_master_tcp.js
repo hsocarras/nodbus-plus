@@ -208,8 +208,8 @@ class ModbusTcpClient extends ModbusClient {
             this.clearReqTimer(transactionId);
             //getting the original req
             let req = this.reqPool.get(transactionId);
-            this.reqPool.delete(transactionId);
-            this.emit('transaction', req, bufferAdu);
+            this.reqPool.delete(transactionId);  
+            this.emit('transaction', req, bufferAdu);          
         }
         
     }

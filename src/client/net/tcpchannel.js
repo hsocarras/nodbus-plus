@@ -63,25 +63,26 @@ class TcpChannel {
         this.coreChannel.on('data', (data)=>{
 
             self.onDataHook(data);
-
+            
             //Active tcp coalesing detection for modbus tcp
             if(self.tcpCoalescingDetection){
+                
                 //one tcp message can have more than one modbus indication.
                 //each modbus tcp message have a length field
                 let messages = self.resolveTcpCoalescing(data);
-                    
-                messages.forEach((message) => {
-                    if(self.validateFrame(message)){
-                        self.onMbAduHook(self.coreChannel, message);
+              
+                messages.forEach((message, index) => {                                     
+                    if(self.validateFrame(message)){                        
+                        self.onMbAduHook(message);
                     }
                 })
 
             }
             //Non active tcp coalesing detection for modbus serial
             else{  
-                        
+                console.log('check2')        
                 if(self.validateFrame(data)){
-                    self.onMbAduHook(self.coreChannel, data);
+                    self.onMbAduHook(data);
                 }
                                            
             }

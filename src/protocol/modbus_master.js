@@ -190,11 +190,11 @@ class ModbusClient extends EventEmitter {
        if(values instanceof Buffer){
             if(values.length <= 246){
                 //creando la pdu del request
-                let reqPduBuffer = Buffer.alloc(6 + values.length);
+                let reqPduBuffer = Buffer.alloc(6 + 2*registerQuantity);
                 reqPduBuffer[0] = 0x10;            
                 reqPduBuffer.writeUInt16BE(startRegister, 1);
                 reqPduBuffer.writeUInt16BE(registerQuantity, 3);
-                reqPduBuffer[5]= values.length;
+                reqPduBuffer[5]= 2*registerQuantity;
                 values.copy(reqPduBuffer, 6);            
                 return reqPduBuffer;
             }
@@ -252,13 +252,13 @@ class ModbusClient extends EventEmitter {
         if(values instanceof Buffer){
             if(values.length <= 242){
                 //creando la pdu del request
-                let reqPduBuffer = Buffer.alloc(10 + values.length);
+                let reqPduBuffer = Buffer.alloc(10 + quantityToWrite*2);
                 reqPduBuffer[0] = 0x17;            
                 reqPduBuffer.writeUInt16BE(readStartingAddress, 1);
                 reqPduBuffer.writeUInt16BE(quantitytoRead, 3);
                 reqPduBuffer.writeUInt16BE(writeStartingAddress, 5);
                 reqPduBuffer.writeUInt16BE(quantityToWrite, 7);
-                reqPduBuffer[9]= values.length;
+                reqPduBuffer[9]= quantityToWrite*2;
                 values.copy(reqPduBuffer, 10);            
                 return reqPduBuffer;
             }
