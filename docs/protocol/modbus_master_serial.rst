@@ -89,7 +89,10 @@ Default value is 10 ms.
 ModbusSerialClient's Methods
 ============================
 
+.. _modbus_serial_client_methods:
+
 See :ref:`ModbusClient Class Methods <modbus_client_methods>` for base class inherited methods.
+
 
 Method: modbusSerialClient.aduAsciiToRtu(asciiFrame)
 ----------------------------------------------------
@@ -99,6 +102,7 @@ Method: modbusSerialClient.aduAsciiToRtu(asciiFrame)
 
 This method get a ascii adu and convert it in a equivalent rtu adu, including the crc checksum.
 
+
 Method: modbusSerialClient.aduRtuToAscii(rtuFrame)
 ----------------------------------------------------
 
@@ -106,6 +110,22 @@ Method: modbusSerialClient.aduRtuToAscii(rtuFrame)
 * **Returns** <Buffer>: A serial ascii adu.
 
 This method get a rtu adu and convert it in a equivalent ascii adu, including the lrc checksum.
+
+
+Method: modbusSerialClient.boolToBuffer(value)
+---------------------------------------------------------------------
+
+* **value** <boolean>
+* **Return** <Buffer>: Two bytes length Buffer. 
+
+This is a utitlity method. It gets a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. Example:
+
+.. code-block:: javascript
+
+    let value = modbusSerialClient.boolToBuffer(false);
+    console.log(value); //Buffer:[0x00, 0x00]
+    value = modbusSerialClient.boolToBuffer(true);
+    console.log(value); //Buffer:[0xFF, 0x00]
 
 
 Method: modbusSerialClient.calcCRC(frame)
@@ -124,6 +144,60 @@ Method: modbusSerialClient.calcLRC(frame)
 * **Returns** <number>: lrc value for request.
 
 This method calculate the checksum for he buffer request and return it. It receives a complete ascii frame including start character (:) and ending characters.
+
+
+Method: modbusSerialClient.getMaskRegisterBuffer(value)
+---------------------------------------------------------------------
+
+* **value** <Array>: An 16 numbers length array indicating how to mask the register.
+* **Return** <Buffer>: Four bytes length Buffer. 
+
+This is a utility method that return a four-byte length buffer with the AND_MASK and OR_MASK values encoded for use in the maskHoldingRegisterPdu function as the value argument. 
+
+The value argument is a 16-number array, with each number representing the position of one bit inside the register. If the number is 1, then the corresponding bit will be set to 1. 
+If the number is 0, then the corresponding bit will be set to 0. If the number is different from 0 or 1, then the corresponding bit will remain unchanged. For example:
+
+.. code-block:: javascript
+
+    let value = [-1, 0, 1, -1, -1, -1, 0, 0, 1, -1, -1, -1, -1, -1, 1, 1];
+    maskBuffer = modbusSerialClient.getMaskRegisterBuffer(value);
+
+    //masks
+    let andMask =  maskBuffer.readUInt16BE(0);     
+    let orMask =   maskBuffer.readUInt16BE(2);
+
+    let testRegister = Buffer.from([0x9A, 0xFB]);
+    console.log(testRegister)
+    let currentContent = testRegister.readUInt16BE(0);
+    let finalResult = (currentContent & andMask) | (orMask & (~andMask)); //Modbus Spec 
+
+    let finalRegister = Buffer.alloc(2);
+    finalRegister.writeUInt16BE(finalResult, 0);    
+    console.log(finalRegister)
+
+    //Output
+    //<Buffer 9a fb>
+    //<Buffer db 3d>
+
+
+Method: modbusSerialClient.boolsToBuffer(value)
+---------------------------------------------------------------------
+
+* **value** <Array>: A boolean array.
+* **Return** <Buffer>: a buffer with binary representation of boolean array. 
+
+This is a utility method that return a buffer from a boolean array for modbus function code 15. 
+
+The value argument is a array of boolean with values to bu force to coils. For example:
+
+.. code-block:: javascript
+
+    let values = [0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1]; //at 0 index stat LSB Byte
+    valBuffer = modbusSerialClient.boolsToBuffer(values);
+
+    //result valBuffer [0xC2 0x04]
+    // calling force multiples colis
+    let pdu = modbusSerialClient.forceMultipleCoilsPdu(valBuffer, 10, values.length)  //calling force multiples coils at coil 10 and 11 coils to force
 
 
 Method: modbusSerialClient.makeRequest(address, pdu)

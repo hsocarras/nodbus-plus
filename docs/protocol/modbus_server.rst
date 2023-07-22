@@ -121,36 +121,24 @@ Event: 'mb_exception'
 
 Emitted when a Modbus exception occurs.
 
-Event: 'write'
+Event: 'write-coils'
 --------------
 
-* **register** <number> Indicate wich register was written. 
+* **startCoil** <number> Indicate in wich coil start the new value. 
 
-  * 0: Coils.
+* **cuantityOfCoils** <number>: amound of coils modificated  
 
-  * 4: Holding registers.
+Emitted after change a coil value due to a clienst write coil request.
 
-* **values** <Map>: A Map object.
 
-  * *key* <number>: The register offset. An integer between 0 and 65535.
-  
-  * *value* <boolean|Buffer>: The register value, a boolean for coils or a buffer with a length of 2 bytes for holding registers.
+Event: 'write-registers'
+--------------
 
-  .. code-block:: javascript
+* **startRegister** <number> Indicate in wich register start the new value. 
 
-      modbusServer.on('write', (reg, val) => {
-         if (reg === 0) {
-            // coil written
-            for (const coil of val.entries()) {
-               console.log('Coil 0x' + coil[0] + ' was modified by the client with a value of ' + coil[1]);
-            }
-         } else {
-            // holding register written
-            for (const holding of val.entries()) {
-               console.log('Holding register 4x' + holding[0] + ' was modified by the client with a value of ' + holding[1].readUInt16BE());
-            }
-         }
-      })
+* **cuantityOfRegister** <number>: amound of register modificated.  
+
+Emitted after change a holding register value due to a clienst write register request.  
 
 
 ModbusServer's Atributes
@@ -257,6 +245,7 @@ Method: modbusServer.processReqPdu(reqPduBuffer)
 
 This is the server's main function. Receive a request pdu buffer, and return a response pdu that can be a normal response or exception response.
 
+
 Method: modbusServer.makeExceptionResPdu(mbFunctionCode,  exceptionCode)
 ------------------------------------------------------------------------
 
@@ -265,6 +254,7 @@ Method: modbusServer.makeExceptionResPdu(mbFunctionCode,  exceptionCode)
 * **Returns** <Buffer>: Exception response pdu
 
 This functions create a exception response pdu by add 0x80 to function code and appending the exception code.
+
 
 Method: modbusServer.readCoilsService(pduReqData)
 -------------------------------------------------
@@ -278,6 +268,7 @@ Method: modbusServer.readCoilsService(pduReqData)
 
 This method execute the read coil status indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 01 is received.
 
+
 Method: modbusServer.readDiscreteInputsService(pduReqData)
 ----------------------------------------------------------
 
@@ -289,6 +280,7 @@ Method: modbusServer.readDiscreteInputsService(pduReqData)
    *Modbus Read Inputs Request and Response*
 
 This method execute the read digital input status indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 02 is received.
+
 
 Method: modbusServer.readHoldingRegistersService(pduReqData)
 ------------------------------------------------------------
@@ -302,6 +294,7 @@ Method: modbusServer.readHoldingRegistersService(pduReqData)
 
 This method execute the read holding registers indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 03 is received.
 
+
 Method: modbusServer.readInputRegistersService(pduReqData)
 ------------------------------------------------------------
 
@@ -313,6 +306,7 @@ Method: modbusServer.readInputRegistersService(pduReqData)
    *Modbus Read Inputs Registers Request and Response*
 
 This method execute the read input registers indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 04 is received.
+
 
 Method: modbusServer.writeSingleCoilService(pduReqData)
 ---------------------------------------------------------
@@ -352,6 +346,7 @@ Method: modbusServer.writeMultipleCoilsService(pduReqData)
 
 This method execute the write multiple coils indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 15 is received.
 
+
 Method: modbusServer.writeMultipleRegistersService(pduReqData)
 --------------------------------------------------------------
 
@@ -363,6 +358,7 @@ Method: modbusServer.writeMultipleRegistersService(pduReqData)
    *Modbus Write Multiple Registers Request and Response*
 
 This method execute the write multiple registers indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 16 is received.
+
 
 Method: modbusServer.maskWriteRegisterService(pduReqData)
 --------------------------------------------------------------
@@ -376,6 +372,7 @@ Method: modbusServer.maskWriteRegisterService(pduReqData)
 
 This method execute the mask register indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 22 is received.
 
+
 Method: modbusServer.readWriteMultipleRegistersService(pduReqData)
 ------------------------------------------------------------------
 
@@ -387,6 +384,7 @@ Method: modbusServer.readWriteMultipleRegistersService(pduReqData)
    *Modbus Read and Write Multiple Registers Request and Response*
 
 This method execute the read and write multiple registers indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 23 is received.
+
 
 Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])
 --------------------------------------------------------------

@@ -477,7 +477,7 @@ class ModbusServer extends EventEmitter {
     * @brief Function to implement force single Coil service on server. Function code 05.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
+    * @fires ModbusServer#write-coils
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     writeSingleCoilService(pduReqData){
@@ -507,11 +507,11 @@ class ModbusServer extends EventEmitter {
                     pduReqData.copy(resPduBuffer, 1);
                         
                     //creating object of values writed
-                    let values = new Map();
-                    let coilValue = this.getBoolFromBuffer(this.coils, targetCoil);
-                    values.set(targetCoil, coilValue);
+                    //let values = new Map();
+                    //let coilValue = this.getBoolFromBuffer(this.coils, targetCoil);
+                    //values.set(targetCoil, coilValue);
                     //telling user app that some coils was writed
-                    this.emit('write', 0, values);
+                    this.emit('write-coils', targetCoil, 1);
                 
                 }
                 //Making modbus exeption 2
@@ -537,7 +537,7 @@ class ModbusServer extends EventEmitter {
     * @brief Function to implement write single Register service on server. Function code 06.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
+    * @fires ModbusServer#write-registers
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     writeSingleRegisterService(pduReqData){
@@ -570,11 +570,11 @@ class ModbusServer extends EventEmitter {
                     pduReqData.copy(resPduBuffer, 1);
                     
                     //creating object of values writed
-                    let values = new Map();
-                    let registerValue = this.getWordFromBuffer(this.holdingRegisters, targetRegister);
-                    values.set(targetRegister, registerValue);
+                    //let values = new Map();
+                    //let registerValue = this.getWordFromBuffer(this.holdingRegisters, targetRegister);
+                    //values.set(targetRegister, registerValue);
                     //telling user app that some coils was writed
-                    this.emit('write', 4, values);
+                    this.emit('write-registers', targetRegister, 1);
                 
             }           
             else{
@@ -594,7 +594,7 @@ class ModbusServer extends EventEmitter {
     * @brief Function to implement write multiple Coils service on server. Function code 15.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
+    * @fires ModbusServer#write-coils
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     writeMultipleCoilsService(pduReqData){
@@ -631,13 +631,13 @@ class ModbusServer extends EventEmitter {
                         pduReqData.copy(resPduBuffer, 1);
 
                         //creating object of values writed
-                        let values = new Map();
+                        /*let values = new Map();
                         for(let i = 0; i < cuantityOfOutputs; i++){                  
                         let coilValue = this.getBoolFromBuffer(this.coils, startingAddress + i);                  
                         values.set(startingAddress + i, coilValue);
-                        }                 
+                        }  */               
                         //telling user app that some coils was writed
-                        this.emit('write', 0, values);
+                        this.emit('write-coils', startingAddress, cuantityOfOutputs);
                     
                     }
                     //Making modbus exeption 2
@@ -700,13 +700,13 @@ class ModbusServer extends EventEmitter {
                     pduReqData.copy(resPduBuffer, 1);
 
                     //creating object of values writed
-                    let values = new Map();
+                    /*let values = new Map();
                     for(let i = 0; i < cuantityOfRegisters; i++){                  
                         let registerValue = this.getWordFromBuffer(this.holdingRegisters, startingAddress + i);                  
                         values.set(startingAddress + i, registerValue);
-                    }                 
+                    }   */              
                     //telling user app that some coils was writed
-                    this.emit('write', 4, values);
+                    this.emit('write-registers', startingAddress, cuantityOfRegisters);
                 
                 }
                 //Making modbus exeption 2
@@ -732,7 +732,7 @@ class ModbusServer extends EventEmitter {
     * @brief Function to implement mask holding register service on server. Function code 22.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
+    * @fires ModbusServer#write-registers
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     maskWriteRegisterService(pduReqData){
@@ -766,11 +766,11 @@ class ModbusServer extends EventEmitter {
                   pduReqData.copy(resPduBuffer, 1);
                   
                   //creating object of values writed
-                  let values = new Map();
-                  let registerValue = this.getWordFromBuffer(this.holdingRegisters, referenceAddress);
-                  values.set(referenceAddress, registerValue);
+                  //let values = new Map();
+                  //let registerValue = this.getWordFromBuffer(this.holdingRegisters, referenceAddress);
+                  //values.set(referenceAddress, registerValue);
                   //telling user app that some coils was writed
-                  this.emit('write', 4, values);  
+                  this.emit('write-registers', referenceAddress, 1);  
               
             }            
             else{
@@ -790,7 +790,7 @@ class ModbusServer extends EventEmitter {
     * Function to implement read and write multiple registers service on server. Function code 23.
     * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
     * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
+    * @fires ModbusServer#write-registers
     * @return {Buffer} resPduBuffer. Response pdu.
     */
     readWriteMultipleRegistersService(pduReqData){
@@ -842,13 +842,13 @@ class ModbusServer extends EventEmitter {
                         }
 
                         //creating object of values writed
-                        let values = new Map();
+                        /*let values = new Map();
                         for(let i = 0; i < cuantityToWrite; i++){                  
                         let registerValue = this.getWordFromBuffer(this.holdingRegisters, writeStartingAddress + i);                  
                         values.set(writeStartingAddress + i, registerValue);
-                        }                 
+                        }   */              
                         //telling user app that some coils was writed
-                        this.emit('write', 4, values);
+                        this.emit('write-registers', writeStartingAddress, cuantityToWrite);
                     
                     }
                     //Making modbus exeption 2

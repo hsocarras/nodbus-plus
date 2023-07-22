@@ -135,6 +135,7 @@ Method: modbusClient.forceMultipleCoilsPdu(values, startCoil, coilQuantity)
 This method create the force multiples coils request pdu. Function code 15. If values is not a Buffer throw a TypeError and if value's length is higher than 246
 throw a RangeError.
 
+
 Method: modbusClient.presetMultipleRegistersPdu(values, startRegister, [registerQuantity])
 -------------------------------------------------------------------------------------------
 
@@ -150,6 +151,7 @@ Method: modbusClient.presetMultipleRegistersPdu(values, startRegister, [register
 This method create the preset multiples registers request pdu. Function code 16. If values is not a Buffer throw a TypeError and if value's length is higher than 246
 throw a RangeError.
 
+
 Method: modbusClient.maskHoldingRegisterPdu(values, [startRegister])
 ---------------------------------------------------------------------
 
@@ -163,6 +165,7 @@ Method: modbusClient.maskHoldingRegisterPdu(values, [startRegister])
 
 This method create the mask holding register request pdu. Function code 22. If values is not a Buffer throw a TypeError and if value's length is diferent than 4
 throw a RangeError.
+
 
 Method: modbusClient.readWriteMultipleRegistersPdu(values,  readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite)
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -196,6 +199,7 @@ This is a utitlity method. It gets a buffer with a boolean value encoded for use
     console.log(value); //Buffer:[0x00, 0x00]
     value = modbusClient.boolToBuffer(true);
     console.log(value); //Buffer:[0xFF, 0x00]
+
 
 Method: modbusClient.getMaskRegisterBuffer(value)
 ---------------------------------------------------------------------

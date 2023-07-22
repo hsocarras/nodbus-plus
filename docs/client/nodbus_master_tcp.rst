@@ -1,7 +1,7 @@
-.. _modbus_tcp_master:
+.. _nodbus_tcp_master:
 
 ======================
-Class: ModbusTcpClient
+Class: NodbusTcpClient
 ======================
 
 **Nodbus-Plus v1.0 Documentation**
@@ -9,13 +9,10 @@ Class: ModbusTcpClient
 .. contents:: Table of Contents
    :depth: 3
 
-This class extends :ref:`ModbusClient Class <modbus_master>`. It provides the basic functionalities to handle Modbus TCP Aplication Data Units (ADU).
+This class extends :ref:`ModbusTcpClient Class <modbus_tcp_master>`. It provides ready to use Modbus TCP Client.
 
-.. Figure:: /images/tcp_adu.png
 
-   *Modbus Tcp Aplication Data Unis*
-
-Creating a ModbusTcpClient Instance
+Creating a NodbusTcpClient Instance
 ===================================
 
 new ModbusTcpClient()
