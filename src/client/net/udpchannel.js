@@ -1,11 +1,11 @@
 /**
-* Tcp Client  module.
-* @module net/tcpclient.
+* UDP Client  module.
+* @module net/udpChannel.
 * @author Hector E. Socarras.
 * @version 1.0.0
 */
 
-const net = require('node:net'); 
+const dgram = require('node:dgram');
 
 //No operation default function for listeners
 const noop = () => {};
@@ -16,15 +16,13 @@ defaultCfg = {
     ip: '127.0.0.1',
     port: 502,    
     tcpCoalescingDetection : false,
+    udpType: 'udp4'
 }
 
 /**
- * Class representing a tcp channel.
+ * Class representing a udp channel.
 */
-class TcpChannel {
-  /**
-  * Create a tcp client.
-  */
+class UdpChannel {
     constructor(channelCfg){
 
         let self = this;
@@ -32,13 +30,12 @@ class TcpChannel {
         if(channelCfg.port == undefined){ channelCfg.port = defaultCfg.port}
         if(channelCfg.ip == undefined){ channelCfg.ip = defaultCfg.ip}        
         if(channelCfg.tcpCoalescingDetection == undefined){ channelCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
-        
+        if(channelCfg.udpType == undefined){channelCfg.udpType = defaultCfg.udpType};
+
         /**
         * prevent than server close de connection for idle time
         * @type {bool}
         */
-        this.keepAliveConnection = true;
-
         this.name = channelCfg.name;
 
         this.ip = channelCfg.ip;
@@ -46,22 +43,22 @@ class TcpChannel {
         this.port = channelCfg.port;
 
         this.tcpCoalescingDetection = channelCfg.tcpCoalescingDetection;
+        
 
         /**
         *net.socket Object
         * @type {object}
         */
-        this.coreChannel = new net.Socket();
-
+        this.coreChannel = dgram.createSocket(channelCfg.udpType);
+       
         //Hooks functions *****************************************************************************************************************************
-
         /**
         *  function to executed when modbus message is detected
         * @param {Buffer} data
-        */       
+        */ 
         this.onMbAduHook = noop;
         this.onDataHook = noop;
-        this.coreChannel.on('data', (data)=>{
+        this.coreChannel.on('message', (data, rinfo)=>{
 
             self.onDataHook(data);
             
@@ -81,14 +78,14 @@ class TcpChannel {
             }
             //Non active tcp coalesing detection for modbus serial
             else{  
-                    
+                      
                 if(self.validateFrame(data)){
                     self.onMbAduHook(data);
                 }
                                            
             }
         });
-        
+
         this.onConnectHook = noop;
         this.coreChannel.on('connect', ()=>{  
             self.onConnectHook();
@@ -99,14 +96,6 @@ class TcpChannel {
             this.onErrorHook(e);
         })
 
-        /*
-        this.onEndHook = noop;
-        this.coreChannel.on('end', () =>{
-            
-        })
-
-        this.onTimeOutHook = noop;
-        */
         this.onCloseHook =  noop;
         this.coreChannel.on('close', (e) =>{
             self.onCloseHook();
@@ -115,69 +104,80 @@ class TcpChannel {
         this.onWriteHook = noop;
 
         this.validateFrame = noop;
-
+       
     }
 
     isConnected(){
-        
-        if(this.coreChannel.pending == false){
-            return true;
+        try{
+            let remoteIp = this.coreChannel.remoteAddress()
+            if (remoteIp == this.ip){
+                return true;
+            }
+            else{
+                return false;
+            }
         }
-        else {
+        catch(e){
             return false;
         }
-        
     }
 
+
     /**
-    * Init a connection with a server 
+    * Init an asociation to a remote address
     * @returns {Promise} A promise that will be resolve once the connection is stablished with the socket as argument, or will 
     * be rejected with ip and port as parameters.
     */
     connect(){
-        
+
         let self = this;
+        
         let promise = new Promise(function(resolve, reject){
 
             try{
+            
+                self.coreChannel.connect(self.port, self.ip, (e)=>{
 
-                function rejectConnection(e){
-                    
-                    reject(self.ip, self.port);
-                }
-
-                self.coreChannel.once('error', rejectConnection)
-               
-                self.coreChannel.connect(self.port,self.ip, ()=>{
-                   
-                    self.coreChannel.removeListener('error', rejectConnection);                   
-                    resolve(self.coreChannel);
-                });
-                     
-                
-            }
-            catch(e){                
-                self.onError(e);                
-                reject(self.ip, self.port);
-            }
+                    if(e){
+                        resolve(self.coreChannel);
+                    }
+                    else{
+                        reject(self.ip, self.port);
+                    }
+                })             
+            
+          }
+          catch(e){
+            self.onError(e);
+            reject(self.ip, self.port);
+          }
         })
 
         return promise;
     }
 
-    disconnect(){
-        let self = this;
-       
-        let promise = new Promise(function(resolve, reject){
-            
-            self.coreChannel.end(()=>{                
-                resolve()
-            });
-                
-        })
+    disconnet(){
 
+        let self = this;
+
+        let promise = new Promise(function(resolve,reject){
+
+            if(self.isConnected() == true){
+                try{
+                    self.coreChannel.disconnet();
+                    resolve();
+                }
+                catch(e){
+                    resolve()
+                }
+            }
+            else{
+                resolve();
+            }
+        })
+        
         return promise;
-               
+              
     }
 
     /**
@@ -189,21 +189,28 @@ class TcpChannel {
     write(frame){
 
         let self = this;
+
         if(self.isConnected() == false){
             return false;
         }
         else{
 
-            let isSuccesfull 
+            
 
-            isSuccesfull = this.coreChannel.write(frame, 'utf8', function(){
+            this.coreChannel.send(frame, function(e){
               
-                self.onWriteHook(frame);               
+                if(e){
+                    self.onErrorHook(e)
+                }
+                else{
+                    self.onWriteHook(frame);   
+                }                            
               
             });            
 
-            return isSuccesfull;
+            return true;
         }
+
     }
 
     resolveTcpCoalescing(dataFrame){
@@ -227,7 +234,6 @@ class TcpChannel {
 
         return responseList;
     }
-
 }
 
-module.exports = TcpChannel
+module.exports = UDPClient;
