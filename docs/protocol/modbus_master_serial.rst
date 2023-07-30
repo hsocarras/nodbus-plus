@@ -234,3 +234,25 @@ Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])
 
 
 This method is used to managed server response. Call the :ref:`Method: modbusSerialClient.clearReqTimer()` to avoid emit 'req_timeout' event and emit the 'transaction' event.
+
+
+Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
+--------------------------------------------------------------
+
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
+* **offset** <number>: A number with register's offset inside the buffer.
+* **Return** <Buffer>: A two bytes length buffer.
+
+
+This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
+
+
+Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
+-------------------------------------------------------------------
+
+* **value** <Buffer>: two bytes length buffer.
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
+* **offset** <number>: A number with register's offset inside the buffer.
+
+This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.
+

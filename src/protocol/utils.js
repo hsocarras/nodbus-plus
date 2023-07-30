@@ -233,6 +233,50 @@ function aduRtuToAscii(rtuFrame){
     return asciiFrame;
 }
 
+/**
+    * Low level api function to get a 2 bytes  word value from buffer.
+    * @param {Buffer} targetBuffer buffer object to read
+    * @param {number} offset integer value with bit address.
+    * @return {Buffer} 2 bytes length buffer
+    * @throws {RangeError} if offset is out of buffer's bound.
+    */
+function getWordFromBuffer(targetBuffer, offset = 0){
+
+    if(offset < targetBuffer.length / 2){
+      
+      let value = Buffer.alloc(2);
+      value[0] = targetBuffer[offset * 2];
+      value[1] = targetBuffer[offset*2 + 1];
+
+      return value;
+
+    }
+    else{
+      throw new RangeError("offset is out of buffer bounds");
+    }
+}
+
+/**
+* Low level api function to set a 2 bytes  word value into buffer.
+* @param {Buffer} value 2 bytes long buffer object to write
+* @param {Buffer} targetBuffer buffer object to write
+* @param {number} offset integer value with offset in the buffer.    
+* @throws {RangeError} if offset is out of buffer's bound.
+*/
+function setWordToBuffer(value, targetBuffer, offset = 0){
+
+  if(offset < targetBuffer.length / 2){        
+   
+      targetBuffer[offset * 2] = value[0];
+      targetBuffer[offset*2 + 1] = value[1];
+
+
+  }
+  else{
+    throw new RangeError("offset is out of buffer bounds");
+  }
+}
+
 module.exports.calcCRC = calcCRC;
 
 module.exports.calcLRC = calcLRC;
@@ -246,3 +290,7 @@ module.exports.boolsToBuffer = boolsToBuffer;
 module.exports.aduAsciiToRtu = aduAsciiToRtu;
 
 module.exports.aduRtuToAscii = aduRtuToAscii;
+
+module.exports.getWordFromBuffer = getWordFromBuffer;
+
+module.exports.setWordToBuffer = setWordToBuffer

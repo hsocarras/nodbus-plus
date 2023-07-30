@@ -17,7 +17,7 @@ describe("tcp client", () => {
     let server1 = Nodbus.createTcpServer('tcp', serverCfg);
       
     let client = Nodbus.createTcpClient();
-    client.addChannel('server1', '127.0.0.1', 510)
+    client.addChannel('server1', {ip:'127.0.0.1', port: 510})
     expect(client.isChannelReady('server1')).toEqual(false);
 
     test("functions", (done) => {
@@ -118,8 +118,11 @@ describe("tcp client", () => {
             let coils = [1, 1, 0, 0 , 1, 0, 0, 0, 1, 1, 1, 0];
             client.forceMultipleCoils(coils, 'server1', 255, 12);
             valBuffer = Buffer.alloc(5);
-            valBuffer[1] = 12;
-            valBuffer[3] = 58;
+            let tempRegister = Buffer.alloc(2);
+            tempRegister.writeUint16BE(123);
+            client.setWordToBuffer(tempRegister, valBuffer, 0);
+            tempRegister.writeUint16BE(1234);
+            client.setWordToBuffer(tempRegister, valBuffer, 1);
             client.presetMultiplesRegisters(valBuffer, 'server1', 255, 20);
             registerMask = [1, 0, 2, 0, 0, 1, 1, 1, 2, 2, 2, 0, 1, 2, 2, 1];
             client.maskHoldingRegister(registerMask, 'server1', 255, 22);

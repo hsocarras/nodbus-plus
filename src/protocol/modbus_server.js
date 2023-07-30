@@ -9,6 +9,7 @@
 
 const EventEmitter = require('node:events');
 const { Buffer } = require('node:buffer');
+const utils = require('./utils');
 
 //define max number of coil, inputs or register
 const MAX_ITEM_NUMBER = 65535;
@@ -924,52 +925,12 @@ class ModbusServer extends EventEmitter {
         throw new RangeError("offset is out of buffer bounds");
       }
     }
-
-    /**
-    * Low level api function to get a 2 bytes  word value from buffer.
-    * @param {Buffer} targetBuffer buffer object to read
-    * @param {number} offset integer value with bit address.
-    * @return {Buffer} 2 bytes length buffer
-    * @throws {RangeError} if offset is out of buffer's bound.
-    */
-    getWordFromBuffer(targetBuffer, offset = 0){
-
-        if(offset < targetBuffer.length / 2){
-          
-          let value = Buffer.alloc(2);
-          value[0] = targetBuffer[offset * 2];
-          value[1] = targetBuffer[offset*2 + 1];
-
-          return value;
-
-        }
-        else{
-          throw new RangeError("offset is out of buffer bounds");
-        }
-    }
-
-    /**
-    * Low level api function to set a 2 bytes  word value into buffer.
-    * @param {Buffer} value 2 bytes long buffer object to write
-    * @param {Buffer} targetBuffer buffer object to write
-    * @param {number} offset integer value with offset in the buffer.    
-    * @throws {RangeError} if offset is out of buffer's bound.
-    */
-    setWordToBuffer(value, targetBuffer, offset = 0){
-
-      if(offset < targetBuffer.length / 2){        
-       
-          targetBuffer[offset * 2] = value[0];
-          targetBuffer[offset*2 + 1] = value[1];
-
-
-      }
-      else{
-        throw new RangeError("offset is out of buffer bounds");
-      }
-    }
-    
+        
 }
+
+ModbusServer.prototype.getWordFromBuffer = utils.getWordFromBuffer;
+
+ModbusServer.prototype.setWordToBuffer = utils.setWordToBuffer;
 
 
 module.exports = ModbusServer;

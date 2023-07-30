@@ -47,16 +47,15 @@ class NodbusTCPClient extends  ModbusTcpMaster {
      * @param {string} id: channel's id. Unique por channel
      * @param {string} ip: channel's ip address. Default 'localhost'
      * @param {number} port: channel's port. Default 502
-     * @param {number} timeout time in miliseconds to emit timeout for a request.
-     * @returns {boolean} : true if success
+     * @param {number} timeout time in miliseconds to emit timeout for a request.     
      */
-    addChannel(id, ip = 'localhost', port = 502, timeout = 250){
+    addChannel(id, channelCfg = {ip: 'localhost', port: 502, timeout:250}){
       
-        let channelCfg = {
-            ip : ip,
-            port: port,
-            tcpCoalescingDetection : true,
-        };
+        
+        if(channelCfg.ip == undefined){ channelCfg.ip = 'localhost'} 
+        if(channelCfg.port == undefined){ channelCfg.port = 502}        
+        if(channelCfg.timeout == undefined){ channelCfg.timeout = 250}    
+        channelCfg.tcpCoalescingDetection = true;
       
         let channel = new this.Channel(channelCfg);
 
@@ -127,7 +126,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
             req.functionCode = reqAdu[7];
             req.data = reqAdu.subarray(8);
             
-            this.setReqTimer(req.transactionId, timeout);   //start the timer for timeout event
+            this.setReqTimer(req.transactionId, channelCfg.timeout);   //start the timer for timeout event
             this.emit('request', id, req);
 
             /**
@@ -152,7 +151,7 @@ class NodbusTCPClient extends  ModbusTcpMaster {
     }
     
     /**
-    * 
+    * Function to delete a channel from the list
     * @param {string} id 
     */
     delChannel(id){

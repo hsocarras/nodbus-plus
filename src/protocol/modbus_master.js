@@ -291,4 +291,8 @@ ModbusClient.prototype.getMaskRegisterBuffer = utils.getMaskRegisterBuffer;
 
 ModbusClient.prototype.boolsToBuffer = utils.boolsToBuffer;
 
+ModbusClient.prototype.getWordFromBuffer = utils.getWordFromBuffer;
+
+ModbusClient.prototype.setWordToBuffer = utils.setWordToBuffer;
+
 module.exports = ModbusClient;

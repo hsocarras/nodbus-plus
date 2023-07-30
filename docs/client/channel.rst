@@ -90,9 +90,7 @@ Atribute: netChannel.coreChannel
 * <object>
 
    * **net.Socket**: For tcp `node <https://nodejs.org/api/net.html#class-netsocket>`_. 
-
    * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
-
    * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
 
 This property is a node net.Socket or  udp.Socket in nodbus tcpClient class or serialport from serialport library in nodbus serial client. 

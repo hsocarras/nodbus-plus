@@ -59,7 +59,7 @@ However new NodbusTcpServer instance can be created with customs :ref:`NetServer
 .. code-block:: javascript
 
       const NodbusTcpServer = require('nodbus-plus').NodbusTcpServer;
-      const NetServer = require('custom\net\custome_server.js');
+      const NetServer = require('custom\net\custome_server.js');  //this is a example file for a user net server, it do not exist on nodbus-plus library
 
       let config = {};
       let nodbusTcpServer = new NodbusTcpServer(NetServer, config);
@@ -101,8 +101,8 @@ Emitted when a error occurs.
 Event: 'data'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
-
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
+if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
 * **data** <Buffer>: Data received.
 
 Emitted when the underlaying net server emit the data event.
@@ -186,18 +186,13 @@ Emitted when a Modbus exception occurs.
 Event: 'request'
 ----------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
-
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
+    if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
 * **request** <object>: A with following properties:
-
-  * *timeStamp* <number>: A timestamp for the request.
-  
+  * *timeStamp* <number>: A timestamp for the request.  
   * *transactionId* <number>: The header's transaction id field value.
-
   * *unitId* <number>: The header's unit id field value.
-
   * *functionCode* <number>: The modbus request's function code.
-
   * *data* <Buffer>: The pdu's data.
 
   Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
@@ -226,8 +221,8 @@ Event: 'response'
 Event: 'write'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
-
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
+    if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
 * **res** <Buffer>: Server's response.
 
 Emitted when the underlaying net server write data to the socket.
@@ -237,7 +232,6 @@ Event: 'write-coils'
 --------------
 
 * **startCoil** <number> Indicate in wich coil start the new value. 
-
 * **cuantityOfCoils** <number>: amound of coils modificated  
 
 Emitted after change a coil value due to a clienst write coil request.
@@ -247,7 +241,6 @@ Event: 'write-registers'
 --------------
 
 * **startRegister** <number> Indicate in wich register start the new value. 
-
 * **cuantityOfRegister** <number>: amound of register modificated.  
 
 Emitted after change a holding register value due to a clienst write register request. 

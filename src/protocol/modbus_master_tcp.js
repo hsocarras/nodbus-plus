@@ -30,7 +30,7 @@ class ModbusTcpClient extends ModbusClient {
          * Max number of transaction
          * @type {number}
          */
-        this._maxNumberOfTransaction = 64;
+        this.maxNumberOfTransaction = 64;
 
         /**
          * Pool with pending request
@@ -139,7 +139,7 @@ class ModbusTcpClient extends ModbusClient {
      */
     storeRequest(bufferReq){
         //storing request on the pool
-        if(this.reqPool.size <= this._maxNumberOfTransaction){
+        if(this.reqPool.size <= this.maxNumberOfTransaction){
             let transactionId = bufferReq.readUInt16BE(0);
             //using the transaction Id as key
             this.reqPool.set(transactionId, bufferReq);

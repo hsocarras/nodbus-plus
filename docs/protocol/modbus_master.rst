@@ -254,4 +254,23 @@ The value argument is a array of boolean with values to bu force to coils. For e
     let pdu = modbusClient.forceMultipleCoilsPdu(valBuffer, 10, values.length)  //calling force multiples coils at coil 10 and 11 coils to force
 
 
-        
+
+Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
+--------------------------------------------------------------
+
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
+* **offset** <number>: A number with register's offset inside the buffer.
+* **Return** <Buffer>: A two bytes length buffer.
+
+
+This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
+
+
+Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
+-------------------------------------------------------------------
+
+* **value** <Buffer>: two bytes length buffer.
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
+* **offset** <number>: A number with register's offset inside the buffer.
+
+This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.

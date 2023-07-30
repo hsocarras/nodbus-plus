@@ -69,12 +69,12 @@ Atribute: modbusTcpClient._transactionCount
 
 This property stores the tcp client's transactions counter. It should be not us directly instead through the accessor property transactionCount. 
 
-Atribute: modbusTcpClient._maxNumberOfTransaction
+Atribute: modbusTcpClient.maxNumberOfTransaction
 -------------------------------------------------
 
 * <number>
 
-This property stores the maximum value of simultaneously open transactions allowed for the client.
+This property stores the maximum value of simultaneously open transactions allowed for the client. Dafault value is 64.
 
 Atribute: modbusTcpClient.reqPool
 -----------------------------------------
@@ -242,7 +242,7 @@ Method: modbusTcpClient.storeRequest(bufferReq)
 * **Returns** <bool>: return true if was succesfully stored, otherwise false
 
 This functions store a adu request in the :ref:`request Pool <Atribute: modbusTcpClient.reqPool>` if the size of the pool is less than
-:ref:`max number of transaction allowed simultaniously <Atribute: modbusTcpClient._maxNumberOfTransaction>`
+:ref:`max number of transaction allowed simultaniously <Atribute: modbusTcpClient.maxNumberOfTransaction>`
 
 Method: modbusTcpClient.setReqTimer(transactionId, [timeout])
 -------------------------------------------------------------
@@ -271,3 +271,26 @@ Method: modbusTcpClient.processResAdu(bufferAdu)
 
 This method is used to managed server response. It remove the request from :ref:`request Pool <Atribute: modbusTcpClient.reqPool>`, call 
 the :ref:`Method: modbusTcpClient.clearReqTimer(transactionId)` to avoid emit 'req_timeout' event and emit the 'transaction' event.
+
+
+
+Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
+--------------------------------------------------------------
+
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
+* **offset** <number>: A number with register's offset inside the buffer.
+* **Return** <Buffer>: A two bytes length buffer.
+
+
+This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
+
+
+Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
+-------------------------------------------------------------------
+
+* **value** <Buffer>: two bytes length buffer.
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
+* **offset** <number>: A number with register's offset inside the buffer.
+
+This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.
+

@@ -15,21 +15,73 @@ This class extends :ref:`ModbusTcpClient Class <modbus_tcp_master>`. It provides
 Creating a NodbusTcpClient Instance
 ===================================
 
-new ModbusTcpClient()
----------------------
+new NodbusTcpClient(channelClass)
+-------------------------------------
 
-* **Returns:** <ModbusTcpClient>
+* **channelClass:** <Class>: This argument define the constructor for the net layer. See :ref:`NetChannel Class <nodbus_net_channel>`.
 
-Constructor for new ModbusTcpClient instance.
+* **channelCfg:** <object> Channel'a configuration object.
+
+* **Returns:** <NodbusTcpClient>
+
+NodbusPlus expose the function createTcpClient([netConstructor], [options]) to create new instances for NodbusTcpClass.
+
+* **netConstructor** <string>: Can be 'tcp' or'udp'. Default 'tcp'.
 
 .. code-block:: javascript
 
-      const ModbusTcpClient = require('nodbus-plus').ModbusTcpClient;
-      let modbusTcpClient = new ModbusTcpClient();
+      const nodbus = require('nodbus-plus');
+      let nodbusTcpClient = nodbus.createTcpClient('tcp'); //default settings, net layer is tcp
+
+However new NodbusTcpClient instance can be created with customs :ref:`NetChannel <nodbus_net_channel>` importing the NodbusTcpClient Class.
+
+.. code-block:: javascript
+
+      const NodbusTcpClient = require('nodbus-plus').NodbusTcpClient;
+      const NetChannel = require('custom\net\custome_channel.js'); //this is a example  file for a user channel, it do not exist on nodbus-plus library
+
+      
+      let nodbusTcpServer = new NodbusTcpServer(NetChannel);     
 
 
-ModbusTcpClient's Events
+
+NodbusTcpClient's Events
 ========================
+
+
+Event: 'connection'
+-------------------
+
+* **id** <string>: Channel's name
+
+Emitted when the client succesfully connect to a server. 
+
+Event: 'connection-closed'
+---------------------------
+
+* **id** <string>: Channel's name
+
+Emitted when the channel close the connection.
+
+
+Event: 'data'
+---------------------
+
+* **id** <string>: Channel's name.
+
+* **data** <Buffer>: Data received.
+
+Emitted when the channel emit the data event.
+
+
+
+Event: 'error'
+--------------
+
+* **e** <Error>: The error object.
+
+Emitted when a error occurs.
+
 
 Event: 'req_timeout'
 --------------------
@@ -39,12 +91,53 @@ Event: 'req_timeout'
 
   .. code-block:: javascript
 
-      modbusTcpClient.on('req_timeout', (id, req) ->{
+      nodbusTcpClient.on('req_timeout', (id, req) ->{
          console.log('Timeout error from request: ' + id + '\n');
       })
 
 This event is emmited when the number of milliseconds pass to :ref:`Method: modbusTcpClient.setReqTimer(transactionId, [timeout])` ends without call 
 :ref:`Method: modbusTcpClient.clearReqTimer(transactionId)`
+
+
+Event: 'request'
+----------------
+
+* **id** <string>: Channel's name.
+
+* **request** <object>: A with following properties:
+
+  * *timeStamp* <number>: A timestamp for the request.
+  
+  * *transactionId* <number>: The header's transaction id field value.
+
+  * *unitId* <number>: The header's unit id field value.
+
+  * *functionCode* <number>: The modbus request's function code.
+
+  * *data* <Buffer>: The pdu's data.
+
+  Emited after the client send data to the server.
+
+
+Event: 'response'
+----------------
+
+* **id** <string>: Channel's name.
+
+* **response** <object>: A with following properties:
+
+  * *timeStamp* <number>: A timestamp for the request.
+  
+  * *transactionId* <number>: The header's transaction id field value.
+
+  * *unitId* <number>: The header's unit id field value.
+
+  * *functionCode* <number>: The modbus request's function code.
+
+  * *data* <Buffer>: The pdu's data.
+
+  Emited when data received fron server has been validated.
+
 
 Event: 'transaction'
 --------------------
@@ -55,25 +148,45 @@ Event: 'transaction'
 This event is emmited when the :ref:`Method: modbusTcpClient.processResAdu(bufferAdu)` is called to manage a server response.
 
 
+Event: 'write'
+---------------------
 
-ModbusTcpClient's Atributes
+* **id** <string>: Channel's name.
+
+* **reqAdu** <Buffer>: Client request,  a modbus tcp adu.
+
+Emited after the client send data to the server.
+
+
+NodbusTcpClient's Atributes
 ===========================
 
-Atribute: modbusTcpClient._transactionCount
+
+Atribute: nodbusTcpClient._transactionCount
 --------------------------------------------
 
 * <number>
 
 This property stores the tcp client's transactions counter. It should be not us directly instead through the accessor property transactionCount. 
 
-Atribute: modbusTcpClient._maxNumberOfTransaction
+
+Atribute: nodbusTcpClient.maxNumberOfTransaction
 -------------------------------------------------
 
 * <number>
 
-This property stores the maximum value of simultaneously open transactions allowed for the client.
+This property stores the maximum value of simultaneously open transactions allowed for the client. Default value is 64.
 
-Atribute: modbusTcpClient.reqPool
+
+Atribute: nodbusTcpClient.channels
+-------------------------------------
+
+* <Map> Map with client's channel list.
+    * *key* <string> Channel's id.
+    * *value* <object>: A channel object. See :ref:`NetChannel Class <nodbus_net_channel>`
+
+
+Atribute: nodbusTcpClient.reqPool
 -----------------------------------------
 
 * <Map>
@@ -82,7 +195,8 @@ Atribute: modbusTcpClient.reqPool
 
 A map to store active request. Each request is stored with his transaction's id as key.
 
-Atribute: modbusTcpClient.reqTimersPool
+
+Atribute: nodbusTcpClient.reqTimersPool
 ----------------------------------------------
 
 * <Map>
@@ -92,7 +206,7 @@ Atribute: modbusTcpClient.reqTimersPool
 A map to store active request's timer. Each request start a timeout timer when is sended to server. This map store the timers is for each request using her transaction's id as key.
 
 
-Atribute: modbusTcpClient.transactionCount
+Atribute: nodbusTcpClient.transactionCount
 -------------------------------------------
 
 * <number>
@@ -100,103 +214,76 @@ Atribute: modbusTcpClient.transactionCount
 Accesor property to get and set the transaction counter.
 
 
-ModbusTcpClient's Methods
+NodbusTcpClient's Methods
 =========================
 
-.. _modbus_tcp_client_methods:
 
-See :ref:`ModbusClient Class Methods <modbus_client_methods>` for all base class inherited methods.
-
-
-Method: modbusTcpClient.boolToBuffer(value)
----------------------------------------------------------------------
-
-* **value** <boolean>
-* **Return** <Buffer>: Two bytes length Buffer. 
-
-This is a utitlity method. It gets a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. Example:
-
-.. code-block:: javascript
-
-    let value = modbusTcpClient.boolToBuffer(false);
-    console.log(value); //Buffer:[0x00, 0x00]
-    value = modbusTcpClient.boolToBuffer(true);
-    console.log(value); //Buffer:[0xFF, 0x00]
+See :ref:`ModbusTcpClient Class Methods <modbus_tcp_client_methods>` for all base class inherited methods.
 
 
 
-Method: modbusTcpClient.getMaskRegisterBuffer(value)
----------------------------------------------------------------------
-
-* **value** <Array>: An 16 numbers length array indicating how to mask the register.
-* **Return** <Buffer>: Four bytes length Buffer. 
-
-This is a utility method that return a four-byte length buffer with the AND_MASK and OR_MASK values encoded for use in the maskHoldingRegisterPdu function as the value argument. 
-
-The value argument is a 16-number array, with each number representing the position of one bit inside the register. If the number is 1, then the corresponding bit will be set to 1. 
-If the number is 0, then the corresponding bit will be set to 0. If the number is different from 0 or 1, then the corresponding bit will remain unchanged. For example:
-
-.. code-block:: javascript
-
-    let value = [-1, 0, 1, -1, -1, -1, 0, 0, 1, -1, -1, -1, -1, -1, 1, 1];
-    maskBuffer = modbusTcpClient.getMaskRegisterBuffer(value);
-
-    //masks
-    let andMask =  maskBuffer.readUInt16BE(0);     
-    let orMask =   maskBuffer.readUInt16BE(2);
-
-    let testRegister = Buffer.from([0x9A, 0xFB]);
-    console.log(testRegister)
-    let currentContent = testRegister.readUInt16BE(0);
-    let finalResult = (currentContent & andMask) | (orMask & (~andMask)); //Modbus Spec 
-
-    let finalRegister = Buffer.alloc(2);
-    finalRegister.writeUInt16BE(finalResult, 0);    
-    console.log(finalRegister)
-
-    //Output
-    //<Buffer 9a fb>
-    //<Buffer db 3d>
-
-Method: modbusTcpClient.boolsToBuffer(value)
----------------------------------------------------------------------
-
-* **value** <Array>: A boolean array.
-* **Return** <Buffer>: a buffer with binary representation of boolean array. 
-
-This is a utility method that return a buffer from a boolean array for modbus function code 15. 
-
-The value argument is a array of boolean with values to bu force to coils. For example:
-
-.. code-block:: javascript
-
-    let values = [0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1]; //at 0 index stat LSB Byte
-    valBuffer = modbusTcpClient.boolsToBuffer(values);
-
-    //result valBuffer [0xC2 0x04]
-    // calling force multiples colis
-    let pdu = modbusTcpClient.forceMultipleCoilsPdu(valBuffer, 10, values.length)  //calling force multiples coils at coil 10 and 11 coils to force
-
-
-
-Method: modbusTcpClient.makeHeader(unitId, pduLength)
+Method: nodbusTcpClient.addChannel(id, channelCfg)
 ---------------------------------------------------------
 
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
-* **pduLength** <number>: The pdu's buffer length
-* **Returns** <Buffer>: return a 7 bytes buffer with modbus tcp header
+* **id** <String>: Channels's name. Must be unique for each channel.
 
-This functions create a modbus tcp header's buffer. Example:
+* **channelCfg** <object>: Configuration object for the channel with following properties:
+
+  * *ip* <String>: Modbus server's ip address. Defaul 'localhost'.
+
+  * *port* <number> Port where the modbus server's is listening.
+
+  * *timeout* <number> Number of milliseconds to await for a response on the channel.
+
+  This method create a channel from the channel's constructor and add to the channels list :ref:`Atribute: nodbusTcpClient.channels`.
 
 .. code-block:: javascript
       
-      modbusTcpClient.transactionCount = 10;
-      header = modbusTcpClient.makeMbapHeader(2, 5);
-      console.log(header);
-      //Output
-      //<Buffer 0x00 0x0a 0x00 0x00 0x00 0x06, 0x02>
+      let device1 = {
+      ip: '127.0.0.1',  //server's ip address
+      port: 502,        //tcp port
+      timeout: 500}     // miliseconds for timeout event
 
-Method: modbusTcpClient.parseHeader(bufferHeader)
+      nodbusTcpClient.addChannel('device1', device1);
+      
+
+Method: nodbusTcpClient.connect(id)
+----------------------------------------
+
+* **id** <String>: Channels's name.
+
+  This method try to connect to the remote server configured on the channel.
+
+
+
+Method: nodbusTcpClient.delChannel(id)
+----------------------------------------
+
+* **id** <String>: Channels's name.
+
+  This method remove a channel from the channels list :ref:`Atribute: nodbusTcpClient.channels`.
+
+
+
+Method: nodbusTcpClient.disconnect(id)
+----------------------------------------
+
+* **id** <String>: Channels's name.
+
+This method send the FIN package to the remote server to close the connection.
+
+
+
+Method: nodbusTcpClient.isChannelReady(id)
+----------------------------------------
+
+* **id** <String>: Channels's name.
+* **return** <boolean>: true if channel is connected and ready to send data to the server, otherwise false.
+
+  This method return true if channel is connected and ready to send data to the server.
+
+
+Method: nodbusTcpClient.parseHeader(bufferHeader)
 ---------------------------------------------------------
 
 * **bufferHeader** <Buffer>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
@@ -211,7 +298,7 @@ This functions create a modbus tcp header's object. It throws a TypeError if arg
 .. code-block:: javascript
       
       let rawHeader = Buffer.from([0x00, 0x10, 0x00, 0x00, 0x00, 0x07, 0x05]);
-      let header = modbusTcpClient.parseHeader(rawHeader);
+      let header = nodbusTcpClient.parseHeader(rawHeader);
       console.log(header.transactionId);
       console.log(header.protocolId);
       console.log(header.length);
@@ -223,7 +310,7 @@ This functions create a modbus tcp header's object. It throws a TypeError if arg
       //5
 
 
-Method: modbusTcpClient.makeRequest(unitId, pdu)
+Method: nodbusTcpClient.makeRequest(unitId, pdu)
 ---------------------------------------------------------
 
 * **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
@@ -232,39 +319,248 @@ Method: modbusTcpClient.makeRequest(unitId, pdu)
 
 This functions first increment the transaction counter and create a modbus tcp request ready to be send to the client.
 
-Method: modbusTcpClient.storeRequest(bufferReq)
----------------------------------------------------------
 
-* **bufferReq** <Buffer>: A modbus tcp adu request buffer.
-* **Returns** <bool>: return true if was succesfully stored, otherwise false
+Method: nodbusTcpClient.forceSingleCoil(value, channelId, unitId, startCoil)
+--------------------------------------------------------------------------------------------
 
-This functions store a adu request in the :ref:`request Pool <Atribute: modbusTcpClient.reqPool>` if the size of the pool is less than
-:ref:`max number of transaction allowed simultaniously <Atribute: modbusTcpClient._maxNumberOfTransaction>`
+* **value** <boolean>: Value to force.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startCoil** <number>: Coil to force at 0 address.
+* **Returns** <boolean>: true if success
 
-Method: modbusTcpClient.setReqTimer(transactionId, [timeout])
--------------------------------------------------------------
+This functions create the force coil (function 05) request and sended to server.
 
-* **transactionId** <number>: Modbus reqest's transaction id for wich the timer is set.
-* **timeout** <number>: Number of milliseconds to await for a response or fire timeout event.
-* **Returns** <number>: Timer's id to be use on clearTimeout.
-
-This functions store a timerId in the :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>` if the request exist in request pool.
-
-
-Method: modbusTcpClient.clearReqTimer(transactionId)
--------------------------------------------------------------
-
-* **transactionId** <number>: Modbus reqest's transaction id for wich the timer is set.
+.. code-block:: javascript
+      
+      //forcing coil to 1 on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //coils 10.      
+      successStatus = nodbusTcpClient.forceSingleCoil(1, 'device1', 255, 10);
 
 
-This functions call the build in clearTimeout function to avoid emit the'req_timeout' event, and remove the entry timerId from :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>`.
+Method: nodbusTcpClient.forceMultipleCoils(values, channelId, unitId, startCoil)
+--------------------------------------------------------------------------------------------
+
+* **value** <Array>: Array of booleans with values to force.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startCoil** <number>: First coil to force starting at 0 address.
+* **Returns** <boolean>: true if success
+
+This functions create the force multiples coils (function 15) request and sended to server.
+
+.. code-block:: javascript
+      
+      //forcing 6 coils to desire values on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //starting at coil 10.  
+      vals = [1, 0, 1, 1, 0, 1]    
+      successStatus = nodbusTcpClient.forceMultipleCoils(val, 'device1', 255, 10);
 
 
-Method: modbusTcpClient.processResAdu(bufferAdu)
----------------------------------------------------------
+Method: nodbusTcpClient.maskHoldingRegister(values, channelId, unitId, startRegister)
+--------------------------------------------------------------------------------------------
 
-* **bufferAdu** <Buffer>: A modbus tcp adu response buffer.
+* **values** <Array> An array of 16 numbers with values to force. Index 0 is de less significant bit.
+                    A value off 1 force to 1 the corresponding bit, 0 force to 0, other values don't change the bit value.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startRegister** <number>: Register to write at 0 address.
+* **Returns** <boolean>: true if success
+
+This functions create the mask holding register (function 22) request and sended to server.
+
+.. code-block:: javascript
+      
+      //forcing register on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 99 startint at 0.
+      
+      let vals = [1, 0, 1, 0, 2, 2, 1, 1, 2, 2, 0, 0, 0, 1, 2, 2]
+      successStatus = nodbusTcpClient.maskHoldingRegister(vals, 'device1', 255, 99);
 
 
-This method is used to managed server response. It remove the request from :ref:`request Pool <Atribute: modbusTcpClient.reqPool>`, call 
-the :ref:`Method: modbusTcpClient.clearReqTimer(transactionId)` to avoid emit 'req_timeout' event and emit the 'transaction' event.
+
+Method: nodbusTcpClient.presetSingleRegister(value, channelId, unitId, startRegister)
+--------------------------------------------------------------------------------------------
+
+* **value** <Buffer> a two Bytes length buffer.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startRegister** <number>: Register to write at 0 address.
+* **Returns** <boolean>: true if success
+
+This functions create the preset single register (function 06) request and sended to server.
+
+.. code-block:: javascript
+      
+      //forcing register on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 99 startint at 0.
+      
+      let val = Buffer.alloc(2);
+      val.writeInt16BE(4567);
+      successStatus = nodbusTcpClient.presetSingleRegister(val, 'device1', 255, 99);
+
+    
+Method: nodbusTcpClient.presetMultiplesRegisters(values, channelId, unitId, startRegister)
+--------------------------------------------------------------------------------------------
+
+* **values** <Buffer> a two Bytes length buffer.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startRegister** <number>: Register to write at 0 address.
+* **Returns** <boolean>: true if success
+
+This functions create the preset multiple registers (function 16) request and sended to server. The amount ofregister to write is the
+values's buffer half length.
+
+.. code-block:: javascript
+      
+      //writing 3 registers on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 99 startint at 0.
+      
+      let vals = Buffer.alloc(6);
+      let tempRegister = Buffer.alloc(2);
+      tempRegister.writeUInt16BE(245);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 0);
+      tempRegister.writeUInt16BE(8965);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 1);
+      tempRegister.writeUInt16BE(1045);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 2);
+      successStatus = nodbusTcpClient.presetMultipleRegisters(vals, 'device1', 255, 99);
+
+
+
+Method: nodbusTcpClient.readCoils(channelId, unitId, startCoil, coilsCuantity)
+------------------------------------------------------------------------------
+
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startCoil** <number>: Starting coil to read at 0 address.
+* **coilsCuantity** <number>: Number of coils to read.
+* **Returns** <boolean>: true if success
+
+This functions create the read coil  (function 01) request and sended to server.
+
+.. code-block:: javascript
+      
+      //Reading coil on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //coils 10 startint at 0.
+      //Read 14 coils
+      successStatus = nodbusTcpClient.readCoils('device1', 255, 10, 14);
+
+
+Method: nodbusTcpClient.readHoldingRegisters(channelId, unitId, startRegister, registersCuantity)
+--------------------------------------------------------------------------------------------------
+
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startRegister** <number>: Starting input to read at 0 address.
+* **registerCuantity** <number>: Number of registers to read.
+* **Returns** <boolean>: true if success
+
+This functions create the read holding register (function 03) request and sended to server.
+
+.. code-block:: javascript
+      
+      //Reading input on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 10 .
+      //Read 4 register
+      successStatus = nodbusTcpClient.readHoldingRegisters('device1', 255, 10, 4);
+
+
+
+Method: nodbusTcpClient.readInputs(channelId, unitId, startInput, inputsCuantity)
+---------------------------------------------------------------------------------
+
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startInput** <number>: Starting input to read at 0 address.
+* **inputsCuantity** <number>: Number of inputs to read.
+* **Returns** <boolean>: true if success
+
+This functions create the read inputs  (function 02) request and sended to server.
+
+.. code-block:: javascript
+      
+      //Reading input on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //input 0 .
+      //Read 6 inputs
+      successStatus = nodbusTcpClient.readInputs('device1', 255, 0, 6);
+
+
+Method: nodbusTcpClient.readInputRegisters(channelId, unitId, startRegister, registersCuantity)
+--------------------------------------------------------------------------------------------------
+
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **startRegister** <number>: Starting input to read at 0 address.
+* **registerCuantity** <number>: Number of inputs to read.
+* **Returns** <boolean>: true if success
+
+This functions create the read input register (function 04) request and sended to server.
+
+.. code-block:: javascript
+      
+      //Reading input on channel device1, unitId 255  define device itself.
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 10 .
+      //Read 4 register
+      successStatus = nodbusTcpClient.readInputRegisters('device1', 255, 10, 4);
+
+
+
+Method: nodbusTcpClient.readWriteMultiplesRegisters(values, channelId, unitId, readStartingRegister, readRegisterCuantity, writeStartingRegister)
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+* **values** <Buffer> a two Bytes length buffer.
+* **channelId** <string>: Channels's name.
+* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **readStartingRegister** <number>: Starting input to read at 0 address.
+* **readRegisterCuantity** <number>: Number of registers to read.
+* **writeStartingRegister** <number>: Register to write at 0 address.
+* **Returns** <boolean>: true if success
+
+This functions create the read and write holding registers (function 23) request and sended to server.
+
+.. code-block:: javascript
+      
+      //writing 3 registers on channel device1, unitId 255  define device itself and reading five registers from register 10
+      //If device is a modbus gateway then unitId define the modbus address for desire station.
+      //register 99 startint at 0.
+      
+      let vals = Buffer.alloc(6);
+      let tempRegister = Buffer.alloc(2);
+      tempRegister.writeUInt16BE(245);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 0);
+      tempRegister.writeUInt16BE(8965);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 1);
+      tempRegister.writeUInt16BE(1045);
+      nodbusTcpClient.setWordToBuffer(tempRegister, vals, 2);
+      successStatus = nodbusTcpClient.readWriteMultiplesRegisters(vals, 'device1', 255, 10, 5, 99);
+
+
+Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
+--------------------------------------------------------------
+
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
+* **offset** <number>: A number with register's offset inside the buffer.
+* **Return** <Buffer>: A two bytes length buffer.
+
+This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
+
+
+Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
+-------------------------------------------------------------------
+
+* **value** <Buffer>: two bytes length buffer.
+* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
+* **offset** <number>: A number with register's offset inside the buffer.
+
+This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.

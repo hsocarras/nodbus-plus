@@ -106,9 +106,7 @@ Atribute: netServer.coreServer
 * <object>
 
    * **net.Server**: For tcp `node <https://nodejs.org/api/net.html#class-netserver>`_. 
-
    * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
-
    * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
 
 This property is a node net.Server in nodbus tcpServer class or node udp.Socket in nodbus udpServer or serialport from serialport library in nodbus serialServer. 
