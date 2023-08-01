@@ -98,6 +98,7 @@ module.exports.createSerialServer = function (net = 'serial', serverCfg){
 const NodbusTcpClient = require('./client/nodbus_tcp_client.js');
 
 const NetTcpChannel = require('./client/net/tcpchannel.js');
+const NetUdpChannel = require('./client/net/udpchannel.js');
 
 module.exports.createTcpClient = function (channel = 'tcp'){
 
@@ -107,12 +108,10 @@ module.exports.createTcpClient = function (channel = 'tcp'){
             channelType = NetTcpChannel;
             break
         case 'udp4':
-            //netType = NetUdpServer;
-            //serverCfg.udpType = 'udp4';
+            channelType = NetUdpChannel;            
             break
         case 'udp6':
-            //netType = NetUdpServer;
-            //serverCfg.udpType = 'udp6';
+            channelType = NetUdpChannel;           
             break
         default:
             channelType = NetTcpServer;

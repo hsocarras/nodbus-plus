@@ -78,6 +78,40 @@ class UdpServer {
         */
         this.onMbAduHook = noop;
 
+        this.coreServer.on('message', function(msg, rinfo){
+
+            //udp is conexionless protocol.
+           
+            rinfo.remoteAddress = rinfo.address;
+            rinfo.remotePort = rinfo.port;  
+           
+            self.onDataHook(rinfo, msg);
+            
+             
+            //Active tcp coalesing detection for modbus tcp
+            if(self.tcpCoalescingDetection){
+                    //one tcp message can have more than one modbus indication.
+                    //each modbus tcp message have a length field
+                    let messages = self.resolveTcpCoalescing(msg);
+                    
+                    messages.forEach((message) => {
+                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
+                            self.onMbAduHook(rinfo, message);
+                        }
+                    })
+
+            }
+                //Non active tcp coalesing detection for modbus serial
+                else{
+                   
+                    if(self.onMbAduHook  instanceof Function & self.validateFrame(msg)){
+                            self.onMbAduHook(rinfo, msg);
+                    }
+                }
+            
+
+        });
+
         /**
         *  function to executed when event listening is emited
         */
@@ -112,8 +146,7 @@ class UdpServer {
         *  function to executed when event close is emited
         */
         this.onServerCloseHook = noop;
-        this.coreServer.on('close', function(){
-
+        this.coreServer.on('close', function(){         
             self.isListening = false;       
             self.onServerCloseHook();
                
@@ -141,41 +174,6 @@ class UdpServer {
     start (){
         var self = this; 
 
-        this.coreServer.on('message', function(msg, rinfo){
-
-            //udp is conexionless protocol.
-
-            rinfo.remoteAddress = rinfo.address;
-            rinfo.remotePort = rinfo.port;                 
-            
-            if(self.onDataHook instanceof Function){
-                self.onDataHook(rinfo, msg);
-            }
-             
-            //Active tcp coalesing detection for modbus tcp
-            if(self.tcpCoalescingDetection){
-                    //one tcp message can have more than one modbus indication.
-                    //each modbus tcp message have a length field
-                    let messages = self.resolveTcpCoalescing(msg);
-                    
-                    messages.forEach((message) => {
-                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
-                            self.onMbAduHook(rinfo, message);
-                        }
-                    })
-
-            }
-                //Non active tcp coalesing detection for modbus serial
-                else{
-                   
-                    if(self.onMbAduHook  instanceof Function & self.validateFrame(msg)){
-                            self.onMbAduHook(rinfo, msg);
-                    }
-                }
-            
-
-        });
-
         try {
             this.coreServer.bind(this.port)
         }
@@ -189,7 +187,7 @@ class UdpServer {
     * Stop the tcp server
     */
     stop (){
-        //cerrando el server
+        //cerrando el server      
         this.coreServer.close();      
     }
     

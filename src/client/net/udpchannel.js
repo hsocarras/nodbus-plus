@@ -97,9 +97,10 @@ class UdpChannel {
         })
 
         this.onCloseHook =  noop;
-        this.coreChannel.on('close', (e) =>{
+        /*
+        this.coreChannel.on('close', (e) =>{           
             self.onCloseHook();
-        })
+        })*/
         
         this.onWriteHook = noop;
 
@@ -108,16 +109,19 @@ class UdpChannel {
     }
 
     isConnected(){
+        
         try{
-            let remoteIp = this.coreChannel.remoteAddress()
-            if (remoteIp == this.ip){
+            
+            let remoteSocket = this.coreChannel.remoteAddress()
+            
+            if (remoteSocket.address == this.ip){
                 return true;
             }
-            else{
+            else{                
                 return false;
             }
         }
-        catch(e){
+        catch(e){            
             return false;
         }
     }
@@ -139,15 +143,15 @@ class UdpChannel {
                 self.coreChannel.connect(self.port, self.ip, (e)=>{
 
                     if(e){
-                        resolve(self.coreChannel);
+                        reject(self.ip, self.port);
                     }
                     else{
-                        reject(self.ip, self.port);
+                        resolve(self.coreChannel);                        
                     }
                 })             
             
           }
-          catch(e){
+          catch(e){            
             self.onError(e);
             reject(self.ip, self.port);
           }
@@ -156,22 +160,24 @@ class UdpChannel {
         return promise;
     }
 
-    disconnet(){
+    disconnect(){
 
         let self = this;
-
+        
         let promise = new Promise(function(resolve,reject){
-
+            
             if(self.isConnected() == true){
                 try{
-                    self.coreChannel.disconnet();
+                    
+                    self.coreChannel.disconnect();
+                    self.onCloseHook();
                     resolve();
                 }
                 catch(e){
                     resolve()
                 }
             }
-            else{
+            else{                
                 resolve();
             }
         })
@@ -194,8 +200,6 @@ class UdpChannel {
             return false;
         }
         else{
-
-            
 
             this.coreChannel.send(frame, function(e){
               
@@ -236,4 +240,4 @@ class UdpChannel {
     }
 }
 
-module.exports = UDPClient;
+module.exports = UdpChannel;
