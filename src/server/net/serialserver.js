@@ -52,17 +52,10 @@ class SerialServer {
         * @type {Object}
         */
         this.coreServer = new SerialPort(netCfg);
+       
+        this.parser = this.coreServer.pipe(new InterByteTimeoutParser({ interval: netCfg.timeBetweenFrame }));
+               
 
-        if(netCfg.transmitionMode == 1){
-            this.parser = this.coreServer.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-        }
-        else{
-            this.parser = this.coreServer.pipe(new InterByteTimeoutParser({ interval: netCfg.timeBetweenFrame }));
-        }
-        
-
-        //array whit connections
-        this.activeConnections = [];
       
         /**
         * port

@@ -96,7 +96,7 @@ module.exports.createSerialServer = function (net = 'serial', serverCfg){
 //Nodbus Plus clients full implementation***************************************************************************************
 
 const NodbusTcpClient = require('./client/nodbus_tcp_client.js');
-
+const NodbusSerialClient = require('./client/nodbus_serial_client.js')
 const NetTcpChannel = require('./client/net/tcpchannel.js');
 const NetUdpChannel = require('./client/net/udpchannel.js');
 
@@ -122,4 +122,7 @@ module.exports.createTcpClient = function (channel = 'tcp'){
 
 }
 
+module.exports.createSerialClient = function(channel = 'tcp'){
+
+}
 

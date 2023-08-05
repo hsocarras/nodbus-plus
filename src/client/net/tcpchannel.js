@@ -157,7 +157,7 @@ class TcpChannel {
                 
             }
             catch(e){                
-                self.onError(e);                
+                self.onErrorHook(e);                
                 reject(self.ip, self.port);
             }
         })

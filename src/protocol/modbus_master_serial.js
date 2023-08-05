@@ -50,9 +50,10 @@ class ModbusSerialClient extends ModbusClient {
      * Function to make a request buffer from pdu buffer and unit id.    
      * @param {number} address Legacy modbus address
      * @param {Buffer} pdu Buffer with modbus pdu
-     * @returns {object} buffer with request if succesfull or null.
+     * @param {boolean} asciiMode. If true the request is made in ascii format.
+     * @returns {Buffer} buffer with request if succesfull or null.
      */
-    makeRequest(address, pdu){
+    makeRequest(address, pdu, asciiMode = false){
 
         if(pdu instanceof Buffer & address >= 0 & address <= 247){
 
@@ -60,12 +61,16 @@ class ModbusSerialClient extends ModbusClient {
             reqBuffer[0] = address;
             pdu.copy(reqBuffer, 1);
 
-            //calculating crc and appending to requst                
-            let crc = this.calcCRC(reqBuffer);
-            reqBuffer.writeUInt16BE(crc, reqBuffer.length-2);
-
-            
-            return reqBuffer;
+            if (asciiMode){
+                let reqAsciiBuffer = this.aduRtuToAscii(reqBuffer);
+                return reqAsciiBuffer
+            }
+            else{
+                //calculating crc and appending to request                
+                let crc = this.calcCRC(reqBuffer);
+                reqBuffer.writeUInt16BE(crc, reqBuffer.length-2);
+                return reqBuffer;
+            }   
                         
         }
         else{
@@ -74,6 +79,31 @@ class ModbusSerialClient extends ModbusClient {
         
     }
 
+    /**
+     * Function to store the request in activeRequest and set the ascii flag is the request is in ascii Format.     
+     * @param {Buffer} bufferReq
+     * @returns {boolean} true if is succesful stored, false otherwise
+     */
+    storeRequest(bufferReq, asciiMode = false){
+
+        let len = bufferReq.length;
+
+        //storing request on the pool
+        if(this.activeRequest == null){
+            if(asciiMode){
+                this._asciiRequest = true;
+            }
+            else{
+                this._asciiRequest = false;
+            }
+            this.activeRequest = bufferReq;
+            return true
+        }
+        else{
+            return false;
+        }
+
+    }
    
     /**
      * Function to initialize a timer for timeout detection.
@@ -138,6 +168,7 @@ class ModbusSerialClient extends ModbusClient {
 
                             let req = this.activeRequest;
                             this.activeRequest = null;
+                            this._asciiRequest = false;
                             this.emit('transaction', req, res);
 
                         }

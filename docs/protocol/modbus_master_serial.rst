@@ -200,11 +200,12 @@ The value argument is a array of boolean with values to bu force to coils. For e
     let pdu = modbusSerialClient.forceMultipleCoilsPdu(valBuffer, 10, values.length)  //calling force multiples coils at coil 10 and 11 coils to force
 
 
-Method: modbusSerialClient.makeRequest(address, pdu)
+Method: modbusSerialClient.makeRequest(address, pdu, asciiMode)
 ---------------------------------------------------------
 
 * **address** <number>: Modbus address.
 * **pdu** <Buffer>: The pdu's buffer.
+* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
 * **Returns** <Buffer>: return a serial adu request's buffer
 
 This functions create a modbus serial request ready to be send to the client.
@@ -236,7 +237,7 @@ Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])
 This method is used to managed server response. Call the :ref:`Method: modbusSerialClient.clearReqTimer()` to avoid emit 'req_timeout' event and emit the 'transaction' event.
 
 
-Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
+Method: modbusSerialClient.getWordFromBuffer(targetBuffer, [offset])
 --------------------------------------------------------------
 
 * **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
@@ -247,7 +248,7 @@ Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
 This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
 
 
-Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
+Method: modbusSerialClient.setWordToBuffer(value, targetBuffer, [offset])
 -------------------------------------------------------------------
 
 * **value** <Buffer>: two bytes length buffer.
@@ -255,4 +256,16 @@ Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
 * **offset** <number>: A number with register's offset inside the buffer.
 
 This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.
+
+
+Method: modbusSerialClient.storeRequest(bufferReq, ascciiMode)
+-------------------------------------------------------------------
+
+
+* **bufferRequest** <Buffer>: A buffer with the modbus request.
+* **asciiMode** <boolean>: A flag that indicate that request stored is ascii.
+* **return** <boolean>: True if success
+
+This method checks if activeRequest property is null, if not it return false indicating tha are still a request pending.
+It also checks if the request is ascii or not and set the internal ascii flag for active request.
 

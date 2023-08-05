@@ -1,30 +1,27 @@
 /**
-** Modbus Tcp Client  module.
-* @module client/modbus_tcp_client
+** Modbus Serial over Tcp Client  module.
+* @module client/nodbus_serial_client
 * @author Hector E. Socarras.
-* @version 0.8.0
+* @version 1.0.0
 */
 
-const ModbusTcpMaster = require('../protocol/modbus_master_tcp');
+const ModbusSerialMaster = require('../protocol/modbus_master_serial');
 const TcpChannel = require('./net/tcpchannel');
 const UdpChannel = require('./net/udpchannel');
 
-
-
-
 /**
- * Class representing a modbus tcp client ready to use.
- * @extends ModbusTcpMaster
+* Class representing a modbus serial client ready to use.
+* @extends ModbusSerialMaster
 */
-class NodbusTcpClient extends  ModbusTcpMaster {
+class NodbusSerialClient extends  ModbusSerialMaster {
   /**
   * Create a Modbus Tcp Client.
-  * @param {object} netClass. Transport layer. Can be tcp, udp4 or udp6
+  * @param {object} netChannel. Transport layer. Can be tcp, udp4, udp6 or serial
   */
     constructor(channelClass = TcpChannel){
         super();
 
-        var self = this; 
+        var self = this;
 
         /**
         * channel's constructor
@@ -37,9 +34,17 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             this.emit('error', e);
             this.Channel = TcpChannel;
         }
-        
+
         this.channels = new Map();
-                
+       
+        
+    }
+
+    get isIdle(){
+      if (this.activeRequest == null){
+        return true
+      }
+      else return false
     }
 
     /**
@@ -50,15 +55,14 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} timeout time in miliseconds to emit timeout for a request.     
      */
     addChannel(id, channelCfg = {ip: 'localhost', port: 502, timeout:250}){
-      
-        
+
         if(channelCfg.ip == undefined){ channelCfg.ip = 'localhost'} 
         if(channelCfg.port == undefined){ channelCfg.port = 502}        
         if(channelCfg.timeout == undefined){ channelCfg.timeout = 250}    
-        channelCfg.tcpCoalescingDetection = true;
+        channelCfg.tcpCoalescingDetection = false;  
       
         let channel = new this.Channel(channelCfg);
-
+      
         /**
         * Emit connect and ready events
         * @param {object} target Socket object
@@ -97,13 +101,23 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             
             let res = {};
 
-            res.timeStamp = Date.now();
-            res.transactionId = resAdu.readUint16BE(0);
-            res.unitId = resAdu[6];
-            res.functionCode = resAdu[7];
-            res.data = resAdu.subarray(8);
-
-            this.processResAdu(resAdu);
+            res.timeStamp = Date.now(); 
+            if(this._asciiRequest)  {
+                let rtuResAdu = this.aduAsciiToRtu(resAdu);
+                let len = rtuResAdu.length; 
+                res.unitId = rtuResAdu[0];
+                res.functionCode = rtuResAdu[1];                
+                res.data = rtuResAdu.subarray(2, len-2);
+            }  
+            else{
+                let len = resAdu.length; 
+                res.unitId = resAdu[0];
+                res.functionCode = resAdu[1];                
+                res.data = resAdu.subarray(2, len-2);                
+            }       
+            
+            this.processResAdu(resAdu, this._asciiRequest);
+            
             this.emit('response', id, res)
             
         }
@@ -121,12 +135,21 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             let req = {};
 
             req.timeStamp = Date.now();
-            req.transactionId = reqAdu.readUint16BE(0);
-            req.unitId = reqAdu[6];
-            req.functionCode = reqAdu[7];
-            req.data = reqAdu.subarray(8);
+            if(this._asciiRequest){
+                let rtuReqAdu = this.aduAsciiToRtu(reqAdu);
+                let len = rtuReqAdu.length; 
+                req.unitId = rtuReqAdu[0];
+                req.functionCode = rtuReqAdu[1];                
+                req.data = rtuReqAdu.subarray(2, len-2);
+            }
+            else{
+                let len = reqAdu.length; 
+                req.unitId = reqAdu[0];
+                req.functionCode = reqAdu[1];                
+                req.data = reqAdu.subarray(2, len-2); 
+            }            
             
-            this.setReqTimer(req.transactionId, channelCfg.timeout);   //start the timer for timeout event
+            this.setReqTimer(channelCfg.timeout);   //start the timer for timeout event
             this.emit('request', id, req);
 
             /**
@@ -138,23 +161,22 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         };
 
         channel.validateFrame = (frame)=>{
-            if(frame.length > 7){
+            if(frame.length > 3){
 
-                let expectedLength = frame.readUInt16BE(4) + 6;
-                let protocolId = frame.readUInt16BE(2);
-                return frame.length == expectedLength & protocolId == 0;
+               return true
             }
             return false;
         }
 
         this.channels.set(id, channel);
+      
     }
-    
-    /**
+
+     /**
     * Function to delete a channel from the list
     * @param {string} id 
     */
-    delChannel(id){
+     delChannel(id){
 
         if(this.channels.has(id)){
           this.channels.delete(id);      
@@ -170,8 +192,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         else return false;      
     }
 
-   
-	/**
+   /**
     *Stablish connection
     */
 	connect(id){
@@ -193,7 +214,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         }
 		  
     }
-    
+
     /**
     *disconnect from server
     */
@@ -223,18 +244,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address
      * @param {number} coilsCuantity 
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    readCoils(channelId, unitId, startCoil, coilsCuantity){
+    readCoils(channelId, unitId, startCoil, coilsCuantity, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);
             let pdu = this.readCoilStatusPdu(startCoil, coilsCuantity);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -255,18 +277,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startInput Starting inputs at 0 address
      * @param {number} inputsCuantity 
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    readInputs(channelId, unitId, startInput, inputsCuantity){
+    readInputs(channelId, unitId, startInput, inputsCuantity, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);
             let pdu = this.readInputStatusPdu(startInput, inputsCuantity);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -286,18 +309,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startRegister Starting coils at 0 address
      * @param {number} registersCuantity 
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    readHoldingRegisters(channelId, unitId, startRegister, registersCuantity){
+    readHoldingRegisters(channelId, unitId, startRegister, registersCuantity, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);
             let pdu = this.readHoldingRegistersPdu(startRegister, registersCuantity);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -317,18 +341,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startRegister Starting register at 0 address
      * @param {number} registersCuantity 
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    readInputRegisters(channelId, unitId, startRegister, registersCuantity){
+    readInputRegisters(channelId, unitId, startRegister, registersCuantity, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);
             let pdu = this.readInputRegistersPdu(startRegister, registersCuantity);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -340,7 +365,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         else{
             return false
         }
-    }  
+    } 
 
     /**
      * Function to send forse single coil request to a modbus server.
@@ -348,9 +373,10 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address     
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    forceSingleCoil(value, channelId, unitId, startCoil){
+    forceSingleCoil(value, channelId, unitId, startCoil, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
@@ -358,9 +384,9 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             let channel = this.channels.get(channelId);
             let bufValue = this.boolToBuffer(value);
             let pdu = this.forceSingleCoilPdu(bufValue, startCoil);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -372,26 +398,27 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         else{
             return false
         }
-    }  
+    }
 
     /**
      * Function to send preset single register request to a modbus server.
      * @param {Buffer} value Two bytes length buffer.
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
-     * @param {number} startRegister Starting coils at 0 address     
+     * @param {number} startRegister Starting coils at 0 address    
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false. 
      * @returns {Boolean} true if succses otherwise false
      */
-    presetSingleRegister(value, channelId, unitId, startRegister){
+    presetSingleRegister(value, channelId, unitId, startRegister, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);            
             let pdu = this.presetSingleRegisterPdu(value, startRegister);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -403,7 +430,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         else{
             return false
         }
-    }  
+    } 
 
     /**
      * Function to send force multiples coils request to a modbus server.
@@ -411,9 +438,10 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1 -255
      * @param {number} startCoil Starting coils at 0 address 
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false. 
      * @returns {Boolean} true if succses otherwise false
      */
-    forceMultipleCoils(values, channelId, unitId, startCoil){
+    forceMultipleCoils(values, channelId, unitId, startCoil, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
@@ -421,9 +449,9 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             let channel = this.channels.get(channelId);    
             let bufValues =  this.boolsToBuffer(values); 
             let pdu = this.forceMultipleCoilsPdu(bufValues, startCoil, values.length);
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
             
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -435,7 +463,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         else{
             return false
         }
-    }  
+    } 
 
     /**
      * Function to send preset multiples registers request to a modbus server.
@@ -443,18 +471,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1-255
      * @param {number} startRegister Starting register at 0 address.
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns {Boolean} true if succses otherwise false
      */
-    presetMultiplesRegisters(values, channelId, unitId, startRegister){
+    presetMultiplesRegisters(values, channelId, unitId, startRegister, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId); 
             let pdu = this.presetMultipleRegistersPdu(values, startRegister, Math.floor(values.length/2));
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
             
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -475,9 +504,10 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {string} channelId Identifier use as key on channels dictionary.
      * @param {number} unitId Modbus address. A value between 1-255
      * @param {number} startRegister Starting register at 0 address.
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns true if succses otherwise false
      */
-    maskHoldingRegister(values, channelId, unitId, startRegister){
+    maskHoldingRegister(values, channelId, unitId, startRegister, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
@@ -485,9 +515,9 @@ class NodbusTcpClient extends  ModbusTcpMaster {
             let channel = this.channels.get(channelId);    
             let bufValues =  this.getMaskRegisterBuffer(values); 
             let pdu = this.maskHoldingRegisterPdu(bufValues, startRegister, Math.floor(values.length));
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -509,18 +539,19 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} readStartingRegister Starting register at 0 address.
      * @param {number} readRegisterCuantity Number of register to read
      * @param {number} writeStartingRegister Starting register at 0 address to write.
+     * @param {boolean} asciiMode A flag that indicate the request is build in ascii format. Default false.
      * @returns true if succses otherwise false
      */
-    readWriteMultiplesRegisters(values, channelId, unitId, readStartingRegister, readRegisterCuantity, writeStartingRegister){
+    readWriteMultiplesRegisters(values, channelId, unitId, readStartingRegister, readRegisterCuantity, writeStartingRegister, asciiMode = false){
         let self = this;
         //check if channel is connected
         if(this.isChannelReady(channelId)){
 
             let channel = this.channels.get(channelId);               
             let pdu = this.readWriteMultipleRegistersPdu(values,  readStartingRegister, readRegisterCuantity, writeStartingRegister, Math.floor(values.length/2));
-            let reqAdu = this.makeRequest(unitId, pdu);
+            let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
 
-            if(self.storeRequest(reqAdu)){                
+            if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
                
@@ -538,4 +569,4 @@ class NodbusTcpClient extends  ModbusTcpMaster {
 
 
 
-module.exports = NodbusTcpClient;
+module.exports = NodbusSerialClient;
