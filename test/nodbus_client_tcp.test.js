@@ -37,7 +37,7 @@ describe("tcp client", () => {
 
         client.on('transaction', (req, res) =>{
             let reqId = req.readUInt16BE(0);
-            let resId = req.readUInt16BE(0);
+            let resId = res.readUInt16BE(0);
             let unitId = req[6]
             let functionCode = req[7];
             
@@ -190,7 +190,7 @@ describe("udp client", () => {
 
         client2.on('transaction', (req, res) =>{
             let reqId = req.readUInt16BE(0);
-            let resId = req.readUInt16BE(0);
+            let resId = res.readUInt16BE(0);
             let unitId = req[6]
             let functionCode = req[7];
             

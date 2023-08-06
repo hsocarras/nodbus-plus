@@ -49,6 +49,14 @@ Event: 'req_timeout'
 This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setReqTimer([timeout])` ends without call 
 :ref:`Method: modbusSerialClient.clearReqTimer()`
 
+
+Event: 'broadcast_timeout_timeout'
+-----------------------------------
+
+This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setTurnAroundDelay([timeout])` is reached. Indicate that client
+has no pending broadcast request and is free to send another request.
+
+
 Event: 'transaction'
 --------------------
 
@@ -218,6 +226,16 @@ Method: modbusSerialClient.setReqTimer([timeout])
 * **Returns** <number>: Timer's id to be use on clearTimeout.
 
 This functions store a timerId in the :ref:`request timers pool <Atribute: modbusSerialClient.activeRequestTimerId>`.
+
+
+Method: modbusSerialClient.setTurnAroundDelay([timeout])
+---------------------------------------------------
+
+* **timeout** <number>: Number of milliseconds to await for fire broadcast_timeout event.
+* **Returns** <number>: Timer's id to be use on clearTimeout.
+
+This functions store a timerId in the :ref:`request timers pool <Atribute: modbusSerialClient.turnAroundDelay>`. Is used when a broadcast request
+is sended.
 
 
 Method: modbusSerialClient.clearReqTimer()

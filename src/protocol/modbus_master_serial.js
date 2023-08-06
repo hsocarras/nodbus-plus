@@ -38,7 +38,7 @@ class ModbusSerialClient extends ModbusClient {
         /** 
          * variable that holds the timer used when broadcast request is sended.
         */
-        this.turnAroundDelay = 10;
+        this.turnAroundDelay = -1;
 
         
 
@@ -133,6 +133,33 @@ class ModbusSerialClient extends ModbusClient {
     }
 
     /**
+     * Function to initialize a timer for timeout detection on broadcast request.
+     * @param {number} transactionId 
+     * @param {number} timeout 
+     * @return {number} timer id for cleartimeout function or -1 if no timer was set.
+     * @emits req_timeout. Timeout event
+     */
+    setTurnAroundDelay(timeout = 100){
+
+        let self = this;
+        
+        if(this.activeRequest instanceof Buffer & typeof timeout === 'number' & timeout >= 1){
+            
+            let timerId = setTimeout(()=>{
+                self.activeRequest = null;
+                self.emit('broadcast_timeout'); //what to do when timeout occurs is desition for the user app
+            }, timeout);
+            
+            self.turnAroundDelay = timerId;
+
+            return timerId
+        }
+        else{
+            return -1;
+        }
+    }
+
+    /**
      * Funcion to clear the timeout imer for a given request
      * @param {number} transactionId 
      */
@@ -158,15 +185,16 @@ class ModbusSerialClient extends ModbusClient {
                     //Modbus Ascii Frame
                     let calcErrorCheck = this.calcLRC(bufferAdu);
                     let frameErrorCheck = Number('0x' + bufferAdu.toString('ascii', bufferAdu.length-4, bufferAdu.length-2));
-                    
+                   
                     if(calcErrorCheck == frameErrorCheck){
+                        
                         //valid frame
                         let res = this.aduAsciiToRtu(bufferAdu);
-                        if(res[0] == this.activeRequest[0]){
-                            //if address match
-                            this.clearReqTimer();
+                        let req = this.aduAsciiToRtu(this.activeRequest);
 
-                            let req = this.activeRequest;
+                        if(res[0] == req[0]){
+                            //if address match
+                            this.clearReqTimer();                            
                             this.activeRequest = null;
                             this._asciiRequest = false;
                             this.emit('transaction', req, res);

@@ -149,7 +149,12 @@ class NodbusSerialClient extends  ModbusSerialMaster {
                 req.data = reqAdu.subarray(2, len-2); 
             }            
             
-            this.setReqTimer(channelCfg.timeout);   //start the timer for timeout event
+            if(req.unitId == 0){
+                this.setTurnAroundDelay(channelCfg.timeout);   //start the timer for timeout event
+            }
+            else{
+                this.setReqTimer(channelCfg.timeout);   //start the timer for timeout event
+            }
             this.emit('request', id, req);
 
             /**
@@ -255,7 +260,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
             let channel = this.channels.get(channelId);
             let pdu = this.readCoilStatusPdu(startCoil, coilsCuantity);
             let reqAdu = this.makeRequest(unitId, pdu, asciiMode);
-
+            
             if(self.storeRequest(reqAdu, asciiMode)){                
                     
                 return channel.write(reqAdu);                    
