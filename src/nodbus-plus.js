@@ -108,6 +108,9 @@ module.exports.createTcpClient = function (channel = 'tcp'){
         case 'tcp':
             channelType = NetTcpChannel;
             break
+        case 'udp':
+            channelType = NetUdpChannel;
+            break
         case 'udp4':
             channelType = NetUdpChannel;            
             break
@@ -129,6 +132,9 @@ module.exports.createSerialClient = function(channel = 'tcp'){
     switch(channel){
         case 'tcp':
             channelType = NetTcpChannel;
+            break
+        case 'udp':
+            channelType = NetUdpChannel;
             break
         case 'udp4':
             channelType = NetUdpChannel;

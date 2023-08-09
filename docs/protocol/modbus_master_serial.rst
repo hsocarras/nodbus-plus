@@ -34,6 +34,13 @@ Constructor for new ModbusSerialClient instance.
 ModbusSerialClient's Events
 ===========================
 
+Event: 'broadcast_timeout'
+---------------------------
+
+This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setTurnAroundDelay([timeout])` is reached. Indicate that client
+has no pending broadcast request and is free to send another request.
+
+
 Event: 'req_timeout'
 --------------------
 
@@ -47,14 +54,8 @@ Event: 'req_timeout'
       })
 
 This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setReqTimer([timeout])` ends without call 
-:ref:`Method: modbusSerialClient.clearReqTimer()`
+:ref:`Method: modbusSerialClient.clearReqTimer()`.
 
-
-Event: 'broadcast_timeout_timeout'
------------------------------------
-
-This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setTurnAroundDelay([timeout])` is reached. Indicate that client
-has no pending broadcast request and is free to send another request.
 
 
 Event: 'transaction'

@@ -23,6 +23,7 @@ It supports both Modbus TCP and Modbus Serial, as well as different transport pr
    server/nodbus_tcp_server.rst  
    server/nodbus_serial_server.rst
    client/nodbus_master_tcp.rst
+   client/nodbus_master_serial.rst
 
 
 Indices and tables

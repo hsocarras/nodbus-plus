@@ -24,13 +24,22 @@ Creating a Nodbus NetServer Instance
 new NetServer([options])
 -------------------------
 
-* **options** <object>: Configuration object with the following properties:
+* **options** <object>: Configuration object with the following properties (for tcp and udp net layer):
 
    * port <number> : The tcp or udp port to listen. Default 502.
-
    * maxConnections <number>: Max number of simultaneous connection supported. (Only tcp net server). Default 32.
+   * udpType <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
 
-   * type <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
+
+* **options** <object>: Configuration object with the following properties (for serial net layer):
+
+   * port <string> : The path to the serial port. Example 'COM1.
+   * speed <number>: Enum with following baudrates in bps : 0-110, 1-300, 2-1200, 3-2400, 4-4800, 5-9600, 6-14400, 7-19200, 8-38400, 9-57600, 10-115200. Default 7.
+   * dataBits <number>: 7 or 8. Default 8.
+   * stopBits <number>: 0 or 1.
+   * parity <number>: Enum with following value. 0-'none', 1-'even', 2-'odd'. Default 1.
+   * timeBetweenFrame <number>: Number of millisends to await without receiving data to consider end of modbus frame.
+
 
 Constructor for new NetServer instance.
 

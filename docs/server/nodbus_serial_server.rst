@@ -24,55 +24,35 @@ new nodbusSerialServer([netType], [options])
 * **options** <object>: Configuration object with following properties:
 
   * transmitionMode <boolean>: 0- RTU transmition mode, 1 - Ascii mode. Default 0.
-
   * address <number>: Modbus address, a value between 1 -247. Default 1, any invalid value with set to default.
-
-  * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
-
-  * coils <number>: The cuantity of coils that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the coils will share the same Buffer as holding registers. Default value is 2048.
-
-  * holdingRegisters <number>: The cuantity of holding registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
-  
+  * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. 
+    If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
+  * coils <number>: The cuantity of coils that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered,
+    then the coils will share the same Buffer as holding registers. Default value is 2048.
+  * holdingRegisters <number>: The cuantity of holding registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.  
   * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
-
   * port <number|string>: TCP port on which the server will listen or serial port like 'COM1'.   
-
   * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
-
   * speed <number>: Define the serial port baudrate. It's a enum with following values in bits per secconds.
    
     *  0: 110
-
     *  1: 300
-
     *  2: 1200
-
     *  3: 2400
-
     *  4: 4800
-
     *  5: 9600
-
     *  6: 14400
-
     *  7: 19200 (Default)
-
     *  8: 38400
-
     *  9: 57600
-
     *  10: 115200
 
   * dataBits <number> 7 or 8.
-
   * stopBits <number> Default 1.
-
   * parity <number> Enum with following values:
 
     *  0: 'none'
-
     *  1: 'even' (default)
-
     *  2: 'odd'
 
   * timeBetweenFrame <number>: The number of milliseconds elapsed without receiving data on the serial port to consider that the RTU frame has finished.
