@@ -157,7 +157,7 @@ class ModbusTcpClient extends ModbusClient {
      * @param {number} transactionId 
      * @param {number} timeout 
      * @return {number} timer id for cleartimeout function or -1 if no timer was set.
-     * @emits req_timeout. Timeout event
+     * @emits req-timeout. Timeout event
      */
     setReqTimer(transactionId, timeout = 100){
 
@@ -168,7 +168,7 @@ class ModbusTcpClient extends ModbusClient {
 
             let req = self.reqPool.get(transactionId);
             let timerId = setTimeout(()=>{
-                self.emit('req_timeout', transactionId, req); //what to do when timeout occurs is decision for the user app
+                self.emit('req-timeout', transactionId, req); //what to do when timeout occurs is decision for the user app
             }, timeout);
             //storing timer on the timer's pool
             self.reqTimersPool.set(transactionId, timerId)

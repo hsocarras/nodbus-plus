@@ -34,7 +34,7 @@ Constructor for new ModbusTcpClient instance.
 ModbusTcpClient's Events
 ========================
 
-Event: 'req_timeout'
+Event: 'req-timeout'
 --------------------
 
 * **transactionId** <number>: Indicate wich request fires the timeout event. 
@@ -42,7 +42,7 @@ Event: 'req_timeout'
 
   .. code-block:: javascript
 
-      modbusTcpClient.on('req_timeout', (id, req) ->{
+      modbusTcpClient.on('req-timeout', (id, req) ->{
          console.log('Timeout error from request: ' + id + '\n');
       })
 
@@ -260,7 +260,7 @@ Method: modbusTcpClient.clearReqTimer(transactionId)
 * **transactionId** <number>: Modbus reqest's transaction id for wich the timer is set.
 
 
-This functions call the build in clearTimeout function to avoid emit the'req_timeout' event, and remove the entry timerId from :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>`.
+This functions call the build in clearTimeout function to avoid emit the'req-timeout' event, and remove the entry timerId from :ref:`request timers pool <Atribute: modbusTcpClient.reqTimersPool>`.
 
 
 Method: modbusTcpClient.processResAdu(bufferAdu)
@@ -270,7 +270,7 @@ Method: modbusTcpClient.processResAdu(bufferAdu)
 
 
 This method is used to managed server response. It remove the request from :ref:`request Pool <Atribute: modbusTcpClient.reqPool>`, call 
-the :ref:`Method: modbusTcpClient.clearReqTimer(transactionId)` to avoid emit 'req_timeout' event and emit the 'transaction' event.
+the :ref:`Method: modbusTcpClient.clearReqTimer(transactionId)` to avoid emit 'req-timeout' event and emit the 'transaction' event.
 
 
 

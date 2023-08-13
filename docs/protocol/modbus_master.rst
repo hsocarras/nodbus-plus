@@ -191,7 +191,7 @@ Method: modbusClient.boolToBuffer(value)
 * **value** <boolean>
 * **Return** <Buffer>: Two bytes length Buffer. 
 
-This is a utitlity method. It gets a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. Example:
+This is a utitlity method. It returns a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. Example:
 
 .. code-block:: javascript
 
@@ -242,7 +242,7 @@ Method: modbusClient.boolsToBuffer(value)
 
 This is a utility method that return a buffer from a boolean array for modbus function code 15. 
 
-The value argument is a array of boolean with values to bu force to coils. For example:
+The value argument is an array of boolean with values to be force to coils. For example:
 
 .. code-block:: javascript
 

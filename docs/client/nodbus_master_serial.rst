@@ -46,7 +46,7 @@ NodbusSerialClient's Events
 ===========================
 
 
-Event: 'broadcast_timeout'
+Event: 'broadcast-timeout'
 -----------------------------------
 
 This event indicate that the client has no pending broadcast request and is free to send another request.
@@ -86,7 +86,7 @@ Event: 'error'
 Emitted when a error occurs.
 
 
-Event: 'req_timeout'
+Event: 'req-timeout'
 --------------------
 
 * **transactionId** <number>: Indicate wich request fires the timeout event. 
@@ -94,7 +94,7 @@ Event: 'req_timeout'
 
   .. code-block:: javascript
 
-      nodbusSerialClient.on('req_timeout', (id, req) ->{
+      nodbusSerialClient.on('req-timeout', (id, req) ->{
          console.log('Timeout error from request: ' + id + '\n');
       })
 
@@ -172,6 +172,15 @@ Atribute: nodbusSerialClient.activeRequest
 
 This property store the current active request, if no request is pending then is null.
 
+Atribute: nodbusSerialClient.channelType
+--------------------------------------
+
+* <Map> Map with types of channels.
+    * *key* <string> type id.
+    * *value* <object>: A channel class. See :ref:`NetChannel Class <nodbus_net_channel>` to be used as constructor.
+
+This property store the client's channel constructor. Built in channel for Nodbus-Plus tcp client are 'tcp1', 'udp1' and 'serial1'.
+
 
 Atribute: nodbusSerialClient.channels
 -------------------------------------
@@ -191,12 +200,15 @@ See :ref:`ModbusSerialClient Class Methods <modbus_serial_client_methods>` for a
 
 
 
-Method: nodbusSerialClient.addChannel(id, channelCfg)
----------------------------------------------------------
+Method: nodbusSerialClient.addChannel(id, type, channelCfg)
+------------------------------------------------------------
 
 * **id** <String>: Channels's name. Must be unique for each channel.
 
+* **type** <string>: Channel's constructor id stored on channelType property. Default value is 'tcp1'.
+
 * **channelCfg** <object>: Configuration object for the channel with following properties for tcp and udp:
+
   * *ip* <String>: Modbus server's ip address. Defaul 'localhost'.
   * *port* <number> Port where the modbus server's is listening.
   * udpType <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
@@ -205,10 +217,28 @@ Method: nodbusSerialClient.addChannel(id, channelCfg)
 * **channelCfg** <object>: Configuration object with the following properties for serial network:
 
    * port <string> : The path to the serial port. Example 'COM1.
-   * speed <number>: Enum with following baudrates in bps : 0-110, 1-300, 2-1200, 3-2400, 4-4800, 5-9600, 6-14400, 7-19200, 8-38400, 9-57600, 10-115200. Default 7.
+   * speed <number>: Enum with following baudrates in bps : 
+
+     * 0-110
+     * 1-300
+     * 2-1200
+     * 3-2400
+     * 4-4800
+     * 5-9600
+     * 6-14400
+     * 7-19200 Default
+     * 8-38400
+     * 9-57600
+     * 10-115200
+
    * dataBits <number>: 7 or 8. Default 8.
    * stopBits <number>: 0 or 1.
-   * parity <number>: Enum with following value. 0-'none', 1-'even', 2-'odd'. Default 1.
+   * parity <number>: Enum with following value. 
+   
+     * 0-'none'
+     * 1-'even' Default
+     * 2-'odd'
+
    * timeBetweenFrame <number>: Number of millisends to await without receiving data to consider end of modbus frame.
    * *timeout* <number> Number of milliseconds to await for a response on the channel.
    
@@ -221,7 +251,7 @@ Method: nodbusSerialClient.addChannel(id, channelCfg)
       port: 502,        //tcp port
       timeout: 500}     // miliseconds for timeout event
 
-      nodbusSerialClient.addChannel('device1', device1);
+      nodbusSerialClient.addChannel('device1', 'tcp1' device1);
       
 
 Method: nodbusSerialClient.connect(id)

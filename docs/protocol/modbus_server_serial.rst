@@ -61,7 +61,7 @@ Event: 'error'
 
 Emitted when a error occurs.
 
-Event: 'mb_exception'
+Event: 'exception'
 ---------------------
 
 * **functionCode** <number>: request function code.
@@ -219,7 +219,7 @@ Atribute: modbusSerialServer.coils
 This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
 
 To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
- and :ref:`setBooltoBuffer method <Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+and :ref:`setBooltoBuffer method <Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
 
 
 Atribute: modbusSerialServer.exceptionCoils

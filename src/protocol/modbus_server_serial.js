@@ -224,8 +224,7 @@ class ModbusSerialServer extends ModbusServer {
 
     /**
     * @brief Similar to getResponseAdu but return nothing, just execute the request service without response. Used when broadcast address is receivedd
-    * @param {Buffer} reqAduBuffer request buffer
-    * @fires ModbusServer#mb_exception    
+    * @param {Buffer} reqAduBuffer request buffer       
     * @fires ModbusServer#error
     * @return {Buffer} buffer containing a protocol data unit
     */

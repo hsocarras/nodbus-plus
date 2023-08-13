@@ -26,7 +26,7 @@ describe("tcp client", () => {
     let server1 = Nodbus.createTcpServer('tcp', serverCfg);
       
     let client = Nodbus.createTcpClient();
-    client.addChannel('server1', {ip:'127.0.0.1', port: 510})
+    client.addChannel('server1', 'tcp1', {ip:'127.0.0.1', port: 510})
     expect(client.isChannelReady('server1')).toEqual(false);
 
     test("functions", (done) => {
@@ -176,9 +176,9 @@ describe("udp client", () => {
 
     let server2 = Nodbus.createTcpServer('udp4', serverCfg2);
       
-    let client2 = Nodbus.createTcpClient('udp4');
+    let client2 = Nodbus.createTcpClient();
 
-    client2.addChannel('server2', {ip:'127.0.0.1', port: 512, udpType:'udp4',})
+    client2.addChannel('server2', 'udp1', {ip:'127.0.0.1', port: 512, udpType:'udp4',})
 
     expect(client2.isChannelReady('server2')).toEqual(false);
 

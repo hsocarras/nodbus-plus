@@ -129,7 +129,7 @@ Event: 'listening'
 
 Emitted when the server is listening or the serial port is opened.
 
-Event: 'mb_exception'
+Event: 'exception'
 ---------------------
 
 * **functionCode** <number>: request function code.
@@ -241,8 +241,8 @@ Event: 'response'
 Event: 'write'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
-                        or node serial port object.
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
+  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_ or node serial port object.
 
 * **res** <Buffer>: Server's response.
 
@@ -340,7 +340,7 @@ Atribute: nodbusSerialServer.coils
 This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
 
 To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
- and :ref:`setBooltoBuffer method <Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+and :ref:`setBooltoBuffer method <Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
 
 
 Atribute: nodbusSerialServer.exceptionCoils

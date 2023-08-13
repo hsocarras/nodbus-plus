@@ -55,7 +55,7 @@ Event: 'error'
 Emitted when a error occurs.
 
 
-Event: 'mb_exception'
+Event: 'exception'
 ---------------------
 
 * **functionCode** <number>: request function code.

@@ -55,7 +55,7 @@ Event: 'error'
 
 Emitted when a error occurs.
 
-Event: 'mb_exception'
+Event: 'exception'
 ---------------------
 
 * **functionCode** <number>: request function code.
@@ -119,6 +119,7 @@ Event: 'mb_exception'
    </tr>
    </table> 
 
+
 Emitted when a Modbus exception occurs.
 
 Event: 'write-coils'
@@ -128,7 +129,7 @@ Event: 'write-coils'
 
 * **cuantityOfCoils** <number>: amound of coils modificated  
 
-Emitted after change a coil value due to a clienst write coil request.
+Emitted after change a coil value due to a client write coil request.
 
 
 Event: 'write-registers'
@@ -138,7 +139,7 @@ Event: 'write-registers'
 
 * **cuantityOfRegister** <number>: amound of register modificated.  
 
-Emitted after change a holding register value due to a clienst write register request.  
+Emitted after change a holding register value due to a client write register request.  
 
 
 ModbusServer's Atributes
@@ -250,7 +251,7 @@ Method: modbusServer.makeExceptionResPdu(mbFunctionCode,  exceptionCode)
 ------------------------------------------------------------------------
 
 * **mbFunctionCode** <number>: The function code that cause the exception.
-* **exceptionCode** <number>: See available exception code on :ref:`Event: 'mb_exception'`
+* **exceptionCode** <number>: See available exception code on :ref:`Event: 'exception'`
 * **Returns** <Buffer>: Exception response pdu
 
 This functions create a exception response pdu by add 0x80 to function code and appending the exception code.

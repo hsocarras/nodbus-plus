@@ -116,7 +116,7 @@ Event: 'listening'
 Emitted when the server is listening.
 
 
-Event: 'mb_exception'
+Event: 'exception'
 ---------------------
 
 * **functionCode** <number>: request function code.
@@ -189,10 +189,15 @@ Event: 'request'
 * **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
     if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
 * **request** <object>: A with following properties:
-  * *timeStamp* <number>: A timestamp for the request.  
+
+  * *timeStamp* <number>: A timestamp for the request. 
+
   * *transactionId* <number>: The header's transaction id field value.
+
   * *unitId* <number>: The header's unit id field value.
+
   * *functionCode* <number>: The modbus request's function code.
+
   * *data* <Buffer>: The pdu's data.
 
   Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
@@ -221,8 +226,7 @@ Event: 'response'
 Event: 'write'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
-    if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
+* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
 * **res** <Buffer>: Server's response.
 
 Emitted when the underlaying net server write data to the socket.

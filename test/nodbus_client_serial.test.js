@@ -25,8 +25,8 @@ describe("rtu client", () => {
 
     let server1 = Nodbus.createSerialServer('tcp', serverCfg);
       
-    let client = Nodbus.createSerialClient('tcp');
-    client.addChannel('server1', {ip:'127.0.0.1', port: 520})
+    let client = Nodbus.createSerialClient();
+    client.addChannel('server1', 'tcp1', {ip:'127.0.0.1', port: 520})
     expect(client.isChannelReady('server1')).toEqual(false);
 
     test("functions", (done) => {
@@ -110,7 +110,7 @@ describe("rtu client", () => {
            
         })
 
-        client.on('broadcast_timeout', () =>{
+        client.on('broadcast-timeout', () =>{
             //console.log('broadcast timeout')
             client.disconnect('server1');
         })
@@ -167,8 +167,8 @@ describe("ascii client", () => {
 
     let server2 = Nodbus.createSerialServer('tcp', serverCfg2);
       
-    let client = Nodbus.createSerialClient('tcp');
-    client.addChannel('server2', {ip:'127.0.0.1', port: 522})
+    let client = Nodbus.createSerialClient();
+    client.addChannel('server2', 'tcp1', {ip:'127.0.0.1', port: 522})
     expect(client.isChannelReady('server2')).toEqual(false);
 
     test("functions", (done) => {

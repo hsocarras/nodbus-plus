@@ -135,7 +135,7 @@ describe("setReqTimer", () => {
         let stored = testMaster.reqTimersPool.get(11);
         expect(stored).toEqual(timed3);
 
-        testMaster.on('req_timeout', (transactionId) =>{            
+        testMaster.on('req-timeout', (transactionId) =>{            
             expect(transactionId).toEqual(11);
         })
         

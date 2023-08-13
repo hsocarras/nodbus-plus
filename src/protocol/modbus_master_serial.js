@@ -110,7 +110,7 @@ class ModbusSerialClient extends ModbusClient {
      * @param {number} transactionId 
      * @param {number} timeout 
      * @return {number} timer id for cleartimeout function or -1 if no timer was set.
-     * @emits req_timeout. Timeout event
+     * @emits req-timeout. Timeout event
      */
     setReqTimer(timeout = 100){
 
@@ -119,7 +119,7 @@ class ModbusSerialClient extends ModbusClient {
         if(this.activeRequest instanceof Buffer & typeof timeout === 'number' & timeout >= 1){
             
             let timerId = setTimeout(()=>{
-                self.emit('req_timeout', self.activeRequest); //what to do when timeout occurs is desition for the user app
+                self.emit('req-timeout', self.activeRequest); //what to do when timeout occurs is desition for the user app
             }, timeout);
             
             self.activeRequestTimerId = timerId;
@@ -137,7 +137,7 @@ class ModbusSerialClient extends ModbusClient {
      * @param {number} transactionId 
      * @param {number} timeout 
      * @return {number} timer id for cleartimeout function or -1 if no timer was set.
-     * @emits req_timeout. Timeout event
+     * @emits req-timeout. Timeout event
      */
     setTurnAroundDelay(timeout = 100){
 
@@ -147,7 +147,7 @@ class ModbusSerialClient extends ModbusClient {
             
             let timerId = setTimeout(()=>{
                 self.activeRequest = null;
-                self.emit('broadcast_timeout'); //what to do when timeout occurs is desition for the user app
+                self.emit('broadcast-timeout'); //what to do when timeout occurs is desition for the user app
             }, timeout);
             
             self.turnAroundDelay = timerId;

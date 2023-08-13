@@ -80,7 +80,7 @@ Event: 'error'
 Emitted when a error occurs.
 
 
-Event: 'req_timeout'
+Event: 'req-timeout'
 --------------------
 
 * **transactionId** <number>: Indicate wich request fires the timeout event. 
@@ -88,7 +88,7 @@ Event: 'req_timeout'
 
   .. code-block:: javascript
 
-      nodbusTcpClient.on('req_timeout', (id, req) ->{
+      nodbusTcpClient.on('req-timeout', (id, req) ->{
          console.log('Timeout error from request: ' + id + '\n');
       })
 
@@ -174,6 +174,14 @@ Atribute: nodbusTcpClient.maxNumberOfTransaction
 
 This property stores the maximum value of simultaneously open transactions allowed for the client. Default value is 64.
 
+Atribute: nodbusTcpClient.channelType
+--------------------------------------
+
+* <Map> Map with types of channels.
+    * *key* <string> type id.
+    * *value* <object>: A channel class. See :ref:`NetChannel Class <nodbus_net_channel>` to be used as constructor.
+
+This property store the client's channel constructor. Built in channel for Nodbus-Plus tcp client are 'tcp1' and 'udp1'.
 
 Atribute: nodbusTcpClient.channels
 -------------------------------------
@@ -219,10 +227,12 @@ See :ref:`ModbusTcpClient Class Methods <modbus_tcp_client_methods>` for all bas
 
 
 
-Method: nodbusTcpClient.addChannel(id, channelCfg)
+Method: nodbusTcpClient.addChannel(id, type, channelCfg)
 ---------------------------------------------------------
 
-* **id** <String>: Channels's name. Must be unique for each channel.
+* **id** <String>: Channel's name. Must be unique for each channel.
+
+* **type** <string>: Channel's constructor id stored on channelType property. Default value is 'tcp1'.
 
 * **channelCfg** <object>: Configuration object for the channel with following properties:
 
@@ -241,7 +251,7 @@ Method: nodbusTcpClient.addChannel(id, channelCfg)
       port: 502,        //tcp port
       timeout: 500}     // miliseconds for timeout event
 
-      nodbusTcpClient.addChannel('device1', device1);
+      nodbusTcpClient.addChannel('device1', 'tcp1', device1);
       
 
 Method: nodbusTcpClient.connect(id)

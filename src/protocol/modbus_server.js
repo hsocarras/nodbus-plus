@@ -188,7 +188,7 @@ class ModbusServer extends EventEmitter {
     * @brief Build a modbus exception response PDU
     * @param {number} mbFunctionCode modbus function code
     * @param {number} exceptionCode code of modbus exception
-    * @fires  ModbusServer#mb_exception
+    * @fires  ModbusServer#exception
     * @return {Buffer} Exception response pdu
     */
     makeExceptionResPdu(mbFunctionCode,  exceptionCode){

@@ -8,17 +8,15 @@
 const ModbusSerialMaster = require('../protocol/modbus_master_serial');
 const TcpChannel = require('./net/tcpchannel');
 const UdpChannel = require('./net/udpchannel');
+const SerialChannel = require('./net/serialchannel')
 
 /**
 * Class representing a modbus serial client ready to use.
 * @extends ModbusSerialMaster
 */
 class NodbusSerialClient extends  ModbusSerialMaster {
-  /**
-  * Create a Modbus Tcp Client.
-  * @param {object} netChannel. Transport layer. Can be tcp, udp4, udp6 or serial
-  */
-    constructor(channelClass = TcpChannel){
+  
+    constructor(){
         super();
 
         var self = this;
@@ -27,13 +25,10 @@ class NodbusSerialClient extends  ModbusSerialMaster {
         * channel's constructor
         * @type {object}
         */
-        try {
-            this.Channel = channelClass;
-        }
-        catch(e){
-            this.emit('error', e);
-            this.Channel = TcpChannel;
-        }
+        this.channelType = new Map();
+        this.channelType.set('tcp1', TcpChannel);
+        this.channelType.set('udp1', UdpChannel);
+        this.channelType.set('serial1', SerialChannel);
 
         this.channels = new Map();
        
@@ -54,14 +49,19 @@ class NodbusSerialClient extends  ModbusSerialMaster {
      * @param {number} port: channel's port. Default 502
      * @param {number} timeout time in miliseconds to emit timeout for a request.     
      */
-    addChannel(id, channelCfg = {ip: 'localhost', port: 502, timeout:250}){
+    addChannel(id, type = 'tcp1', channelCfg = {ip: 'localhost', port: 502, timeout:250}){
 
         if(channelCfg.ip == undefined){ channelCfg.ip = 'localhost'} 
         if(channelCfg.port == undefined){ channelCfg.port = 502}        
         if(channelCfg.timeout == undefined){ channelCfg.timeout = 250}    
         channelCfg.tcpCoalescingDetection = false;  
+
+        let Channel = this.channelType.get(type);
+        if (Channel == undefined){
+            Channel = TcpChannel;
+        }
       
-        let channel = new this.Channel(channelCfg);
+        let channel = new Channel(channelCfg);
       
         /**
         * Emit connect and ready events

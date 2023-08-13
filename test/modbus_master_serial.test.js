@@ -62,7 +62,7 @@ describe("setReqTimer", () => {
         let stored = testMaster.activeRequestTimerId;
         expect(stored).toEqual(timed3); 
 
-        testMaster.on('req_timeout', (req) =>{            
+        testMaster.on('req-timeout', (req) =>{            
             expect(req[0]).toEqual(2);
             expect(req[1]).toEqual(1);
         })

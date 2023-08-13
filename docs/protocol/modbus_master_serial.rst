@@ -34,14 +34,14 @@ Constructor for new ModbusSerialClient instance.
 ModbusSerialClient's Events
 ===========================
 
-Event: 'broadcast_timeout'
+Event: 'broadcast-timeout'
 ---------------------------
 
 This event is emmited when the number of milliseconds pass to :ref:`Method: modbusSerialClient.setTurnAroundDelay([timeout])` is reached. Indicate that client
 has no pending broadcast request and is free to send another request.
 
 
-Event: 'req_timeout'
+Event: 'req-timeout'
 --------------------
 
 
@@ -49,7 +49,7 @@ Event: 'req_timeout'
 
   .. code-block:: javascript
 
-      modbusSerialClient.on('req_timeout', (req) ->{
+      modbusSerialClient.on('req-timeout', (req) ->{
          console.log('Timeout error from slave: ' + req[0] + '\n');
       })
 
@@ -232,7 +232,7 @@ This functions store a timerId in the :ref:`request timers pool <Atribute: modbu
 Method: modbusSerialClient.setTurnAroundDelay([timeout])
 ---------------------------------------------------
 
-* **timeout** <number>: Number of milliseconds to await for fire broadcast_timeout event.
+* **timeout** <number>: Number of milliseconds to await for fire broadcast-timeout event.
 * **Returns** <number>: Timer's id to be use on clearTimeout.
 
 This functions store a timerId in the :ref:`request timers pool <Atribute: modbusSerialClient.turnAroundDelay>`. Is used when a broadcast request
@@ -243,7 +243,7 @@ Method: modbusSerialClient.clearReqTimer()
 --------------------------------------------
 
 
-This functions call the build in clearTimeout function to avoid emit the'req_timeout' event.
+This functions call the build in clearTimeout function to avoid emit the'req-timeout' event.
 
 
 Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])
@@ -253,7 +253,7 @@ Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])
 * **ascii** <boolean>: A flag indicating if the response is in ascii mode.
 
 
-This method is used to managed server response. Call the :ref:`Method: modbusSerialClient.clearReqTimer()` to avoid emit 'req_timeout' event and emit the 'transaction' event.
+This method is used to managed server response. Call the :ref:`Method: modbusSerialClient.clearReqTimer()` to avoid emit 'req-timeout' event and emit the 'transaction' event.
 
 
 Method: modbusSerialClient.getWordFromBuffer(targetBuffer, [offset])

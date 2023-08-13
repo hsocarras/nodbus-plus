@@ -18,25 +18,21 @@ const UdpChannel = require('./net/udpchannel');
 */
 class NodbusTcpClient extends  ModbusTcpMaster {
   /**
-  * Create a Modbus Tcp Client.
-  * @param {object} netClass. Transport layer. Can be tcp, udp4 or udp6
+  * Create a Modbus Tcp Client.  
   */
-    constructor(channelClass = TcpChannel){
+    constructor(){
         super();
 
         var self = this; 
 
         /**
-        * channel's constructor
+        * channel's constructors
         * @type {object}
         */
-        try {
-            this.Channel = channelClass;
-        }
-        catch(e){
-            this.emit('error', e);
-            this.Channel = TcpChannel;
-        }
+        this.channelType = new Map();
+        this.channelType.set('tcp1', TcpChannel);
+        this.channelType.set('udp1', UdpChannel);
+        
         
         this.channels = new Map();
                 
@@ -49,15 +45,20 @@ class NodbusTcpClient extends  ModbusTcpMaster {
      * @param {number} port: channel's port. Default 502
      * @param {number} timeout time in miliseconds to emit timeout for a request.     
      */
-    addChannel(id, channelCfg = {ip: 'localhost', port: 502, timeout:250}){
+    addChannel(id, type = 'tcp1', channelCfg = {ip: 'localhost', port: 502, timeout:250}){
       
         
         if(channelCfg.ip == undefined){ channelCfg.ip = 'localhost'} 
         if(channelCfg.port == undefined){ channelCfg.port = 502}        
         if(channelCfg.timeout == undefined){ channelCfg.timeout = 250}    
         channelCfg.tcpCoalescingDetection = true;
-      
-        let channel = new this.Channel(channelCfg);
+        
+        let Channel = this.channelType.get(type);
+        if (Channel == undefined){
+            Channel = TcpChannel;
+        }
+
+        let channel = new Channel(channelCfg);
 
         /**
         * Emit connect and ready events
