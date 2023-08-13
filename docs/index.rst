@@ -10,10 +10,10 @@ Nodbus-plus is a library written entirely in JavaScript for creating Modbus clie
 It supports both Modbus TCP and Modbus Serial, as well as different transport protocols such as TCP, UDP and serial line communication.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    :caption: Contents:
 
-   starting
+   starting   
    protocol/modbus_master.rst
    protocol/modbus_master_serial.rst
    protocol/modbus_master_tcp.rst
