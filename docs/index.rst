@@ -3,10 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+=======================================
 Welcome to Nodbus-Plus's documentation!
 =======================================
 
-Nodbus-plus is a library written entirely in JavaScript for creating Modbus clients and servers.
+Nodbus-plus is a library written entirely in JavaScript for creating Modbus clients and servers applications.
+
 It supports both Modbus TCP and Modbus Serial, as well as different transport protocols such as TCP, UDP and serial line communication.
 
 .. toctree::
@@ -25,10 +27,4 @@ It supports both Modbus TCP and Modbus Serial, as well as different transport pr
    client/nodbus_master_tcp.rst
    client/nodbus_master_serial.rst
 
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+The source code is available on `Github <https://github.com/hsocarras/nodbus-plus>`_ under MIT License.

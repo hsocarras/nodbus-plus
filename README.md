@@ -1,14 +1,19 @@
 # Nodbus-Plus
 
-A nodejs modbus library fully writed in javascript.
+A Modbus protocol library for Node.js, written entirely in JavaScript. It supports both Modbus Serial and Modbus TCP.
 
-## Getting Started
-* ### Install
-#### installing nodbus-plus as a node package
-    $ npm install nodbus-plus
-#### installing nodbus from source
+## Introduction
 
-* ### Basic Usage:
+Nodbus Plus has been designed as a stack for the Modbus protocol. It can be used to create both your own Modbus client and server using its API, or you can use its build in client or server and have an application with Modbus communication in just minutes.
+
+## Installation
+
+```console
+$ npm install nodbus-plus
+``` 
+
+
+## Basic Usage:
 
 Create a modbus tcp server.
 
@@ -46,6 +51,7 @@ var client = new ModbusTcpClient();
 
 ## Documentation and Tutorials
 See: https://github.com/hsocarras/nodbus-plus/wiki
+
 ## Contributing
 
 If you have a suggestion or found a issue, let us known and [create an issue](https://github.com/hsocarras/nodbus-plus/issues)
