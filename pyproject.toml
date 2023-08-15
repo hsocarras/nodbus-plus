@@ -1,0 +1,8 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "Nodbus-Plus"
+authors = [{name = "Hector E. Socarras", email = "hsocarras1987@gmail.com"}]
+dynamic = ["version", "description"]
