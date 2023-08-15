@@ -20,7 +20,8 @@ release = '1.0.0'
 extensions = ['sphinx.ext.autosectionlabel']
 
 templates_path = ['_templates']
-exclude_patterns = []
+
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
 
