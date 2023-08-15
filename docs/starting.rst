@@ -154,7 +154,7 @@ After instantiate the client, the user's app must add listener for client's even
         console.log(res)        
     })
 
-A complete list of available events can be found on :ref:`Nodbus Client documentation <nodbus_serial_client>`.
+A complete list of available events can be found on :ref:`Nodbus Client documentation <nodbus_serial_master>`.
 
 Then channels must be add to client. The client will create a connection per channel. The following example add a modbus serial over tcp server, and conect to it.
 
@@ -182,7 +182,7 @@ Once the client is connected, and event listener configured, data can be exchang
     //reading from cannel 'device', modbus address 1, two coils from 0 coil's address
     client.readCoils('device', 1, 0, 2);
     
-A list for all available functions can be found on Clients Documentation API. See :ref:`NodbusSerialClient <nodbus_serial_client>` or :ref:`NodbusTcpClient <nodbus_serial_client>`.
+A list for all available functions can be found on Clients Documentation API. See :ref:`NodbusSerialClient <nodbus_serial_master>` or :ref:`NodbusTcpClient <nodbus_tcp_master>`.
 
 Conclusion
 ----------
