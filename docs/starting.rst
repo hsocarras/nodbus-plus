@@ -119,7 +119,7 @@ Finally the server must be started.
 * **Client**
 
 
-To create a client the functions createTcpClient or createSerialClient are available.
+To create a modbus client the functions createTcpClient or createSerialClient are available.
 
 .. code-block:: javascript
 
@@ -156,7 +156,7 @@ After instantiate the client, the user's app must add listener for client's even
 
 A complete list of available events can be found on :ref:`Nodbus Client documentation <nodbus_serial_master>`.
 
-Then channels must be add to client. The client will create a connection per channel. The following example add a modbus serial over tcp server, and conect to it.
+Then channels must be add to the client. The client will create a connection per channel. The following example add a modbus serial over tcp server, and conect to it.
 
 
 .. code-block:: javascript
