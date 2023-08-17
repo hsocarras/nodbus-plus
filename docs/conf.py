@@ -17,7 +17,7 @@ release = '1.0.0'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autosectionlabel', 'sphinx_rtd_theme']
+extensions = ['sphinx.ext.autosectionlabel']
 
 templates_path = ['_templates']
 
@@ -32,7 +32,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 #on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 #if not on_rtd:  # only import and set the theme if we're building docs locally    
-    #import sphinx_rtd_theme
+import sphinx_rtd_theme
         
 
 
