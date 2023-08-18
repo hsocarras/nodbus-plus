@@ -1,0 +1,4 @@
+# via
+    #   -r docs/requirements.in
+    #   sphinx-rtd-theme
+sphinx-rtd-theme==1.0.0
