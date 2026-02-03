@@ -41,8 +41,8 @@ class NodbusSerialServer extends ModbusSerialServer {
         //arguments check        
         mbTcpServerCfg.tcpCoalescingDetection = false;
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}      
-        if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
-
+        if(mbTcpServerCfg.udpType !== 'udp4' && mbTcpServerCfg.udpType !== 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
+        
         /**
          * network layer
          * @type {object}
@@ -66,36 +66,39 @@ class NodbusSerialServer extends ModbusSerialServer {
         };
 
         this.net.onMbAduHook = (sock, adu) =>{
-          
-            let pdu = this.getPdu(adu);
-            let req = {};
-            
-            req.timeStamp = Date.now();
-            req.address = this.getAddress(adu)
-            req.checkSum = this.getChecksum(adu);
-            req.functionCode = pdu[0];
-            req.data = pdu.subarray(1);
+            try {
+                const pdu = this.getPdu(adu);
+                const req = {};
 
-            this.emit('request', sock, req);
+                req.timeStamp = Date.now();
+                req.address = this.getAddress(adu);
+                req.functionCode = pdu[0];
+                req.data = pdu.subarray(1);
 
-            let resAdu;
-            if(req.address == 0){
-                this.executeBroadcastReq(adu);
+                this.emit('request', sock, req);
+
+                if (req.address === 0) {
+                    this.executeBroadcastReq(adu);
+                } else {
+                    const resAdu = this.getResponseAdu(adu);
+                    const resPdu = this.getPdu(resAdu);
+                    const res = {};
+
+                    res.timeStamp = Date.now();
+                    res.address = this.address;
+                    res.functionCode = resPdu[0]; // FIX: Use response PDU for function code
+                    res.data = resPdu.subarray(1);
+                    this.emit('response', sock, res);
+                    this.net.write(sock, resAdu);
+                }
+            } catch (e) {
+                // Emit an error event if processing fails, to prevent a server crash.
+                this.emit('error', e);
             }
-            else{
-                resAdu = this.getResponseAdu(adu);
-                let resPdu = this.getPdu(resAdu);
-                let res = {};
+        };
 
-                res.timeStamp = Date.now();                
-                res.address = this.address;
-                res.checkSum = this.getChecksum(resAdu);
-                res.functionCode = pdu[0];
-                res.data = resPdu.subarray(1);
-                this.emit('response',sock, res);
-                this.net.write(sock, resAdu);
-            }
-          
+        this.net.onConnectionAcceptedHook = (sock) => {
+            this.emit('connection', sock);
         };
         
       
@@ -167,30 +170,23 @@ class NodbusSerialServer extends ModbusSerialServer {
 
         //Function to validate data in net layer
         this.net.validateFrame = (frame)=>{
-            //validating length of message
-            
-            if(frame.length >= 3){                
-                //validating crc
-                if(this.validateCheckSum(frame)){
-                                      
-                    this.busMessageCount++; //inc message counter
-
-                    if(this.validateAddress(frame)){
-                        return true
-                    }
-                    else{
-                        return false
-                    }
-                }
-                else{
-                    this.busCommunicationErrorCount++;
-                    return false;
-                }                
-            }
-            else{
+            const minLength = this.transmitionMode === 1 ? 9 : 4;
+            if (frame.length < minLength) {
                 this.busCommunicationErrorCount++;
                 return false;
-            }           
+            }
+
+            if (!this.validateCheckSum(frame)) {
+                this.busCommunicationErrorCount++;
+                return false;
+            }
+
+            // A frame with a valid checksum is a valid message on the bus.
+            this.busMessageCount++;
+
+            // Now, check if the message is addressed to this server.
+            // If not, it's a valid frame for another device, so we just ignore it.
+            return this.validateAddress(frame);
         };
           
         //Sealling net layer object
@@ -205,7 +201,7 @@ class NodbusSerialServer extends ModbusSerialServer {
     /**
       * Getter listening status
       */
-     get isListening(){
+    get isListening(){
       return this.net.isListening;
     }
 

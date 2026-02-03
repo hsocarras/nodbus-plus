@@ -1,6 +1,7 @@
 /**
-** Modbus TCP Master Base Class module.
-* Only deal with basic ADU operations
+* Modbus TCP Master (Client) Base Class module.
+* This module provides the `ModbusTcpClient` class for handling Modbus TCP communication,
+* including MBAP header management and transaction pooling.
 * @module protocol/modbus_master_tcp
 * @author Hector E. Socarras.
 * @version 1.0.0
@@ -10,19 +11,30 @@
 const ModbusClient = require('./modbus_master');
 
 /**
- * Class representing a modbus master.
- * @extends EventEmitter
+ * Represents a Modbus TCP Master (Client) for handling communication over TCP/IP.
+ *
+ * This class extends `ModbusClient` to provide functionality specific to the Modbus TCP protocol.
+ * It manages the MBAP (Modbus Application Protocol) header, including transaction IDs,
+ * and handles the lifecycle of requests, from creation to response matching. It maintains a pool
+ * of pending requests to handle multiple concurrent transactions.
+ *
+ * @extends ModbusClient
 */
 class ModbusTcpClient extends ModbusClient {
     /**
-    * Create a Modbus Master.
+    * Creates a new Modbus TCP Client instance.
+    *
+    * Initializes the client, setting up the transaction counter and pools for managing
+    * pending requests and their timeout timers.
     */
     constructor(){
         super();  
         
         /**
-        * transaction counter
+        * Transaction counter for Modbus TCP requests. This is a 16-bit value that should
+        * increment for each new transaction and wrap around at 65535.
         * @type {number}
+        * @private
         */
         this._transactionCount = 0;    
         
@@ -33,14 +45,16 @@ class ModbusTcpClient extends ModbusClient {
         this.maxNumberOfTransaction = 64;
 
         /**
-         * Pool with pending request
-         * @type {map}
+         * Pool of pending requests, mapping transaction IDs to request buffers.
+         * @type {Map<number, Buffer>}
          */
         this.reqPool = new Map();
 
+        /**
+         * Pool of active timers for pending requests, mapping transaction IDs to timer IDs.
+         * @type {Map<number, NodeJS.Timeout>}
+         */
         this.reqTimersPool = new Map();
-
-        
 
     }  
    
@@ -50,17 +64,21 @@ class ModbusTcpClient extends ModbusClient {
 
     set transactionCount(count){
         if(typeof count === 'number'){
-            if(count >= 0 & count <= 0xFF){
-                this._transactionCount = count;
-            }
+            // The transaction ID is a 16-bit value.
+            // We handle wrap-around by taking the value modulo 65536.
+            this._transactionCount = count % 0x10000;
         }
     }
 
     /**
-    * Function to make the modbus tcp header
-    * @param {number} unitId Legacy modbus address  
-    * @param {number} pduLength pdu's legth in bytes    
-    * @return {buffer} header buffer.
+    * Creates the 7-byte Modbus TCP (MBAP) header.
+    *
+    * The header includes the transaction ID, protocol ID (always 0), length of the
+    * following data (Unit ID + PDU), and the Unit ID.
+    *
+    * @param {number} unitId - The slave address (Unit ID).
+    * @param {number} pduLength - The length of the PDU in bytes.
+    * @returns {Buffer} The 7-byte MBAP header buffer.
     */
     makeHeader(unitId, pduLength){
 
@@ -74,16 +92,17 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-    * Function to extract data from modbus tcp header. 
-    * @param {Buffer} bufferHeader buffer with modbus tcp header .    
-    * @return {object} object containing header's field {transactionID, protocolID, length, unitID}.
+    * Parses a 7-byte MBAP header buffer and extracts its fields.
+    *
+    * @param {Buffer} bufferHeader - The 7-byte buffer containing the Modbus TCP header.
+    * @returns {{transactionId: number, protocolId: number, length: number, unitId: number}} An object with the parsed header fields.
     * @throws {TypeError} if bufferHeader is not a Buffer.
-    * @throws {RangeError} if bufferHeader's length is diferent than 7..
+    * @throws {RangeError} if bufferHeader's length is different than 7.
     */
     parseHeader(bufferHeader){
 
         let header = {};
-        if(bufferHeader instanceof Buffer){
+        if(Buffer.isBuffer(bufferHeader)){
             if(bufferHeader.length == 7){
                 header.transactionId = bufferHeader.readUInt16BE(0);
                 header.protocolId = bufferHeader.readUInt16BE(2);
@@ -101,10 +120,14 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-     * Function to make a request buffer from pdu buffer and unit id.    
-     * @param {number} unitId Legacy modbus address
-     * @param {Buffer} pdu Buffer with modbus pdu
-     * @returns {object} buffer with request if succesfull or null.
+     * Creates a complete Modbus TCP ADU (Application Data Unit) request buffer.
+     *
+     * This function increments the transaction counter, creates the MBAP header,
+     * and prepends it to the provided PDU buffer.
+     *
+    * @param {number} unitId - The slave address (Unit ID, 0-255).
+    * @param {Buffer} pdu - The Protocol Data Unit buffer.
+    * @returns {Buffer|null} The complete request ADU buffer, or null if inputs are invalid.
      */
     makeRequest(unitId, pdu){
 
@@ -132,14 +155,17 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-     * Function to store the request on the request pool.
-     * A modbus Tcp client can have more than one request sended to same server and other server.
-     * @param {Buffer} bufferReq
-     * @returns {boolean} true if is succesful stored on the pool, false otherwise
+     * Stores a pending request in the request pool.
+     *
+     * A Modbus TCP client can have multiple requests in flight. This function adds a request
+     * to a pool, keyed by its transaction ID, so it can be matched with a response later.
+     *
+     * @param {Buffer} bufferReq - The request ADU buffer to store.
+     * @returns {boolean} `true` if the request was stored successfully, `false` if the pool is full.
      */
     storeRequest(bufferReq){
         //storing request on the pool
-        if(this.reqPool.size <= this.maxNumberOfTransaction){
+        if(this.reqPool.size < this.maxNumberOfTransaction){
             let transactionId = bufferReq.readUInt16BE(0);
             //using the transaction Id as key
             this.reqPool.set(transactionId, bufferReq);
@@ -153,11 +179,15 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-     * Function to initialize a timer for timeout detection.
-     * @param {number} transactionId 
-     * @param {number} timeout 
-     * @return {number} timer id for cleartimeout function or -1 if no timer was set.
-     * @emits req-timeout. Timeout event
+     * Sets a timeout for a pending request.
+     *
+     * If a response for the given transaction ID is not received within the timeout period,
+     * a 'req-timeout' event is emitted.
+     *
+     * @param {number} transactionId - The transaction ID of the request to monitor.
+     * @param {number} [timeout=100] - The timeout period in milliseconds.
+     * @returns {NodeJS.Timeout|-1} The timer ID, or -1 if the timer could not be set.
+     * @emits ModbusTcpClient#req-timeout
      */
     setReqTimer(transactionId, timeout = 100){
 
@@ -181,8 +211,9 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-     * Funcion to clear the timeout imer for a given request
-     * @param {number} transactionId 
+     * Clears the timeout timer for a given request.
+     * This should be called when a response is received or the request is cancelled.
+     * @param {number} transactionId - The transaction ID of the request whose timer should be cleared.
      */
     clearReqTimer(transactionId){
 
@@ -194,14 +225,17 @@ class ModbusTcpClient extends ModbusClient {
     }
 
     /**
-     * Function to make basic processing to response
-     * @param {buffer} bufferAdu adu buffer
-     * @emits transaction. Event emited when a response is received.
+     * Processes an incoming response ADU.
+     *
+     * This function matches the response to a pending request using the transaction ID,
+     * clears the request's timeout, removes it from the pending pool, and emits a
+     * 'transaction' event with the original request and the received response.
+     * @param {Buffer} bufferAdu - The incoming response ADU buffer.
+     * @emits ModbusTcpClient#transaction
      */
     processResAdu(bufferAdu){
 
-        let transactionId = bufferAdu.readUInt16BE(0); //getting the transaction id
-        
+        let transactionId = bufferAdu.readUInt16BE(0);
         if(this.reqPool.has(transactionId)){
             
             //removing timer

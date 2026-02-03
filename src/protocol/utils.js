@@ -1,8 +1,18 @@
 /**
-* Calculate the crc from a modbus rtu's frame.
-* @param {Buffer} frame The complete modbus rtu frame.
-* @return {number} The CRC.
-*/
+ * Calculates the CRC-16 checksum for a Modbus RTU frame.
+ *
+ * This function implements the standard Modbus CRC-16 algorithm, which is used to ensure data integrity
+ * in Modbus RTU communication. The CRC is computed over all bytes of the frame except the last two bytes,
+ * which are reserved for the CRC itself.
+ *
+ * @param {Buffer} frame - The complete Modbus RTU frame (including the CRC bytes).
+ * @returns {number} The computed CRC-16 value as an unsigned 16-bit integer (low byte first).
+ *
+ * @example
+ * const frame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00]);
+ * const crc = calcCRC(frame);
+ * // crc will contain the CRC-16 value for the given frame
+ */
 function calcCRC(frame){
   
     var crc_hi = 0xFF;
@@ -57,10 +67,20 @@ function calcCRC(frame){
 }
 
 /**
-* Calculate de LRC from a modbus ascii's frame.
-* @param {Buffer} frame The complete modbus ascii frame.
-* @return {number} The LRC.
-*/
+ * Calculates the LRC (Longitudinal Redundancy Check) for a Modbus ASCII frame.
+ *
+ * The LRC is used for error checking in Modbus ASCII communication. This function computes the LRC
+ * by summing all data bytes (converted from ASCII hex pairs), taking the two's complement, and returning
+ * the result as an unsigned 8-bit integer.
+ *
+ * @param {Buffer} frame - The complete Modbus ASCII frame buffer.
+ * @returns {number} The computed LRC value as an unsigned 8-bit integer.
+ *
+ * @example
+ * const asciiFrame = Buffer.from(':010300000002FA\r\n');
+ * const lrc = calcLRC(asciiFrame);
+ * // lrc will contain the LRC value for the given frame
+ */
 function calcLRC(frame){
 
     var bufferBytes = Buffer.alloc(Math.floor((frame.length-5)/2));
@@ -82,45 +102,52 @@ function calcLRC(frame){
 }
 
 /**
-*function to convert a uint8 in 2 chars lenght buffer
-*@param {number}  uint8Val;
-*@return {Buffer}
-*/
+ * Converts an 8-bit unsigned integer to a 2-character uppercase hexadecimal Buffer.
+ *
+ * This function takes a number between 0 and 255 and returns a Buffer of length 2,
+ * where each byte represents the ASCII code of the hexadecimal digits (MSB first).
+ *
+ * @param {number} uint8Val - The 8-bit unsigned integer to convert (0-255).
+ * @returns {Buffer} A Buffer of length 2 containing the ASCII hex representation.
+ *
+ * @example
+ * const buf = valByte2Chars(0xAB); // Buffer [0x41, 0x42] => 'AB'
+ */
 function valByte2Chars (uint8Val){
 
-    let temp = Buffer.alloc(2);
-        
-    //get LSB part
-    temp.write((uint8Val & 0x0F).toString(16).toUpperCase(), 1);
-    //get msb
-    temp.write((uint8Val >> 4).toString(16).toUpperCase());
-    
-    return temp;
+    const hex = uint8Val.toString(16).toUpperCase().padStart(2, '0');
+    return Buffer.from(hex, 'ascii');
 }
 
 /**
-* This function calculate the necesary buffer to realize the desired mask function
-* @param {Array} valueArray Array of numbers, values 1 on position that want to be true, 0 on position that
-* want to be false and -1 in position that must be unchanged.
-* example register value:           [0 1 1 0   1 1 0 0    0 1 1 1   1 0 0 1] 0x9E36
-*         set register value:       [1 0 0 1  -1 0 1 -1  -1 -1 0 0  1 1 -1 0]
-*         final register value:     [1 0 0 1   1 0 1 0    0 1 0 0   1 1 0 0] 0x3259
-* @returns {Buffer} Buffer value with AND MASK and OR MASK for modbus 0x16 function.
-*/
+ * Generates a 4-byte buffer containing the AND and OR masks for the Modbus "Mask Write Register" (FC=22) function.
+ *
+ * The function takes an array representing the desired states for each of the 16 bits in a register.
+ * The array index corresponds to the bit number (index 0 = LSB).
+ * - `1`: Force the bit to 1.
+ * - `0`: Force the bit to 0.
+ * - `-1` or `undefined`: Leave the bit unchanged.
+ *
+ * The function calculates the AND and OR masks according to the Modbus specification:
+ * `New Value = (Current Value AND AND_Mask) OR (OR_Mask AND (NOT AND_Mask))`
+ *
+ * @param {Array<1|0|-1|undefined>} valueArray - An array of up to 16 values representing the desired bit states.
+ * @returns {Buffer} A 4-byte buffer containing the AND mask and OR mask for the Modbus 0x16 function.
+ *
+ * @example
+ * // To force bit 0 to 1, bit 1 to 0, and leave all others unchanged:
+ * const valueArray = [1, 0]; // Bit 0 -> 1, Bit 1 -> 0
+ * const maskBuf = getMaskRegisterBuffer(valueArray);
+ * // maskBuf will contain AND_Mask = 0xFFFC, OR_Mask = 0x0001
+ */
 function getMaskRegisterBuffer(valueArray){
 
     let value = Buffer.alloc(4);
     let AND_Mask = 0;
     let OR_Mask = 0xFFFF;
-    let tempMask = 1;
-    let iteratorLimit = 16;
+    let tempMask = 1;    
 
-    if(valueArray.length < 16){
-        iteratorLimit = valueArray.length;
-    }
-    
-
-    for (let i = 0; i < iteratorLimit; i++){
+    for (let i = 0; i < 16; i++){
         
         if(valueArray[i] == 1){
         //AND_MASK = 0;
@@ -133,9 +160,8 @@ function getMaskRegisterBuffer(valueArray){
           
         }
         else{
-            //AND_MASK = 1;  
-            //OR_MASK = 1 
-            AND_Mask = AND_Mask | tempMask;                
+            //AND_MASK = 1; 
+            AND_Mask = AND_Mask | tempMask;         
         }
         
         tempMask = tempMask << 1; 
@@ -149,26 +175,30 @@ function getMaskRegisterBuffer(valueArray){
 }
 
 /**
- * Function to get a Buffer from an Array of boolean
- * @param {Array} boolArray Boolena Array to encoded to a buffer
- * @return {Buffer}
+ * Converts an array of boolean values to a Buffer, encoding each boolean as a single bit.
+ *
+ * The resulting Buffer packs the boolean values into bytes, with the first boolean in the least significant bit
+ * of the first byte, the second boolean in the next bit, and so on. If the array length is not a multiple of 8,
+ * the last byte will be partially filled with 0.
+ *
+ * @param {boolean[]} boolArray - Array of boolean values to encode.
+ * @returns {Buffer} Buffer containing the packed bits.
+ *
+ * @example
+ * // [true, false, true, true, false, false, false, true] => 0b10001101 => Buffer [0x8D]
+ * const buf = boolsToBuffer([true, false, true, true, false, false, false, true]);
  */
 function boolsToBuffer(boolArray){
 
-    let bufValue = Buffer.alloc(Math.ceil(boolArray.length/8)); //Example 10 bools arrays need two bytes length buffer
-    let index = 0;
-    let byteOffset = 0;
-    let orMask = 0x01;
-   
+    const bufLength = Math.ceil(boolArray.length / 8);
+    const bufValue = Buffer.alloc(bufLength, 0);   
 
-    for(i = 0; i < boolArray.length; i++){
-        index = Math.floor((i)/8); //get the index in the buffer. example 0 for values between 0 -7;
-        byteOffset = i % 8;
-        orMask = 0x01;
-       
+    for(i = 0; i < boolArray.length; i++){       
 
-        if(boolArray[i]){            
-            bufValue[index] = bufValue[index] | (orMask << byteOffset);            
+        if(boolArray[i]){     
+            let byteIndex = Math.floor(i / 8);
+            let bitOffset = i % 8;       
+            bufValue[byteIndex] |= (1 << bitOffset);          
         }
         
     }
@@ -178,68 +208,103 @@ function boolsToBuffer(boolArray){
 
 
 /**
- * Function to convert a asccii frame to rtu to be processed
- * @param {Buffer} asciiFrame 
- * @returns {Buffer} a equivalent rtu buffer
+ * Converts a Modbus ASCII frame to an equivalent RTU frame.
+ *
+ * This function removes the starting colon (':'), LRC, and ending characters (CR, LF)
+ * from the ASCII frame, converts the ASCII hex pairs to bytes, and appends a CRC.
+ *
+ * @param {Buffer} asciiFrame - The Modbus ASCII frame buffer.
+ * @returns {Buffer} The equivalent Modbus RTU frame buffer.
+ *
+ * @example
+ * // Example ASCII frame: ':010300000002FA\r\n'
+ * const rtuFrame = aduAsciiToRtu(Buffer.from(':010300000002FA\r\n'));
  */
 function aduAsciiToRtu(asciiFrame){
-
+    // Validate input
+    if (!Buffer.isBuffer(asciiFrame) || asciiFrame.length < 7) {
+        throw new Error('Invalid ASCII frame');
+    }
         
-    //creating rtu frame. content frame + 2 bytes for crc
-    let rtuFrame = Buffer.alloc((asciiFrame.length-1)/2);
-
+    // Calculate RTU frame length: (asciiFrame.length - 1 (:) - 4 (LRC + CRLF)) / 2
+    const rtuLength = (asciiFrame.length - 5) / 2;
+    const rtuFrame = Buffer.alloc(rtuLength + 2); // +2 for CRC
+    
     //droping first character (:), lrc and ending character(CR, LF) see Mover over serial line 1.02 b
-    for(let i = 0; i < asciiFrame.length - 4; i++){
+    for(let i = 0; i < rtuLength; i++){
         rtuFrame[i] = Number('0x'+ asciiFrame.toString('ascii', 2*i + 1 , 2*i + 3));
     }
     
     let crc = calcCRC(rtuFrame);
-    rtuFrame.writeUInt16BE(crc,rtuFrame.length - 2);
+    rtuFrame.writeUInt16BE(crc,rtuLength);
 
     return rtuFrame;
 
 }
 
 /**
- * Function to convert a rtu frame to ascii to be responsed
- * @param {Buffre} rtuFrame
- * @returns {Buffer} a equivalent ascii buffer
+ * Converts a Modbus RTU frame to an equivalent ASCII frame.
+ *
+ * This function takes a Modbus RTU frame (Buffer), converts each byte to its ASCII hexadecimal representation,
+ * prepends a colon (':'), appends the LRC (Longitudinal Redundancy Check) as two ASCII hex characters,
+ * and ends with CRLF ("\r\n"). The LRC is calculated over all bytes except the CRC (last two bytes).
+ *
+ * @param {Buffer} rtuFrame - The Modbus RTU frame buffer.
+ * @returns {Buffer} The equivalent Modbus ASCII frame buffer.
+ *
+ * @example
+ * // Example RTU frame: <Buffer 01 03 00 00 00 02 c4 0b>
+ * const asciiFrame = aduRtuToAscii(Buffer.from([0x01,0x03,0x00,0x00,0x00,0x02,0xC4,0x0B]));
+ * // asciiFrame: <Buffer 3a 30 31 30 33 30 30 30 30 30 30 30 32 38 38 0d 0a>
  */
 function aduRtuToAscii(rtuFrame){
 
-    //creating ascii frame. rtu frame * 2  + 1bytes for ':'
-    let asciiFrame = Buffer.alloc(rtuFrame.length * 2 + 1);
-    asciiFrame[0] = 0x3A;
-    asciiFrame[asciiFrame.length - 2] = 0x0D;
-    asciiFrame[asciiFrame.length - 1] = 0x0A;
-
-    //LRC calculation
-    let byteLRC = Buffer.alloc(1);
-
-    //chars value
-    let charsBuffer = Buffer.alloc(2);
-
-    for(let i = 0; i < rtuFrame.length - 2; i++){
-        byteLRC[0] = byteLRC[0] + rtuFrame[i];
-        charsBuffer = valByte2Chars(rtuFrame[i])
-        charsBuffer.copy(asciiFrame, 2*i + 1)
+    if (!Buffer.isBuffer(rtuFrame)) {
+        throw new Error('Invalid RTU frame');
     }
 
-    byteLRC[0] = -byteLRC[0]
-    //get lrc chars 
-    charsBuffer = valByte2Chars(byteLRC[0]);
-    charsBuffer.copy(asciiFrame, asciiFrame.length - 4);
+    // Exclude CRC (last 2 bytes) for LRC calculation
+    const dataLength = rtuFrame.length - 2;
+    const asciiLength = 1 + (dataLength + 1) * 2 + 2; // ':' + (data bytes + LRC) * 2 + CRLF
+    const asciiFrame = Buffer.alloc(asciiLength);
+    
+    asciiFrame[0] = 0x3A;       // ASCII ':'
+
+    let lrc = 0; // Initialize LRC
+    // Convert data bytes to ASCII hex and calculate LRC
+    for (let i = 0; i < dataLength; i++) {
+        lrc = (lrc + rtuFrame[i]) & 0xFF;
+        const hex = rtuFrame[i].toString(16).toUpperCase().padStart(2, '0');
+        asciiFrame.write(hex, 1 + i * 2, 2, 'ascii');
+    }
+    
+
+    // LRC: two's complement
+    lrc = ((-lrc) & 0xFF);
+    const lrcHex = lrc.toString(16).toUpperCase().padStart(2, '0');
+    asciiFrame.write(lrcHex, 1 + dataLength * 2, 2, 'ascii');
+
+    asciiFrame[asciiLength - 2] = 0x0D; // '\r'
+    asciiFrame[asciiLength - 1] = 0x0A; // '\n'
 
     return asciiFrame;
 }
 
 /**
-    * Low level api function to get a 2 bytes  word value from buffer.
-    * @param {Buffer} targetBuffer buffer object to read
-    * @param {number} offset integer value with bit address.
-    * @return {Buffer} 2 bytes length buffer
-    * @throws {RangeError} if offset is out of buffer's bound.
-    */
+ * Reads a 2-byte word from a buffer at the specified word offset.
+ *
+ * This function returns a Buffer containing two bytes starting at the given word offset (offset * 2).
+ * It is useful for extracting 16-bit values from a Modbus buffer.
+ *
+ * @param {Buffer} targetBuffer - The buffer to read from.
+ * @param {number} [offset=0] - The word offset (not byte offset) to read from.
+ * @returns {Buffer} A Buffer of length 2 containing the word value.
+ * @throws {RangeError} If the offset is out of the buffer's bounds.
+ *
+ * @example
+ * const buf = Buffer.from([0x12, 0x34, 0x56, 0x78]);
+ * const word = getWordFromBuffer(buf, 1); // Buffer [0x56, 0x78]
+ */
 function getWordFromBuffer(targetBuffer, offset = 0){
 
     if(offset < targetBuffer.length / 2){
@@ -257,12 +322,22 @@ function getWordFromBuffer(targetBuffer, offset = 0){
 }
 
 /**
-* Low level api function to set a 2 bytes  word value into buffer.
-* @param {Buffer} value 2 bytes long buffer object to write
-* @param {Buffer} targetBuffer buffer object to write
-* @param {number} offset integer value with offset in the buffer.    
-* @throws {RangeError} if offset is out of buffer's bound.
-*/
+ * Writes a 2-byte word value into a buffer at the specified word offset.
+ *
+ * This function copies two bytes from the `value` buffer into the `targetBuffer`
+ * starting at the given word offset (offset * 2). It is useful for setting 16-bit values
+ * in a Modbus buffer.
+ *
+ * @param {Buffer} value - A Buffer of length 2 containing the word to write.
+ * @param {Buffer} targetBuffer - The buffer to write into.
+ * @param {number} [offset=0] - The word offset (not byte offset) to write at.
+ * @throws {RangeError} If the offset is out of the buffer's bounds.
+ *
+ * @example
+ * const buf = Buffer.alloc(4);
+ * setWordToBuffer(Buffer.from([0x12, 0x34]), buf, 1);
+ * // buf is now <Buffer 00 00 12 34>
+ */
 function setWordToBuffer(value, targetBuffer, offset = 0){
 
   if(offset < targetBuffer.length / 2){        

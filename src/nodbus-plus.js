@@ -27,8 +27,12 @@ const NodbusSerialServer = require('./server/nodbus_serial_server.js');
 const NetTcpServer = require('./server/net/tcpserver.js');
 const NetUdpServer = require('./server/net/udpserver.js');
 const NetSerialServer = require('./server/net/serialserver.js');
+
 module.exports.NodbusTcpServer = NodbusTcpServer;
 module.exports.NodbusSerialServer = NodbusSerialServer;
+module.exports.NetTcpServer = NetTcpServer;
+module.exports.NetUdpServer = NetUdpServer;
+module.exports.NetSerialServer = NetSerialServer;   
 
 /**
 * Create a tcp server instance
@@ -36,7 +40,7 @@ module.exports.NodbusSerialServer = NodbusSerialServer;
 * @param {Object} serverCfg: Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-module.exports.createTcpServer = function (net = 'tcp', serverCfg){
+module.exports.createTcpServer = function (net = 'tcp', serverCfg = {}){
 
   let netType
   switch(net){
@@ -66,7 +70,7 @@ module.exports.createTcpServer = function (net = 'tcp', serverCfg){
 * @param {Object} serverCfg: Serial transmition mode for serial slave. 'rtu', 'ascii', 'auto' default.
 * @return {Object} Slave object
 */
-module.exports.createSerialServer = function (net = 'serial', serverCfg){
+module.exports.createSerialServer = function (net = 'serial', serverCfg = {}){
 
     let netType
     switch(net){
@@ -91,7 +95,7 @@ module.exports.createSerialServer = function (net = 'serial', serverCfg){
   
     return server;
   
-  }
+}
 
 //Nodbus Plus clients full implementation***************************************************************************************
 
@@ -101,57 +105,42 @@ const NetTcpChannel = require('./client/net/tcpchannel.js');
 const NetUdpChannel = require('./client/net/udpchannel.js');
 const NetSerialChannel = require('./client/net/serialchannel.js');
 
-module.exports.createTcpClient = function (channel = 'tcp'){
+/**
+ * 
+ * @param {string} channelName Identifier for channels type dictionary supported for the modbus client
+ * @param {NetChannel} channelClass A custom Channel class that implements NetChannel interface
+ * @returns A NodbusTcpClient instance
+ */
+module.exports.createTcpClient = function (channelName = 'tcp', channelClass = null){
 
-    let channelType
-    switch(channel){
-        case 'tcp':
-            channelType = NetTcpChannel;
-            break
-        case 'udp':
-            channelType = NetUdpChannel;
-            break
-        case 'udp4':
-            channelType = NetUdpChannel;            
-            break
-        case 'udp6':
-            channelType = NetUdpChannel;           
-            break
-        default:
-            channelType = NetTcpServer;
+    let client = new NodbusTcpClient();
+
+    if (channelName instanceof String || typeof channelName === 'string'){
+        if(channelClass != null){ 
+            client.channelType.set(channelName, channelClass);
+        }      
     }
-    let client = new NodbusTcpClient(channelType);
 
     return client;
 
 }
 
-module.exports.createSerialClient = function(channel = 'tcp'){
+/**
+ * Factory function to create a NodbusSerialClient instance
+ * @param {string} channelName Name of the channel type to register or use
+ * @param {NetChannel} channelClass Custom Channel class to register for the given channelName
+ * @returns Instance of NodbusSerialClient
+ */
+module.exports.createSerialClient = function(channelName = 'tcp', channelClass = null){
 
-    let channelType
-    switch(channel){
-        case 'tcp':
-            channelType = NetTcpChannel;
-            break
-        case 'udp':
-            channelType = NetUdpChannel;
-            break
-        case 'udp4':
-            channelType = NetUdpChannel;
-            break
-        case 'udp6':
-            channelType = NetUdpChannel;
-            break
-        case 'serial':            
-            channelType = NetSerialChannel;
-            break
-        default:
-            netType = NetSerialChannel;
-    }
-    let client = new NodbusSerialClient(channelType);
+    let client = new NodbusSerialClient();
 
-  
+    if (channelName instanceof String || typeof channelName === 'string'){
+        if(channelClass != null){ 
+            client.channelType.set(channelName, channelClass);
+        }      
+    }  
+
     return client;
-
 }
 

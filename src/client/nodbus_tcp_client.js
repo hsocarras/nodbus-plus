@@ -48,9 +48,9 @@ class NodbusTcpClient extends  ModbusTcpMaster {
     addChannel(id, type = 'tcp1', channelCfg = {ip: 'localhost', port: 502, timeout:250}){
       
         
-        if(channelCfg.ip == undefined){ channelCfg.ip = 'localhost'} 
-        if(channelCfg.port == undefined){ channelCfg.port = 502}        
-        if(channelCfg.timeout == undefined){ channelCfg.timeout = 250}    
+        if(channelCfg.ip === undefined){ channelCfg.ip = 'localhost'} 
+        if(channelCfg.port === undefined){ channelCfg.port = 502}        
+        if(channelCfg.timeout === undefined){ channelCfg.timeout = 250}    
         channelCfg.tcpCoalescingDetection = true;
         
         let Channel = this.channelType.get(type);
@@ -97,16 +97,15 @@ class NodbusTcpClient extends  ModbusTcpMaster {
         channel.onMbAduHook = (resAdu) => {
             
             let res = {};
-
+            
             res.timeStamp = Date.now();
             res.transactionId = resAdu.readUint16BE(0);
             res.unitId = resAdu[6];
             res.functionCode = resAdu[7];
             res.data = resAdu.subarray(8);
 
-            this.processResAdu(resAdu);
-            this.emit('response', id, res)
-            
+            this.processResAdu(resAdu);            
+            this.emit('response', id, res)            
         }
 
         channel.onErrorHook = (err) =>{
@@ -143,7 +142,7 @@ class NodbusTcpClient extends  ModbusTcpMaster {
 
                 let expectedLength = frame.readUInt16BE(4) + 6;
                 let protocolId = frame.readUInt16BE(2);
-                return frame.length == expectedLength & protocolId == 0;
+                return frame.length === expectedLength && protocolId === 0;
             }
             return false;
         }
@@ -173,8 +172,21 @@ class NodbusTcpClient extends  ModbusTcpMaster {
 
    
 	/**
-    *Stablish connection
-    */
+     * Establishes a connection to the Modbus server for the specified channel.
+     *
+     * @param {string} id - The channel identifier as used in the channels map.
+     * @returns {Promise<string>} Resolves with the channel id if the connection is successful, or if already connected.
+     *                            Rejects if the channel does not exist.
+     *
+     * @example
+     * client.connect('device1')
+     *   .then((id) => {
+     *     console.log(`Connected to channel: ${id}`);
+     *   })
+     *   .catch((err) => {
+     *     console.error('Connection failed:', err);
+     *   });
+     */
 	connect(id){
 
         let self = this;

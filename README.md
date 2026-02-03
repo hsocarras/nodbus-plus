@@ -4,53 +4,56 @@ A Modbus protocol library for Node.js, written entirely in JavaScript. It suppor
 
 ## Introduction
 
-Nodbus Plus has been designed as a stack for the Modbus protocol. It can be used to create both your own Modbus client and server using its API, or you can use its build in client or server and have an application with Modbus communication in just minutes.
+Nodbus-Plus is a Modbus protocol stack for Node.js. You can use its API to create your own Modbus client and server, or use its built-in client and server for quick Modbus communication in just minutes.
 
 ## Installation
 
 ```console
-$ npm install nodbus-plus
-``` 
+npm install nodbus-plus
+```
 
-## Basic Usage:
+## Basic Usage
 
-### Create a modbus server.
+### Creating a Modbus Server
 
 ```javascript
 const nodbus = require('nodbus-plus');
 
-//Basic config for tcp server. Default values.
+// Basic config for TCP server. Default values.
 const cfg = {
-    inputs : 2048, //total inputs
-    coils : 2048,  //total coils
-    holdingRegisters : 2048, //total holding register
-    inputRegisters : 2048,  //total input register
-    port : 502,    //port to listen to
-}
+    inputs: 2048,            // total inputs
+    coils: 2048,             // total coils
+    holdingRegisters: 2048,  // total holding registers
+    inputRegisters: 2048,    // total input registers
+    port: 502,               // port to listen on
+};
 
 let server = nodbus.createTcpServer('tcp', cfg);
 ```
-The first argument for createTcpServer function is the type of transport layer used. The nodbus-plus tcp server suport 'tcp', 'udp4' and 'udp6'. To create a 
-serial server the procedure is the same, but calling createSerialServer function instead.
+
+The first argument for `createTcpServer` is the transport layer type. The Nodbus-Plus TCP server supports `'tcp'`, `'udp4'`, and `'udp6'`.  
+To create a serial server, use `createSerialServer` instead:
+
 
 ```javascript
-//Basic config for tcp server. Default values.
-let cfg = {
-    address : 1,
-    transmitionMode: 0, //0-rtu, 1 - ascii
-    inputs : 2048,
-    coils : 2048,
-    holdingRegisters : 2048,
-    inputRegisters : 2048,  
-    port : 502,    
-}
+// Basic config for serial server.
+const cfg = {
+    address: 1,
+    transmitionMode: 0, // 0 - RTU, 1 - ASCII
+    inputs: 2048,
+    coils: 2048,
+    holdingRegisters: 2048,
+    inputRegisters: 2048,
+    port: 'COM1', // Serial port path (e.g., 'COM1' on Windows or '/dev/ttyUSB0' on Linux)
+    // Additional serial port configuration may be required
+};
 
-let server = nodbus.createSerialServer('tcp', cfg);
+let server = nodbus.createSerialServer('serial', cfg);
 ```
-The createSerialServer function can take the value 'serial' as fist argument as well, however the property port mus be a string
-with the path to a serial port and adicional port configuration property may be needed. See nodbus-plus api for more details.
+> **Note:** The `port` property for serial servers must be a string with the path to the serial port.  
+> See the Nodbus-Plus API for more details on serial configuration.
 
-Add listeners for srever's events
+#### Add Listeners for Server Events
 
 ```javascript
 //listenning event
@@ -74,14 +77,17 @@ server.on('error', function(err){
     console.log(err)
 });
 ```
-Finally the server must be started.
+
+Finally, start the server:
 
 ```javascript
 server.start();
 ```
-### Create a modbus client.
+---
 
-To create a modbus client use the functions createTcpClient or createSerialClient.
+### Creating a Modbus Client
+
+To create a Modbus client, use `createTcpClient` or `createSerialClient`:
 
 ```javascript
 const nodbus = require('nodbus-plus');
@@ -113,7 +119,9 @@ client.on('response', (id, res)=>{
 })
 ```
 
-Then channels must be add to the client. The client will create a connection per channel. The following example add a modbus serial over tcp server, and conect to it.
+Add channels to the client. The client creates a connection per channel.  
+The following example adds a Modbus TCP server and connects to it:
+
 
 ```javascript
 
@@ -129,35 +137,35 @@ client.connect('device')
 
 ```
 
-Once the client is connected, and event listener configured, data can be exchange using availables modbus function.
+Once the client is connected and event listeners are configured, you can exchange data using available Modbus functions:
+
 
 ```javascript
-
-//reading from cannel 'device', modbus address 1, two coils from 0 coil's address
-    client.readCoils('device', 1, 0, 2);
-
+// Read two coils starting at address 0 from channel 'device', Modbus address 1
+client.readCoils('device', 1, 0, 2);
 ```
+---
 
-### Official Documentation
+### Documentation
 
-For comprehensive information on how to use NodbusPlus, refer to the [official documentation](https://nodbus-plus.readthedocs.io/en/latest/).
+For comprehensive information, refer to the [official documentation](https://nodbus-plus.readthedocs.io/en/latest/).
+
 
 ### Getting Started
 
-If you're new to NodbusPlus, the [Getting Started Guide](https://nodbus-plus.readthedocs.io/en/latest/starting.html) is a great place to begin.
-It will walk you through the installation process and provide a basic usage example.
+If you're new to Nodbus-Plus, the [Getting Started Guide](https://nodbus-plus.readthedocs.io/en/latest/starting.html) will walk you through installation and provide basic usage examples.
 
 
 ### Examples
 
-Inside the root folder of Nodbus plus, there is a directory './samples' that contains three example programs that make use of the library.
+The `./samples` directory in the root folder contains example programs demonstrating how to use the library.
+
 
 
 ## Contributing
 
-If you have a suggestion or found a issue, let us known and [create an issue](https://github.com/hsocarras/nodbus-plus/issues)
-
+If you have suggestions or find an issue, please [create an issue](https://github.com/hsocarras/nodbus-plus/issues).
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE.md file for details
+This project is licensed under the MIT License. See the `LICENSE.md` file for details.

@@ -1,77 +1,102 @@
+/**
+ * Modbus Serial sample server (serial-over-tcp)
+ *
+ * Usage:
+ *   node samples/mb_serial_server.js [address] [mode] [log] [port]
+ *
+ * Arguments:
+ *   address - Modbus slave address (default: 1)
+ *   mode    - serial mode: auto | rtu | ascii (default: auto)
+ *   log     - logging mode: all | req | req-res | raw | verbose | help (default: all)
+ *   port    - optional: override listening port (default: 502 or from PORT env)
+ *
+ * Examples:
+ *   node samples/mb_serial_server.js 1 rtu all 502
+ *   PORT=1502 node samples/mb_serial_server.js 5 ascii req-res
+ */
+
 const nodbus = require('../src/nodbus-plus');
-const arg = process.argv.slice(2);
+const argv = process.argv.slice(2);
 
-let cfg = {
-    address : 1,
-    transmitionMode: 0,
-    inputs : 2048,
-    coils : 2048,
-    holdingRegisters : 10000,
-    inputRegisters : 10000,  
-    port : 502,    
-    }
+const addressArg = argv[0];
+const modeArg = (argv[1] || 'auto').toLowerCase();
+const logArg = (argv[2] || 'all').toLowerCase();
+const portArg = argv[3] || process.env.PORT;
 
-if (arg.length > 0){
-    
-    let newAddress = Number(arg[0]);
-
-    if (typeof newAddress == 'number'){
-        cfg.address = newAddress;
-    }
-
-    if(arg[1] == '-ascii'){
-    
-        cfg.transmitionMode = 1;
-    
-    }        
-    
-    
+if (['help', '-h', '--help'].includes(logArg) || ['help', '-h', '--help'].includes(modeArg)) {
+    console.log('Usage: node samples/mb_serial_server.js [address] [mode] [log] [port]');
+    console.log('mode: auto | rtu | ascii');
+    console.log('log: all | req | req-res | raw | verbose | help');
+    process.exit(0);
 }
 
-let server = nodbus.createSerialServer('tcp', cfg);
+const cfg = {
+    address: Number(addressArg) || 1,
+    transmitionMode: modeArg === 'rtu' ? 1 : modeArg === 'ascii' ? 2 : 0, // 0=auto,1=rtu,2=ascii
+    inputs: 2048,
+    coils: 2048,
+    holdingRegisters: 10000,
+    inputRegisters: 10000,
+    port: portArg ? Number(portArg) : 502,
+};
 
-server.on('listening', function(port){
-    console.log('Server listening on: ' + port);        
+const modeVerbose = logArg === 'verbose' || logArg === 'all';
+
+function hex(buf) {
+    if (!Buffer.isBuffer(buf)) return String(buf);
+    return Array.from(buf).map((b) => b.toString(16).padStart(2, '0')).join(' ');
+}
+
+const server = nodbus.createSerialServer('tcp', cfg);
+
+server.on('listening', (p) => {
+    console.log(`Serial server listening on port ${p} (address=${cfg.address}, mode=${modeArg})`);
 });
 
-if (arg.length > 0){
-    if(arg[2] == 'req'){
-        
-        server.on('request', function(sock, req){
-            console.log('Request received')
-            console.log(req)
-        });
+server.on('connection', (sock) => {
+    console.log('New connection:', sock.remoteAddress + ':' + sock.remotePort);
+    if (modeVerbose) console.log('Active connections:', server.net.activeConnections.length);
+});
+
+server.on('connection-closed', (info) => {
+    console.log('Connection closed:', info);
+});
+
+server.on('data', (sock, data) => {
+    if (logArg === 'raw' || modeVerbose) {
+        console.log(`Raw data from ${sock.remoteAddress}:${sock.remotePort} -> ${hex(data)}`);
     }
-    else if(arg[2] == 'req-res'){
+});
 
-        server.on('request', function(sock, req){
-            console.log('Request received')
-            console.log(req)
-        });
-
-        server.on('response', function(sock, res){
-            console.log('Responding')
-            console.log(res)
-        });
-
+server.on('request', (sock, req) => {
+    if (['req', 'req-res', 'all', 'verbose'].includes(logArg)) {
+        console.log(`Request from ${sock.remoteAddress}:${sock.remotePort} - addr=${req.address} fc=0x${req.functionCode.toString(16)} data=${hex(req.data)}`);
     }
-    else if(arg[2] == 'raw'){
-        
-        server.on('data', function(sock, data){
-            console.log('Data received')
-            console.log(data)
-        });
+});
+
+server.on('response', (sock, res) => {
+    if (['req-res', 'all', 'verbose'].includes(logArg)) {
+        console.log(`Response to ${sock.remoteAddress}:${sock.remotePort} - addr=${res.address} fc=0x${res.functionCode.toString(16)} data=${hex(res.data)}`);
     }
-    else{
-        console.log('Blind Mode selected')
-    }
+});
 
-}
-else{
-    server.on('error', function(err){
-        console.log(err)
-    });
-}
+server.on('write', (sock, frame) => {
+    if (modeVerbose) console.log(`Frame written to ${sock.remoteAddress}:${sock.remotePort}: ${hex(frame)}`);
+});
 
+server.on('error', (err) => {
+    console.error('Server error:', err && err.stack ? err.stack : err);
+});
 
-server.start()
+server.on('closed', () => {
+    console.log('Server closed');
+});
+
+process.on('SIGINT', () => {
+    console.log('\nSIGINT received, stopping server...');
+    try { server.stop(); } catch (e) { console.error('Error while stopping server:', e); }
+    setTimeout(() => process.exit(0), 200);
+});
+
+server.start();
+console.log(`Starting Modbus serial server (address=${cfg.address}, mode=${modeArg}, log=${logArg}) on port ${cfg.port}`);

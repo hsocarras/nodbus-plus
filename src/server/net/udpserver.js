@@ -27,12 +27,12 @@ class UdpServer {
     * Create a UdpServer.
     * @param {object} netCfg configuration object.
     */
-    constructor(netCfg = defaultCfg, type){
+    constructor(netCfg = defaultCfg){
         
         if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
         if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
         if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}       
-        if(netCfg.udpType != 'udp4' & netCfg.udpType != 'udp6'){ netCfg.udpType = defaultCfg.udpType}
+        if(netCfg.udpType !== 'udp4' && netCfg.udpType !== 'udp6'){ netCfg.udpType = defaultCfg.udpType}
         
         
         var self = this;
@@ -54,9 +54,9 @@ class UdpServer {
 
         this.maxConnections = netCfg.maxConnections;
 
-        this.accessControlEnable = true;    
+        this.accessControlEnable = netCfg.accessControlEnable;    
         
-        this.tcpCoalescingDetection = netCfg.tcpCoalescingDetection;
+        this.tcpCoalescingDetection = false;
         
          /**
         * listening status
@@ -95,7 +95,7 @@ class UdpServer {
                     let messages = self.resolveTcpCoalescing(msg);
                     
                     messages.forEach((message) => {
-                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
+                        if(self.onMbAduHook  instanceof Function  && self.validateFrame(message)){
                             self.onMbAduHook(rinfo, message);
                         }
                     })
@@ -104,7 +104,7 @@ class UdpServer {
                 //Non active tcp coalesing detection for modbus serial
                 else{
                    
-                    if(self.onMbAduHook  instanceof Function & self.validateFrame(msg)){
+                    if(self.onMbAduHook  instanceof Function && self.validateFrame(msg)){
                             self.onMbAduHook(rinfo, msg);
                     }
                 }
@@ -116,8 +116,12 @@ class UdpServer {
         *  function to executed when event listening is emited
         */
         this.onListeningHook = noop;
-        this.coreServer.on('listening', () => {         
+        this.coreServer.on('listening', () => {                    
             self.isListening = true; 
+            const address = self.coreServer.address();
+            if(self.port == 0){
+                self.port = address.port;
+            }
             self.onListeningHook();          
         });
 
@@ -173,12 +177,11 @@ class UdpServer {
     */
     start (){
         var self = this; 
-
         try {
             this.coreServer.bind(this.port)
         }
         catch(error){
-            this.onError(error);
+            this.onErrorHook(error);
         }
 
     }
@@ -199,11 +202,13 @@ class UdpServer {
     write (rinfo, frame){
         let self = this;    
         
-        self.coreServer.send(frame, 0, frame.length, rinfo.port, rinfo.address, function(){
-            if(self.onWrite){
-                self.onWrite(rinfo, frame);
+        self.coreServer.send(frame, 0, frame.length, rinfo.port, rinfo.address, function(err){
+            if (err) {
+                self.onErrorHook(err);
+            } else if (self.onWriteHook) {
+                self.onWriteHook(rinfo, frame);
             }
-        })    
+        });
     }
 
     /**
@@ -235,8 +240,5 @@ class UdpServer {
         return indicationsList;
     }
 }
-
-//Old pattern for static members
-UdpServer.prototype.validateFrame = require('./tcpserver').prototype.validateFrame;
 
 module.exports = UdpServer;

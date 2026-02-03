@@ -19,8 +19,6 @@ class NodbusSerialClient extends  ModbusSerialMaster {
     constructor(){
         super();
 
-        var self = this;
-
         /**
         * channel's constructor
         * @type {object}
@@ -44,7 +42,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
 
     /**
      * Function to add a channel object to master
-     * @param {string} id: channel's id. Unique por channel
+     * @param {string} id: channel's id. Unique per channel
      * @param {string} ip: channel's ip address. Default 'localhost'
      * @param {number} port: channel's port. Default 502
      * @param {number} timeout time in miliseconds to emit timeout for a request.     
@@ -73,7 +71,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
             /**
              * connection event.
              * Emited when new connecton is sablished
-             * @event NodbusTcpClient#connection
+             * @event NodbusSerialClient#connection
              * @type {object}
              * @see https://nodejs.org/api/net.html
              */          
@@ -83,7 +81,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
         channel.onCloseHook = () => {
             /**
              * connection-closed event.
-             * @event ModbusnetServer#connection-closed
+             * @event NodbusSerialClient#connection-closed
              * @type {object}
              */
             this.emit('connection-closed', id)
@@ -92,7 +90,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
         channel.onDataHook = (dataFrame) => {
             /**
             * indication event.
-            * @event ModbusnetServer#indication
+            * @event NodbusSerialClient#indication
             */
             this.emit('data', id, dataFrame);
         };
@@ -125,8 +123,8 @@ class NodbusSerialClient extends  ModbusSerialMaster {
         channel.onErrorHook = (err) =>{
             /**
              * error event.
-             * @event ModbusNetServer#error
-             */
+             * @event NodbusSerialClient#error
+             */            
             this.emit('error', id, err);
         };
 
@@ -159,7 +157,7 @@ class NodbusSerialClient extends  ModbusSerialMaster {
 
             /**
              * response event.
-             * @event ModbusnetServer#response
+             * @event NodbusSerialClient#response
              */
             this.emit('write', id, reqAdu);
         
@@ -201,19 +199,17 @@ class NodbusSerialClient extends  ModbusSerialMaster {
     *Stablish connection
     */
 	connect(id){
-
         let self = this;
         let successPromise;
         let channel = self.channels.get(id);
 
-        if(channel == undefined){            
-            return Promise.reject(channel.ip, channel.port);
+        if(channel == undefined){          
+            return Promise.reject(id);
         }
-        else if(channel.isConnected()){  
-                  
+        else if(channel.isConnected()){       
             return Promise.resolve(id);
         }
-        else{            
+        else{  
             successPromise = channel.connect();
             return successPromise
         }

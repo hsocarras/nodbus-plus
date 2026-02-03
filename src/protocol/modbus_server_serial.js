@@ -21,12 +21,47 @@ const defaultCfg = {
 }
 
 /**
- * Class representing a modbus serial server.
+ * Represents a Modbus Serial Server (Slave) that handles communication over serial lines (RTU or ASCII).
+ *
+ * This class extends `ModbusServer` to provide functionality specific to the Modbus serial line protocol.
+ * It manages the server's address, transmission mode (RTU/ASCII), and processes incoming Application Data Units (ADUs).
+ * It handles request validation, including address matching and checksum verification (CRC for RTU, LRC for ASCII),
+ * and constructs appropriate response ADUs.
+ *
+ * The server also implements diagnostic counters as specified in the "MODBUS over serial line specification and
+ * implementation guide V1.02", tracking metrics like message counts, communication errors, and exceptions.
+ *
  * @extends ModbusServer
+ *
+ * @example
+ * const ModbusSerialServer = require('./modbus_server_serial');
+ *
+ * // Create a server in RTU mode with address 1
+ * const server = new ModbusSerialServer({
+ *   transmitionMode: 0, // 0 for RTU, 1 for ASCII
+ *   address: 1,
+ *   coils: 1024,
+ *   holdingRegisters: 512
+ * });
+ *
+ * // To process a request, you would typically get a buffer from a serial port
+ * // and pass it to the server's methods.
 */
 class ModbusSerialServer extends ModbusServer {
   /**
-  * Create a Modbus Slave.
+  * Creates a new Modbus Serial Server instance.
+  *
+  * Initializes the server with the specified configuration. If no configuration is provided,
+  * it uses default values. The configuration includes the server's Modbus address, the
+  * transmission mode (RTU or ASCII), and the size of the data models (coils, registers, etc.).
+  *
+  * @param {object} [mbSerialServerCfg=defaultCfg] - Configuration object for the serial server.
+  * @param {number} [mbSerialServerCfg.transmitionMode=0] - The transmission mode. `0` for RTU (default), `1` for ASCII.
+  * @param {number} [mbSerialServerCfg.address=1] - The Modbus address of the server (1-247).
+  * @param {number} [mbSerialServerCfg.inputs=2048] - Number of discrete inputs (1x reference).
+  * @param {number} [mbSerialServerCfg.coils=2048] - Number of coils (0x reference).
+  * @param {number} [mbSerialServerCfg.holdingRegisters=2048] - Number of holding registers (4x reference).
+  * @param {number} [mbSerialServerCfg.inputRegisters=2048] - Number of input registers (3x reference).
   */
     constructor(mbSerialServerCfg = defaultCfg){
         super(mbSerialServerCfg);
@@ -34,7 +69,7 @@ class ModbusSerialServer extends ModbusServer {
         var self = this;
 
         //arguments check
-        if(mbSerialServerCfg.transmitionMode == undefined | (mbSerialServerCfg.transmitionMode != 0 & mbSerialServerCfg.transmitionMode != 1)){
+        if(mbSerialServerCfg.transmitionMode === undefined || (mbSerialServerCfg.transmitionMode !== 0 && mbSerialServerCfg.transmitionMode !== 1)){
             mbSerialServerCfg.transmitionMode = defaultCfg.transmitionMode;
         }
         if(mbSerialServerCfg.address == undefined){ mbSerialServerCfg.address = defaultCfg.address;}  
@@ -87,16 +122,22 @@ class ModbusSerialServer extends ModbusServer {
     }  
 
     /**
-     * getter for address property
-     * 
+     * Gets the Modbus address of the server.
+     * @returns {number} The server's address.
      */
     get address(){
         return this._address;
-    }    
+    }
+    /**
+     * Sets the Modbus address of the server.
+     * The address must be a number between 1 and 247.
+     * If an invalid address is provided, it defaults to 1.
+     * @param {number} addr - The new address for the server.
+     */
     set address(addr){
 
         if(typeof addr == 'number'){
-            if(addr > 0 & addr <= 247){
+            if(addr > 0 && addr <= 247){
                 this._address = addr;
             }
             else{
@@ -109,9 +150,13 @@ class ModbusSerialServer extends ModbusServer {
     } 
 
     /**
-     * Function to get the address on a serial adu request in rtu format.
-     * @param {Buffer} reqAduBuffer 
-     * @returns {number} server address on requesr.
+     * Extracts the server address from a Modbus serial ADU request buffer.
+     *
+     * This method parses the address field from the incoming request frame,
+     * handling both RTU (first byte) and ASCII (first two hex characters after ':') formats.
+     *
+     * @param {Buffer} reqAduBuffer - The Modbus serial ADU buffer.
+     * @returns {number} The server address found in the request.
      */
     getAddress(reqAduBuffer){
         
@@ -126,9 +171,13 @@ class ModbusSerialServer extends ModbusServer {
     }
     
     /**
-     * Function to get the pdu buffer from a serial adu request in rtu format
-     * @param {Buffer} reqAduBuffer 
-     * @returns {Buffer} Pdu's buffer.
+     * Extracts the Modbus PDU (Protocol Data Unit) from a serial ADU (Application Data Unit) buffer.
+     *
+     * For RTU, it returns the buffer slice between the address byte and the CRC.
+     * For ASCII, it first converts the frame to RTU format and then extracts the PDU.
+     *
+     * @param {Buffer} reqAduBuffer - The Modbus serial ADU buffer.
+     * @returns {Buffer} The extracted PDU buffer.
      */
     getPdu(reqAduBuffer){
         if(this.transmitionMode == 1){
@@ -144,9 +193,12 @@ class ModbusSerialServer extends ModbusServer {
     }
 
     /**
-     * Function to get the pdu buffer from a serial adu request in rtu format
-     * @param {Buffer} reqAduBuffer 
-     * @returns {Buffer} Pdu's buffer.
+     * Calculates the checksum for a given serial ADU request buffer.
+     *
+     * It computes the CRC for RTU frames or the LRC for ASCII frames.
+     *
+     * @param {Buffer} reqAduBuffer - The Modbus serial ADU buffer.
+     * @returns {number} The calculated checksum (CRC or LRC).
      */
     getChecksum(reqAduBuffer){
         if(this.transmitionMode == 1){
@@ -162,20 +214,31 @@ class ModbusSerialServer extends ModbusServer {
 
         
     /**
-    * Function to be called when request adu is received. Imlement the Counters Management Diagram.    
-    * See MODBUS over serial line specification and implementation guide V1.02
-    * @param {Buffer}  modbus indication's frame
-    * @return {Buffer} Response Adu 
-    * 
+    * Processes a request ADU and generates a response ADU.
+    *
+    * This function implements the server-side logic for handling a Modbus serial request.
+    * It increments the message counters, extracts and processes the PDU, and builds the
+    * full response ADU, including the server address and the appropriate checksum (CRC or LRC).
+    * If the request results in an exception, the exception counter is incremented.
+    *
+    * See "MODBUS over serial line specification and implementation guide V1.02" for the
+    * Counters Management Diagram.
+    *
+    * @param {Buffer} reqAduBuffer - The incoming Modbus serial request ADU buffer.
+    * @returns {Buffer} The complete Modbus serial response ADU buffer.
+    * @throws {RangeError} If the request ADU buffer is too short.
+    * @throws {TypeError} If the request ADU is not a Buffer object.
     */
     getResponseAdu(reqAduBuffer){
 
         var self = this;        
          
-        if(reqAduBuffer instanceof Buffer){
-            
-            //check CRC or LRC 
-            if(reqAduBuffer.length >= 3){                
+        if (!Buffer.isBuffer(reqAduBuffer)) {
+            throw new TypeError("Request ADU must be a Buffer object.");
+        }
+
+        const minLength = this.transmitionMode === 1 ? 9 : 4; // ASCII min: ':123456\r\n' (9), RTU min: Addr,FC,CRCH,CRCL (4)
+        if (reqAduBuffer.length >= minLength) {
                 
                 let reqPduBuffer = this.getPdu(reqAduBuffer);
                     
@@ -208,36 +271,37 @@ class ModbusSerialServer extends ModbusServer {
 
                 return resAduBuffer;                    
                 
-            }
-            else{                       
-                throw new RangeError("Pdu's length must be between 0 an 253");
-            }
+        } else {
+            throw new RangeError(`Request ADU length is too short. Received ${reqAduBuffer.length}, expected at least ${minLength}.`);
         }
-        else{           
-            throw new TypeError("request adu must be Buffer objects");
-        }
-        
         
 
         
     }  
 
     /**
-    * @brief Similar to getResponseAdu but return nothing, just execute the request service without response. Used when broadcast address is receivedd
-    * @param {Buffer} reqAduBuffer request buffer       
-    * @fires ModbusServer#error
-    * @return {Buffer} buffer containing a protocol data unit
+    * Executes a broadcast request without sending a response.
+    *
+    * This method is similar to `getResponseAdu` but is used for broadcast messages (address 0).
+    * It processes the request PDU, updates the relevant counters (e.g., `slaveMessageCount`,
+    * `slaveNoResponseCount`), but does not generate or return a response ADU, as per the
+    * Modbus specification for broadcast requests.
+    *
+    * @param {Buffer} reqAduBuffer - The broadcast request ADU buffer.
+    * @throws {RangeError} If the request ADU buffer is too short.
+    * @throws {TypeError} If the request ADU is not a Buffer object.
     */
     executeBroadcastReq(reqAduBuffer) {
 
         let self = this;
         
-        if(reqAduBuffer instanceof Buffer){
-            
-            //check CRC or LRC 
-            if(reqAduBuffer.length >= 3){
-                
-                
+        if (!Buffer.isBuffer(reqAduBuffer)) {
+            throw new TypeError("Request ADU must be a Buffer object.");
+        }
+
+        const minLength = this.transmitionMode === 1 ? 9 : 4; // ASCII min: ':123456\r\n' (9), RTU min: Addr,FC,CRCH,CRCL (4)
+        if (reqAduBuffer.length >= minLength) {
+
                 let reqPduBuffer = this.getPdu(reqAduBuffer);
                     
                 this.slaveMessageCount++;
@@ -250,22 +314,20 @@ class ModbusSerialServer extends ModbusServer {
                     this.slaveExceptionErrorCount++;
                 }
                 
-            }
-            else{                       
-                throw new RangeError("Pdu's length must be between 0 an 253");
-            }
+        } else {
+            throw new RangeError(`Broadcast ADU length is too short. Received ${reqAduBuffer.length}, expected at least ${minLength}.`);
         }
-        else{           
-            throw new TypeError("request adu must be Buffer objects");
-        }
-  
     }
     
     /**
-    * @brief Function to implement Read Exception Status service on server. Function code 07.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @return {Buffer} resPduBuffer. Response pdu.
+    * Handles the "Read Exception Status" service (Function Code 07).
+    *
+    * This service allows a client to read the contents of 8 exception status "coils".
+    * In this implementation, it returns a single byte representing the status.
+    * The request PDU data should be empty.
+    *
+    * @param {Buffer} pduReqData - The data portion of the request PDU. Should be empty for this function.
+    * @returns {Buffer} The response PDU buffer containing the exception status byte.
     */
     readExceptionCoilsService(pduReqData){
         
@@ -289,15 +351,16 @@ class ModbusSerialServer extends ModbusServer {
     } 
 
     /**
-    * Check the address field of the frame.
-    * @param {Buffer} frame frame off modbus indication
-    * @return {boolean} return true if the frame's address field match withserver address or is 0.    
+    * Validates the address field of an incoming serial ADU frame.
+    *
+    * @param {Buffer} frame - The incoming Modbus serial ADU frame.
+    * @returns {boolean} `true` if the frame's address matches the server's address or is the broadcast address (0), otherwise `false`.
     */
     validateAddress(frame){
 
         let addressField = this.getAddress(frame);
 
-        if (addressField == this.address | addressField == 0){
+        if (addressField === this.address || addressField === 0){
             return true;
         }
         else {
@@ -306,9 +369,10 @@ class ModbusSerialServer extends ModbusServer {
     }
 
     /**
-    * Check the CRC or LRC on the frame.
-    * @param {Buffer} frame frame off modbus indication
-    * @return {boolean} check sum ok return true.    
+    * Validates the checksum (CRC or LRC) of an incoming serial ADU frame.
+    *
+    * @param {Buffer} frame - The incoming Modbus serial ADU frame.
+    * @returns {boolean} `true` if the calculated checksum matches the one in the frame, otherwise `false`.
     */
     validateCheckSum(frame){
         
@@ -327,7 +391,7 @@ class ModbusSerialServer extends ModbusServer {
         }
                    
         //cheking checsum
-        if(calcErrorCheck == frameErrorCheck){
+        if(calcErrorCheck === frameErrorCheck){
             return true;
         }
         else{
@@ -340,7 +404,7 @@ class ModbusSerialServer extends ModbusServer {
     
 
     /**
-     * Function to restart the counter's value
+     * Resets all diagnostic counters to zero.
      */
     resetCounters(){
         //diagnostic counters
@@ -365,4 +429,3 @@ ModbusSerialServer.prototype.calcCRC = require('./utils.js').calcCRC;
 ModbusSerialServer.prototype.calcLRC = require('./utils.js').calcLRC;
 
 module.exports = ModbusSerialServer;
-

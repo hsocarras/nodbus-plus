@@ -4,16 +4,16 @@
 Class: ModbusServer
 ===========================
 
-**Nodbus-Plus v1.0 Documentation**
+**Nodbus-Plus v1.0.1 Documentation**
 
 .. contents:: Table of Contents
    :depth: 3
 
        
 
-The ModbusServer class is an EventEmitter that provides basic functionalities to handle Modbus Protocol Data Units (PDU).
+The `ModbusServer` class is an `EventEmitter` that provides basic functionalities to handle Modbus Protocol Data Units (PDU).
 
-.. Figure:: /images/modbus_pdu.png
+.. image:: /images/modbus_pdu.png
 
    *Modbus Protocol Data Unis*
 
@@ -24,24 +24,38 @@ Creating a ModbusServer Instance
 new ModbusServer([options])
 ---------------------------
 
-* **options** <object>: Configuration object with following properties:
+* **options** <object>: Configuration object with the following properties:
 
-  * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
+  * inputs <number>: The quantity of discrete inputs the server will have. An integer between 0 and 65535. If set to 0, the inputs will share the same Buffer as the input registers. **Default: 2048**.
 
-  * coils <number>: The cuantity of coils that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the coils will share the same Buffer as holding registers. Default value is 2048.
+  * coils <number>: The quantity of coils the server will have. An integer between 0 and 65535. If set to 0, the coils will share the same Buffer as the holding registers. **Default: 2048**.
 
-  * holdingRegisters <number>: The cuantity of holding registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
+  * holdingRegisters <number>: The quantity of holding registers the server will have. An integer between 1 and 65535. **Default: 2048**.
   
-  * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
+  * inputRegisters <number>: The quantity of input registers the server will have. An integer between 1 and 65535. **Default: 2048**.
+
 
 * **Returns:** <ModbusServer>
 
-Constructor for new ModbusServer instance.
+Constructor for a new `ModbusServer` instance. The package supports both CommonJS and ECMAScript modules.
+
+**Using CommonJS (`require`)**
 
 .. code-block:: javascript
 
-      const ModbusServer = require('nodbus-plus').ModbusServer;
-      let modbusServer = new ModbusServer({inputs: 1024, coils: 512}); //new server with 1024 inputs, 512 coils and 2048 holding and inputs registers
+      const { ModbusServer } = require('nodbus-plus');
+      
+      // New server with 1024 inputs and 512 coils.
+      const modbusServer = new ModbusServer({inputs: 1024, coils: 512});
+
+**Using ECMAScript Modules (`import`)**
+
+.. code-block:: javascript
+
+      import { ModbusServer } from 'nodbus-plus';
+      
+      // New server with 1024 inputs and 512 coils.
+      const modbusServer = new ModbusServer({inputs: 1024, coils: 512});
 
 
 ModbusServer's Events
@@ -53,93 +67,71 @@ Event: 'error'
 
 * **e** <Error>: The error object.
 
-Emitted when a error occurs.
+Emitted when an error occurs.
 
 Event: 'exception'
 ---------------------
 
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
+* **functionCode** <number>: The request's function code.
+* **exceptionCode** <number>: The exception code.
+* **name** <string>: The name of the exception.
 
-.. raw:: html
+Emitted when a Modbus exception occurs. The following table lists the standard exception codes:
 
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
+.. list-table::
+   :widths: 10 35 55
+   :header-rows: 1
 
+   * - Code
+     - Name
+     - Meaning
+   * - 01
+     - ILLEGAL FUNCTION
+     - The function code received in the query is not an allowable action for the server.
+   * - 02
+     - ILLEGAL DATA ADDRESS
+     - The data address received in the query is not an allowable address for the server.
+   * - 03
+     - ILLEGAL DATA VALUE
+     - A value contained in the query data field is not an allowable value for the server.
+   * - 04
+     - SLAVE DEVICE FAILURE
+     - An unrecoverable error occurred while the server was attempting to perform the requested action.
+   * - 05
+     - ACKNOWLEDGE
+     - The server has accepted the request and is processing it, but a long duration of time will be required to do so. This response is returned to prevent a timeout error from occurring in the client (or master).
+   * - 06
+     - SLAVE DEVICE BUSY
+     - The server is engaged in processing a long-duration program command. The client should retransmit the message later.
+   * - 08
+     - MEMORY PARITY ERROR
+     - Specialized use for function codes 20 and 21 to indicate that the extended file area failed a consistency check.
+   * - 0A
+     - GATEWAY PATH UNAVAILABLE
+     - Used with gateways to indicate that the gateway was unable to allocate a communication path. Usually means the gateway is misconfigured or overloaded.
+   * - 0B
+     - GATEWAY TARGET DEVICE FAILED TO RESPOND
+     - Used with gateways to indicate that no response was obtained from the target device.
 
-Emitted when a Modbus exception occurs.
 
 Event: 'write-coils'
 --------------
 
-* **startCoil** <number> Indicate in wich coil start the new value. 
+* **startCoil** <number>: The starting coil address.
 
-* **cuantityOfCoils** <number>: amound of coils modificated  
+* **quantityOfCoils** <number>: The amount of coils modified.
 
-Emitted after change a coil value due to a client write coil request.
+Emitted after a coil's value is changed due to a client's write coil request.
 
 
 Event: 'write-registers'
 --------------
 
-* **startRegister** <number> Indicate in wich register start the new value. 
+* **startRegister** <number>: The starting register address.
 
-* **cuantityOfRegister** <number>: amound of register modificated.  
+* **quantityOfRegisters** <number>: The amount of registers modified.
 
-Emitted after change a holding register value due to a client write register request.  
+Emitted after a holding register's value is changed due to a client's write register request. 
 
 
 ModbusServer's Atributes
@@ -150,24 +142,36 @@ Atribute: modbusServer._internalFunctionCode
 
 * <Map>
 
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
+
+This property stores the Modbus function codes supported by the server.
+It is a `Map` where the key is the integer function code and the value is the name of the method that will be invoked to handle that code.
+
+This map can be extended in a child class to support custom (non-standard) function codes.
 
 .. code-block:: javascript
 
-      //Example of how to add new custom modbus function code handle function
-      class ModbusServerExtended extends ModbusServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
+      .. code-block:: javascript
+
+      // Example of how to add a handler for a custom Modbus function code.
+      const { ModbusServer } = require('nodbus-plus');
+      // Create a new class that extends ModbusServer.
+      class ModbusServerExtended extends ModbusServer {
+            constructor(mbServerCfg) {
+                  super(mbServerCfg);
+                  // Add the new function code and the name of the handler method.
                   this._internalFunctionCode.set(68, 'customService68');
             }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
+            
+            /**
+             * Custom service for Modbus function code 68.
+             * @param {Buffer} pduReqData - The PDU request data buffer.
+             * @returns {Buffer} - The response buffer.
+             */
+            customService68(pduReqData) {
+                  const resp = Buffer.alloc(2);
+                  resp[0] = 68; // Function code in response
+                  resp[1] = pduReqData[0]; // Echo the first byte of the request
+                  return resp;
             }
       }
       
@@ -177,60 +181,58 @@ Atribute: modbusServer.supportedFunctionCode
 
 * <iterator>
 
-This is a getter that return an iterator object trhough modbusServer._internalFunctionCode keys. It's the same that call modbusServer._internalFunctionCode.keys().
+This is a getter that returns an iterator for the keys of `modbusServer._internalFunctionCode`. 
+This is equivalent to calling `modbusServer._internalFunctionCode.keys()`.
 
 .. code-block:: javascript
 
-      //Example of getting all suported function code.       
-      for(const functionCode of modbusServer.supportedFunctionCode){
-         console.log(functionCode)
+      // Example of iterating through all supported function codes.      
+      for (const functionCode of modbusServer.supportedFunctionCode) {
+         console.log(`Server supports function code: ${functionCode}`);
       }
+      
 
 Atribute: modbusServer.holdingRegisters
 ---------------------------------------
 
 * <Buffer>
 
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
+This property is a `Buffer` that stores the server's holding registers. Nodbus-Plus uses big-endian encoding for 16-bit registers.
 
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
+Each register occupies two bytes. Register `N` corresponds to bytes `N*2` and `N*2 + 1` in the buffer. 
+For example, register 0 occupies bytes 0-1, and register 1 occupies bytes 2-3.
 
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusServer.setWordToBuffer(value, targetBuffer, [offset])>`.
+While you can use native `Buffer` methods to interact with this data, it is recommended to use the provided helper methods:
+:ref:`getWordFromBuffer <Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])>` and :ref:`setWordToBuffer <Method: modbusServer.setWordToBuffer(value, targetBuffer, [offset])>`.
+
 
 Atribute: modbusServer.inputRegisters
 -------------------------------------
 
 * <Buffer>
 
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
+This property is a `Buffer` that stores the server's input registers. The structure and byte order are identical to `holdingRegisters`.
 
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusServer.setWordToBuffer(value, targetBuffer, [offset])>`.
 
 Atribute: modbusServer.inputs
 -----------------------------
 
 * <Buffer>
 
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
+This property is a `Buffer` that stores the server's discrete inputs (read-only booleans). Each bit in the buffer represents one input.
 
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+The mapping is sequential: byte 0 holds inputs 0-7, byte 1 holds inputs 8-15, and so on.
+
+To read or write values, it is recommended to use the helper methods:
+:ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBoolToBuffer <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+
 
 Atribute: modbusServer.coils
 -----------------------------
 
 * <Buffer>
 
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+This property is a `Buffer` that stores the server's coils (read-write booleans). The structure and bit mapping are identical to `inputs`.
 
 
 ModbusServer's Methods

@@ -29,10 +29,10 @@ class TcpServer {
     */
     constructor(netCfg = defaultCfg){
 
-        if(netCfg.port == undefined){ netCfg.port = defaultCfg.port}
-        if(netCfg.maxConnections == undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
-        if(netCfg.accessControlEnable == undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
-        if(netCfg.tcpCoalescingDetection == undefined){ netCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
+        if(netCfg.port === undefined){ netCfg.port = defaultCfg.port}
+        if(netCfg.maxConnections === undefined){ netCfg.maxConnections = defaultCfg.maxConnections}
+        if(netCfg.accessControlEnable === undefined){ netCfg.accessControlEnable = defaultCfg.accessControlEnable}
+        if(netCfg.tcpCoalescingDetection === undefined){ netCfg.tcpCoalescingDetection = defaultCfg.tcpCoalescingDetection}
 
         let self = this;
 
@@ -53,7 +53,7 @@ class TcpServer {
 
         this.maxConnections = netCfg.maxConnections;
         
-        this.accessControlEnable = true;
+        this.accessControlEnable = netCfg.accessControlEnable;
 
         this.tcpCoalescingDetection = netCfg.tcpCoalescingDetection;
         
@@ -81,7 +81,10 @@ class TcpServer {
         *  function to executed when event listening is emited
         */
         this.onListeningHook = noop;
-        this.coreServer.on('listening', () => {          
+        this.coreServer.on('listening', () => {    
+            if (self.port === 0) {
+                self.port = self.coreServer.address().port;
+            }     
             self.onListeningHook();          
         });
 
@@ -152,7 +155,7 @@ class TcpServer {
                     let messages = self.resolveTcpCoalescing(data);
                         
                     messages.forEach((message) => {
-                        if(self.onMbAduHook  instanceof Function  & self.validateFrame(message)){
+                        if(self.onMbAduHook  instanceof Function  && self.validateFrame(message)){
                             self.onMbAduHook(socket, message);
                         }
                     })
@@ -161,7 +164,7 @@ class TcpServer {
                 //Non active tcp coalesing detection for modbus serial
                 else{  
                         
-                    if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){
+                    if(self.onMbAduHook  instanceof Function && self.validateFrame(data)){
                         self.onMbAduHook(socket, data);
                     }
                                                
@@ -242,13 +245,13 @@ class TcpServer {
 
     /**
     * function to write in a conection. Callback to onWriteHook hook function.
-    * @param {number} socketIndex. Index to socket in connections array
+    * @param {Object} socket. Selected socket in connections array
     * @param {buffer} data
     */
     write (socket, frame){
         let self = this;    
         
-        socket.write(frame, 'utf8', function(){        
+        socket.write(frame, function(){        
             self.onWriteHook(socket, frame);        
         });
     }
@@ -286,5 +289,3 @@ class TcpServer {
 }
 
 module.exports = TcpServer;
-
-

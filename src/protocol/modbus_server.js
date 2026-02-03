@@ -1,10 +1,33 @@
 /**
-* Modbus Server Base Class module. Can only deal with modbus PDU.
-* Implement the base class for a modbus server stack.
-* @module protocol/modbus-server
-* @author Hector E. Socarras.
-* @version 1.0.0
-*/
+ * @fileoverview
+ * Modbus Server Base Class module. Provides a base implementation for a Modbus server stack
+ * that processes Modbus Protocol Data Units (PDUs) and manages Modbus data models (coils, inputs, registers).
+ * 
+ * This module defines the `ModbusServer` class, which extends Node.js `EventEmitter` and implements
+ * core Modbus server logic, including:
+ * - Initialization of Modbus data buffers (coils, discrete inputs, holding registers, input registers)
+ * - Handling of Modbus function codes and dispatching to service handlers
+ * - Processing of standard Modbus requests (read/write coils/registers, mask write, etc.)
+ * - Exception response generation and event emission for error/exception handling
+ * - Low-level utilities for bit/word access in Modbus buffers
+ * 
+ * The class is designed to be extended or instantiated for custom Modbus server implementations.
+ * 
+ * @module protocol/modbus-server
+ * @author Hector E. Socarras
+ * @version 1.0.1
+ * 
+ * @example
+ * const ModbusServer = require('./modbus_server');
+ * const server = new ModbusServer();
+ * 
+ * server.on('exception', (fnCode, exCode, msg) => {
+ *   console.error(`Modbus exception: ${msg}`);
+ * });
+ * 
+ * // Process a Modbus request PDU
+ * const responsePdu = server.processReqPdu(requestPdu);
+ */
 
 
 const EventEmitter = require('node:events');
@@ -14,31 +37,83 @@ const utils = require('./utils');
 //define max number of coil, inputs or register
 const MAX_ITEM_NUMBER = 65535;
 
-//Default Server's Configuration object
+/**
+ * Default configuration for the Modbus TCP server.
+ * This configuration sets the maximum number of inputs, coils, holding registers, and input registers.
+ * @constant
+ * @type {Object}
+ * @property {number} inputs - Maximum number of inputs (default: 2048).    
+ * @property {number} coils - Maximum number of coils (default: 2048).
+ * @property {number} holdingRegisters - Maximum number of holding registers (default: 2048).
+ * @property {number} inputRegisters - Maximum number of input registers (default: 204
+ */
 const defaultCfg = {
-    inputs : 2048,
-    coils : 2048,
-    holdingRegisters : 2048,
-    inputRegisters : 2048
+    inputs : 2048,      //total number of inputs, reference 1x
+    coils : 2048,       //total number of coils, reference 0x
+    holdingRegisters : 2048,    //total number of holding registers, reference 4x
+    inputRegisters : 2048       //total number of input registers, reference 3x
 }
 
 /**
- * Class representing a modbus slave.
+ * Class representing a Modbus server (slave).
+ * 
+ * The `ModbusServer` class provides a base implementation for a Modbus server stack,
+ * managing Modbus data models (coils, discrete inputs, holding registers, input registers)
+ * and processing Modbus Protocol Data Units (PDUs). It extends Node.js `EventEmitter` to
+ * emit events for exceptions, errors, and write operations.
+ * 
+ * This class supports standard Modbus function codes for reading and writing coils and registers,
+ * mask write, and read/write multiple registers. It is designed to be extended or instantiated
+ * for custom Modbus server implementations.
+ * 
+ * ### Events
+ * - `exception(fnCode, exCode, msg)`: Emitted when a Modbus exception response is generated.
+ * - `error(error)`: Emitted on internal server errors.
+ * - `write-coils(address, count)`: Emitted when coils are written.
+ * - `write-registers(address, count)`: Emitted when registers are written.
+ * 
+ * ### Example
+ * ```js
+ * const ModbusServer = require('./modbus_server');
+ * const server = new ModbusServer();
+ * 
+ * server.on('exception', (fnCode, exCode, msg) => {
+ *   console.error(`Modbus exception: ${msg}`);
+ * });
+ * 
+ * // Process a Modbus request PDU
+ * const responsePdu = server.processReqPdu(requestPdu);
+ * ```
+ * 
  * @extends EventEmitter
-*/
+ * @class
+ * @param {object} [mbServerCfg] - Configuration object with the following properties:
+ *   @param {number} [mbServerCfg.inputs=2048] - Number of discrete inputs (1x reference).
+ *   @param {number} [mbServerCfg.coils=2048] - Number of coils (0x reference).
+ *   @param {number} [mbServerCfg.holdingRegisters=2048] - Number of holding registers (4x reference, 2 bytes each).
+ *   @param {number} [mbServerCfg.inputRegisters=2048] - Number of input registers (3x reference, 2 bytes each).
+ */ 
 class ModbusServer extends EventEmitter {
     /**
-    * Create a Modbus Basic server.
-    * @param {object} mbServerCfg - Configuration object, must have the following properties:
-    * {    
-    *   inputs : {int} cuantity of inputs, 0 means that imputs uses same buffer thar input registers.
-    *   coils : {int} cuantity of coils, 0 means that coils uses same buffer thar coils registers.
-    *   holdingRegisters : {int} cuantity of holding registers with 2 bytes per register
-    *   inputRegisters : {int} cuantity of input registers with 2 bytes per register
-    * }
-    */
+     * Create a new ModbusServer instance.
+     *
+     * Initializes Modbus data buffers for coils, discrete inputs, holding registers, and input registers
+     * according to the provided configuration or default values. Sets up supported Modbus function codes
+     * and exposes them via the `supportedFunctionCode` property.
+     *
+     * @constructor
+     * @param {object} [mbServerCfg=defaultCfg] - Optional configuration object.
+     * @property {number} [mbTcpServercfg.inputs=2048] - Maximum number of inputs.
+     * @property {number} [mbTcpServercfg.coils=2048] - Maximum number of coils.
+     * @property {number} [mbTcpServercfg.holdingRegisters=2048] - Maximum number of holding registers.
+     * @property {number} [mbTcpServercfg.inputRegisters=2048] - Maximum number of input registers.
+     *
+     * @example
+     * const ModbusServer = require('./modbus_server');
+     * const server = new ModbusServer({ coils: 1024, holdingRegisters: 512 });
+     */
     constructor(mbServerCfg = defaultCfg){
-        super();
+        super();       
 
         var self = this;
 
@@ -48,11 +123,7 @@ class ModbusServer extends EventEmitter {
         if(mbServerCfg.holdingRegisters == undefined){mbServerCfg.holdingRegisters = defaultCfg.holdingRegisters;}
         if(mbServerCfg.inputRegisters == undefined){mbServerCfg.inputRegisters = defaultCfg.inputRegisters;}        
         
-        /**
-        * Get server's modbus functions code supported 
-        * @return {set object} a set objects with funcion codes suported for the server
-        *
-        */
+        //Defining internal function codes
         this._internalFunctionCode = new Map();
         this._internalFunctionCode.set(1, 'readCoilsService');
         this._internalFunctionCode.set(2, 'readDiscreteInputsService');
@@ -64,133 +135,128 @@ class ModbusServer extends EventEmitter {
         this._internalFunctionCode.set(16, 'writeMultipleRegistersService');
         this._internalFunctionCode.set(22, 'maskWriteRegisterService');
         this._internalFunctionCode.set(23, 'readWriteMultipleRegistersService');
+        // Getter for supported function codes
         Object.defineProperty(self, 'supportedFunctionCode',{
             get: function(){
               return this._internalFunctionCode.keys();
             }
         }) 
-        
-        
+
+        const allocateBuffer = (count, itemSize, isRegister = false) => {
+            if (typeof count !== 'number' || count <= 0) {
+                return Buffer.alloc(0);
+            }
+            const itemCount = Math.min(count, MAX_ITEM_NUMBER);
+            const bufferSize = isRegister ? itemCount * itemSize : Math.ceil(itemCount / itemSize);
+            return Buffer.alloc(bufferSize);
+        };
+
         /**
-        * Holding Registers.
-        * @type {Object}
-        * @public
-        */
-        if(mbServerCfg.holdingRegisters <= MAX_ITEM_NUMBER & mbServerCfg.holdingRegisters > 0){
-          this.holdingRegisters =  Buffer.alloc(mbServerCfg.holdingRegisters*2);
-        }
-        else if(mbServerCfg.holdingRegisters >= MAX_ITEM_NUMBER){
-            this.holdingRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
-        }       
-        else{
-            this.holdingRegisters =  Buffer.alloc(defaultCfg.holdingRegisters*2);
-        }
+         * Holding Registers.
+         * @type {Buffer}
+         * @public
+         * @description Buffer containing the holding registers (4x reference).
+         */
+        this.holdingRegisters = allocateBuffer(mbServerCfg.holdingRegisters, 2, true);
 
         /**
         * Input Registers.
         * @type {Buffer}
         * @public
+        * @description Buffer containing the inputs registers (3x reference).
         */
-        if(mbServerCfg.inputRegisters <= MAX_ITEM_NUMBER & mbServerCfg.inputRegisters > 0){
-          this.inputRegisters =  Buffer.alloc(mbServerCfg.inputRegisters * 2);
-        }
-        else if(mbServerCfg.inputRegisters >= MAX_ITEM_NUMBER){
-            this.inputRegisters =  Buffer.alloc(MAX_ITEM_NUMBER*2);
-        }       
-        else{
-            this.inputRegisters =  Buffer.alloc(defaultCfg.inputRegisters*2);
-        }  
+        this.inputRegisters = allocateBuffer(mbServerCfg.inputRegisters, 2, true);
         
         /**
         * Inputs. Reference 1x.
         * @type {Buffer}
         * @public
+        * @description Buffer containing the discrete inputs (1x reference).
         */        
-        if(mbServerCfg.inputs <= MAX_ITEM_NUMBER & mbServerCfg.inputs > 0){
-            this.inputs =  Buffer.alloc(Math.ceil(mbServerCfg.inputs/8));
-        }
-        else if(mbServerCfg.inputs >= MAX_ITEM_NUMBER){
-            this.inputs =  Buffer.alloc(Math.ceil(MAX_ITEM_NUMBER/8));
-        }
-        else if (mbServerCfg.inputs <= 0){
-            this.inputs =  this.inputRegisters;
-        }
-        else{
-            this.inputs =  Buffer.alloc(Math.ceil(defaultCfg.inputs/8));
-        }
+        this.inputs = allocateBuffer(mbServerCfg.inputs, 8, false);
 
 
         /**
         * Coils. Reference 0x        
-        * @type {buffer}
+        * @type {Buffer}
         * @public
+        * @description Buffer containing the coils (0x reference).
         */
-        if(mbServerCfg.coils <= MAX_ITEM_NUMBER & mbServerCfg.coils > 0){
-            this.coils =  Buffer.alloc(Math.ceil(mbServerCfg.coils/8));
-        }
-        else if(mbServerCfg.coils >= MAX_ITEM_NUMBER){
-            this.coils =  Buffer.alloc(Math.ceil(MAX_ITEM_NUMBER/8));
-        }
-        else if (mbServerCfg.coils <= 0){
-            this.coils =  this.holdingRegisters;
-        }
-        else{
-            this.coils =  Buffer.alloc(Math.ceil(defaultCfg.coils / 8));
-        }
+        this.coils = allocateBuffer(mbServerCfg.coils, 8, false);
 
         
 
     }  
 
     /**
-    * @brief Main server function. Entry point for client request. Process request pdu, execute de service and return a response pdu.
-    * @param {Buffer} reqPduBuffe buffer containing a protocol data unit
-    * @fires ModbusServer#exception
-    * @fires ModbusServer#write
-    * @fires ModbusServer#error
-    * @return {Buffer} buffer containing a protocol data unit
-    */
-     processReqPdu(reqPduBuffer) {
+     * Main server function. Entry point for client request processing.
+     *
+     * Processes a Modbus request Protocol Data Unit (PDU), dispatches to the appropriate service handler
+     * based on the function code, and returns a response PDU. Handles Modbus exceptions and emits events
+     * for errors and exceptions.
+     *
+     * @param {Buffer} reqPduBuffer - Buffer containing the Modbus request PDU (function code + data).
+     * @returns {Buffer} Buffer containing the Modbus response PDU.
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#error
+     *
+     * @example
+     * const requestPdu = Buffer.from([0x03, 0x00, 0x00, 0x00, 0x02]); // Read Holding Registers
+     * const responsePdu = server.processReqPdu(requestPdu);
+     */
+    processReqPdu(reqPduBuffer) {
 
-      let self = this;
-      let functionCode = reqPduBuffer[0];      
-      
-      //Check for function code
-      if(this._internalFunctionCode.has(functionCode)){
+        if (!Buffer.isBuffer(reqPduBuffer) || reqPduBuffer.length < 1) {
+            // Invalid request, return exception 3 (Illegal Data Value)
+            return this.makeExceptionResPdu(0, 3);
+        }
 
-          try {
-              //gets pdu data
-              let reqPduData = Buffer.alloc(reqPduBuffer.length - 1);
-              reqPduBuffer.copy(reqPduData,0,1);
+        let self = this;
+        let functionCode = reqPduBuffer[0];      
 
-              let serviceName = this._internalFunctionCode.get(functionCode);      //get de function code prossesing function
-              var resPduBuffer = this[serviceName](reqPduData);                          //execute service procesing
-            
-              return resPduBuffer;
-          }
-          catch(e){
-              //reply modbus exception 4
-              resPduBuffer = this.makeExceptionResPdu(functionCode, 4);    //Slave failure exception response
-              this.emit('error', e);      
-              return resPduBuffer;
-          }
-      }        
-      else{ 
-          //reply modbus exception 1
-          resPduBuffer = this.makeExceptionResPdu(functionCode, 1);           
-          return resPduBuffer;
-      }
+        if (!this._internalFunctionCode.has(functionCode)) {
+            // Unsupported function code, return exception 1 (Illegal Function)
+            return this.makeExceptionResPdu(functionCode, 1);
+        }
+
+        try {
+            // Extract PDU data (everything after the function code)
+            const reqPduData = reqPduBuffer.subarray(1);
+            const serviceName = this._internalFunctionCode.get(functionCode);
+
+            if (typeof this[serviceName] !== 'function') {
+                // Service handler not implemented, return exception 4
+                let e = new Error(`Service handler for function code ${functionCode} bad implementation.`);
+                this.emit('error', e);
+                return this.makeExceptionResPdu(functionCode, 4);
+            }
+
+            return this[serviceName](reqPduData);
+        } catch (e) {
+            // Internal error, return exception 4 (Slave Device Failure)
+            this.emit('error', e);
+            return this.makeExceptionResPdu(functionCode, 4);
+        }  
 
     }    
     
     
     /**
-    * @brief Build a modbus exception response PDU
-    * @param {number} mbFunctionCode modbus function code
-    * @param {number} exceptionCode code of modbus exception
-    * @fires  ModbusServer#exception
-    * @return {Buffer} Exception response pdu
-    */
+     * Builds a Modbus exception response PDU and emits an exception event.
+     *
+     * This function creates a 2-byte buffer containing the exception function code (original function code OR'ed with 0x80)
+     * and the exception code. It emits the 'exception' event with a human-readable message for the exception code.
+     *
+     * @param {number} mbFunctionCode - Modbus function code that caused the exception.
+     * @param {number} exceptionCode - Modbus exception code (see Modbus spec).
+     * @fires ModbusServer#exception
+     * @returns {Buffer} Exception response PDU buffer.
+     *
+     * @example
+     * // Example: return exception for illegal function
+     * const exRes = server.makeExceptionResPdu(3, 1);
+     * // exRes = <Buffer 83 01>
+     */
     makeExceptionResPdu(mbFunctionCode,  exceptionCode){
       
         //setting modbus function to exception
@@ -235,11 +301,21 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement Read Coil stauts service on server. Function code 01.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Read Coils" service (Function Code 01).
+     *
+     * Processes a request to read the status of coils (0x reference) from the server.
+     * Validates the request, checks address and quantity, and returns a response PDU
+     * containing the coil values or an exception response if the request is invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: start address + quantity).
+     * @fires ModbusServer#exception
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Read 10 coils starting at address 0
+     * const req = Buffer.from([0x00, 0x00, 0x00, 0x0A]);
+     * const res = server.readCoilsService(req);
+     */
     readCoilsService(pduReqData){
         
         //Defining function code for this service
@@ -252,12 +328,12 @@ class ModbusServer extends EventEmitter {
             let registersToRead =  pduReqData.readUInt16BE(2);
 
             //Validating Data Value. Max number of coils to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
-            if(registersToRead >=1 && registersToRead <= 2000){        
+            if(registersToRead >= 1 && registersToRead <= 2000){        
                     //initial register. Example coil 20 addressing as 0x13 (19)
                     let startAddress = pduReqData.readUInt16BE(0);      
                 
                     //Validating data address
-                    if(startAddress + registersToRead < this.coils.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+                    if(startAddress + registersToRead <= this.coils.length * 8 && startAddress + registersToRead <= MAX_ITEM_NUMBER){     
                     
                     
                         //Calculando cantidad de bytes de la respuesta 12%8=1
@@ -298,11 +374,21 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement Read Input status service on server. Function code 02.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Read Discrete Inputs" service (Function Code 02).
+     *
+     * Processes a request to read the status of discrete inputs (1x reference) from the server.
+     * Validates the request, checks address and quantity, and returns a response PDU
+     * containing the input values or an exception response if the request is invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: start address + quantity).
+     * @fires ModbusServer#exception
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Read 8 discrete inputs starting at address 0
+     * const req = Buffer.from([0x00, 0x00, 0x00, 0x08]);
+     * const res = server.readDiscreteInputsService(req);
+     */
     readDiscreteInputsService(pduReqData){
 
         //Defining function code for this service
@@ -314,12 +400,12 @@ class ModbusServer extends EventEmitter {
             let registersToRead =  pduReqData.readUInt16BE(2);
 
             //Validating Data Value. Max number of inputss to read is 2000 acording to Modbus Aplication Protocol V1.1b3 2006    
-            if(registersToRead >=1 && registersToRead <= 2000){        
+            if(registersToRead >= 1 && registersToRead <= 2000){        
                 //initial register. Example coil 20 addressing as 0x13 (19)
                 let startAddress = pduReqData.readUInt16BE(0);      
                 
                 //Validating data address
-                if(startAddress + registersToRead < this.inputs.length * 8  & startAddress + registersToRead <= MAX_ITEM_NUMBER){     
+                if(startAddress + registersToRead <= this.inputs.length * 8 && startAddress + registersToRead <= MAX_ITEM_NUMBER){     
 
                     //Calculando cantidad de bytes de la respuesta 12%8=1
                     //example 12 inputss needs 2 bytes
@@ -358,11 +444,21 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement Read Holdings registers service on server. Function code 03.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Read Holding Registers" service (Function Code 03).
+     *
+     * Processes a request to read the values of holding registers (4x reference) from the server.
+     * Validates the request, checks address and quantity, and returns a response PDU
+     * containing the register values or an exception response if the request is invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: start address + quantity).
+     * @fires ModbusServer#exception
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Read 5 holding registers starting at address 10
+     * const req = Buffer.from([0x00, 0x0A, 0x00, 0x05]);
+     * const res = server.readHoldingRegistersService(req);
+     */
     readHoldingRegistersService(pduReqData){
 
         //Defining function code for this service
@@ -375,12 +471,12 @@ class ModbusServer extends EventEmitter {
             let registersToRead =  pduReqData.readUInt16BE(2);
 
             //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
-            if(registersToRead >=1 && registersToRead <=  0x007D){        
+            if(registersToRead >= 1 && registersToRead <= 0x007D){        
             //initial register.
             let startAddress = pduReqData.readUInt16BE(0);   
             
             //Validating data address
-            if(startAddress + registersToRead < this.holdingRegisters.length / 2 ){ 
+            if(startAddress + registersToRead <= this.holdingRegisters.length / 2 ){ 
 
                 //Calculando cantidad de bytes de la respuesta
                 //example 12 registers needs 2 bytes
@@ -417,11 +513,21 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement Read Input registers service on server. Function code 04.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Read Input Registers" service (Function Code 04).
+     *
+     * Processes a request to read the values of input registers (3x reference) from the server.
+     * Validates the request, checks address and quantity, and returns a response PDU
+     * containing the register values or an exception response if the request is invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: start address + quantity).
+     * @fires ModbusServer#exception
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Read 4 input registers starting at address 5
+     * const req = Buffer.from([0x00, 0x05, 0x00, 0x04]);
+     * const res = server.readInputRegistersService(req);
+     */
     readInputRegistersService(pduReqData){
 
         //Defining function code for this service
@@ -433,12 +539,12 @@ class ModbusServer extends EventEmitter {
             let registersToRead =  pduReqData.readUInt16BE(2);
 
             //Validating Data Value. Max number of registers to read is 125 acording to Modbus Aplication Protocol V1.1b3 2006    
-            if(registersToRead >=1 && registersToRead <=  0x007D){        
+            if(registersToRead >= 1 && registersToRead <= 0x007D){        
                 //initial register.
                 let startAddress = pduReqData.readUInt16BE(0);   
                 
                 //Validating data address
-                if(startAddress + registersToRead < this.inputRegisters.length / 2 ){ 
+                if(startAddress + registersToRead <= this.inputRegisters.length / 2 ){ 
 
                     //Calculando cantidad de bytes de la respuesta
                     //example 12 registers needs 2 bytes
@@ -475,12 +581,22 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement force single Coil service on server. Function code 05.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write-coils
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Write Single Coil" service (Function Code 05).
+     *
+     * Processes a request to force a single coil (0x reference) to either ON or OFF.
+     * Validates the request, checks address and value, updates the coil buffer,
+     * emits a 'write-coils' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: coil address + value).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-coils
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Write ON to coil at address 5
+     * const req = Buffer.from([0x00, 0x05, 0xFF, 0x00]);
+     * const res = server.writeSingleCoilService(req);
+     */
     writeSingleCoilService(pduReqData){
 
         //Defining function code for this service
@@ -498,7 +614,7 @@ class ModbusServer extends EventEmitter {
                 let targetCoil = pduReqData.readUInt16BE(0);     
                 
                 //Validating data address
-                if(targetCoil  < this.coils.length * 8 & targetCoil <= MAX_ITEM_NUMBER){     
+                if(targetCoil < this.coils.length * 8 && targetCoil <= MAX_ITEM_NUMBER){     
                     
                     resPduBuffer = Buffer.alloc(5);
                     resPduBuffer[0] = FUNCTION_CODE;
@@ -535,12 +651,22 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement write single Register service on server. Function code 06.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write-registers
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Write Single Register" service (Function Code 06).
+     *
+     * Processes a request to write a single holding register (4x reference) on the server.
+     * Validates the request, checks address and value, updates the holding register buffer,
+     * emits a 'write-registers' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (4 bytes: register address + value).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-registers
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Write value 0x1234 to holding register at address 7
+     * const req = Buffer.from([0x00, 0x07, 0x12, 0x34]);
+     * const res = server.writeSingleRegisterService(req);
+     */
     writeSingleRegisterService(pduReqData){
 
       //Defining function code for this service
@@ -561,7 +687,7 @@ class ModbusServer extends EventEmitter {
             let targetRegister = pduReqData.readUInt16BE(0);     
             
           //Validating data address
-            if(targetRegister  < this.holdingRegisters.length / 2){     
+            if(targetRegister < this.holdingRegisters.length / 2){     
                 
                 resPduBuffer = Buffer.alloc(5);
                 resPduBuffer[0] = FUNCTION_CODE;
@@ -570,11 +696,8 @@ class ModbusServer extends EventEmitter {
                     this.setWordToBuffer(value, this.holdingRegisters, targetRegister);
                     pduReqData.copy(resPduBuffer, 1);
                     
-                    //creating object of values writed
-                    //let values = new Map();
-                    //let registerValue = this.getWordFromBuffer(this.holdingRegisters, targetRegister);
-                    //values.set(targetRegister, registerValue);
-                    //telling user app that some coils was writed
+                    /// emit event of values writed
+                    /// target rregister and number of registers writed
                     this.emit('write-registers', targetRegister, 1);
                 
             }           
@@ -592,12 +715,23 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement write multiple Coils service on server. Function code 15.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write-coils
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Write Multiple Coils" service (Function Code 15).
+     *
+     * Processes a request to force multiple coils (0x reference) to ON or OFF states.
+     * Validates the request, checks address, quantity, and data length, updates the coil buffer,
+     * emits a 'write-coils' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU
+     *   (minimum 6 bytes: start address + quantity + byte count + values).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-coils
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Write 10 coils starting at address 0
+     * const req = Buffer.from([0x00, 0x00, 0x00, 0x0A, 0x02, 0xCD, 0x01]);
+     * const res = server.writeMultipleCoilsService(req);
+     */
     writeMultipleCoilsService(pduReqData){
 
         //Defining function code for this service
@@ -613,13 +747,13 @@ class ModbusServer extends EventEmitter {
             let outputValues = pduReqData.subarray(5);   
 
             //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-            if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount == Math.ceil(cuantityOfOutputs/8) && byteCount == outputValues.length){   
+            if(cuantityOfOutputs >= 1 && cuantityOfOutputs <= 0x07B0 && byteCount === Math.ceil(cuantityOfOutputs/8) && byteCount === outputValues.length){   
 
                     //start
                     let startingAddress = pduReqData.readUInt16BE(0); 
                                 
                     //Validating data address
-                    if(startingAddress + cuantityOfOutputs  < this.coils.length * 8 & (startingAddress + cuantityOfOutputs) <= MAX_ITEM_NUMBER){     
+                    if(startingAddress + cuantityOfOutputs <= this.coils.length * 8 && (startingAddress + cuantityOfOutputs) <= MAX_ITEM_NUMBER){     
                     
                         resPduBuffer = Buffer.alloc(5);
                         resPduBuffer[0] = FUNCTION_CODE;
@@ -660,12 +794,23 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement write multiple registers service on server. Function code 16.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Write Multiple Registers" service (Function Code 16).
+     *
+     * Processes a request to write multiple holding registers (4x reference) on the server.
+     * Validates the request, checks address, quantity, and data length, updates the holding register buffer,
+     * emits a 'write-registers' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU
+     *   (minimum 6 bytes: start address + quantity + byte count + values).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-registers
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Write 3 registers starting at address 10
+     * const req = Buffer.from([0x00, 0x0A, 0x00, 0x03, 0x06, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]);
+     * const res = server.writeMultipleRegistersService(req);
+     */
     writeMultipleRegistersService(pduReqData){
 
         //Defining function code for this service
@@ -682,13 +827,13 @@ class ModbusServer extends EventEmitter {
             let registerValues = pduReqData.subarray(5);    
 
             //Validating Data Value. output value must be 0x00 or 0xFF00 see Modbus Aplication Protocol V1.1b3 2006    
-            if(cuantityOfRegisters >= 1 && cuantityOfRegisters <= 0x07B0 && byteCount == cuantityOfRegisters*2 & byteCount == registerValues.length){   
+            if(cuantityOfRegisters >= 1 && cuantityOfRegisters <= 0x07B0 && byteCount === cuantityOfRegisters*2 && byteCount === registerValues.length){   
 
                 //start
                 let startingAddress = pduReqData.readUInt16BE(0); 
                             
                 //Validating data address
-                if(startingAddress + cuantityOfRegisters  < this.holdingRegisters.length / 2 ){     
+                if(startingAddress + cuantityOfRegisters <= this.holdingRegisters.length / 2 ){     
                     
                     resPduBuffer = Buffer.alloc(5);
                     resPduBuffer[0] = FUNCTION_CODE;
@@ -730,12 +875,22 @@ class ModbusServer extends EventEmitter {
     }
 
     /**
-    * @brief Function to implement mask holding register service on server. Function code 22.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write-registers
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     * Handles the Modbus "Mask Write Register" service (Function Code 22).
+     *
+     * Processes a request to modify the contents of a single holding register using AND and OR masks.
+     * Validates the request, checks address and masks, updates the holding register buffer,
+     * emits a 'write-registers' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU (6 bytes: register address + AND mask + OR mask).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-registers
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Mask write register at address 4 with AND mask 0xFF00 and OR mask 0x00F0
+     * const req = Buffer.from([0x00, 0x04, 0xFF, 0x00, 0x00, 0xF0]);
+     * const res = server.maskWriteRegisterService(req);
+     */
     maskWriteRegisterService(pduReqData){
 
         //Defining function code for this service
@@ -787,13 +942,24 @@ class ModbusServer extends EventEmitter {
         return resPduBuffer;
     }
 
-    /**
-    * Function to implement read and write multiple registers service on server. Function code 23.
-    * @param {Buffer}  pduReqData buffer containing only data from a request pdu    
-    * @fires  ModbusServer#exception
-    * @fires ModbusServer#write-registers
-    * @return {Buffer} resPduBuffer. Response pdu.
-    */
+     /**
+     * Handles the Modbus "Read/Write Multiple Registers" service (Function Code 23).
+     *
+     * Processes a request to read and write multiple holding registers (4x reference) in a single operation.
+     * Validates the request, checks addresses, quantities, and data length, updates the holding register buffer,
+     * emits a 'write-registers' event, and returns a response PDU or an exception response if invalid.
+     *
+     * @param {Buffer} pduReqData - Buffer containing only the data portion of the request PDU
+     *   (minimum 11 bytes: read start address + read quantity + write start address + write quantity + byte count + values).
+     * @fires ModbusServer#exception
+     * @fires ModbusServer#write-registers
+     * @returns {Buffer} Response PDU buffer.
+     *
+     * @example
+     * // Read 2 registers from address 0, write 2 registers to address 10
+     * const req = Buffer.from([0x00, 0x00, 0x00, 0x02, 0x00, 0x0A, 0x00, 0x02, 0x04, 0x12, 0x34, 0x56, 0x78]);
+     * const res = server.readWriteMultipleRegistersService(req);
+     */
     readWriteMultipleRegistersService(pduReqData){
 
         //Defining function code for this service
@@ -812,14 +978,14 @@ class ModbusServer extends EventEmitter {
             let writeRegisterValues = pduReqData.subarray(9);    
 
             //Validating Data Value. See Modbus Aplication Protocol V1.1b3 2006    
-            if(cuantityToRead > 0 && cuantityToRead <= 0x7D && cuantityToWrite > 0  && cuantityToWrite <= 0x79 && byteCount == cuantityToWrite*2 & byteCount == writeRegisterValues.length){   
+            if(cuantityToRead > 0 && cuantityToRead <= 0x7D && cuantityToWrite > 0  && cuantityToWrite <= 0x79 && byteCount === cuantityToWrite*2 && byteCount === writeRegisterValues.length){   
 
                     //starting addresses
                     let readStartingAddress = pduReqData.readUInt16BE(0); 
                     let writeStartingAddress = pduReqData.readUInt16BE(4); 
                                 
                     //Validating data address
-                    if(readStartingAddress + cuantityToRead  < this.holdingRegisters.length / 2 && writeStartingAddress + cuantityToWrite  < this.holdingRegisters.length / 2){   
+                    if(readStartingAddress + cuantityToRead <= this.holdingRegisters.length / 2 && writeStartingAddress + cuantityToWrite <= this.holdingRegisters.length / 2){   
 
                         //Calculando cantidad de bytes de la respuesta
                         //example 12 registers needs 2 bytes
@@ -871,59 +1037,83 @@ class ModbusServer extends EventEmitter {
       return resPduBuffer;
     }    
 
-    /**
-    * Low level api function to get a boolean value from buffer.
-    * @param {Buffer} targetBuffer buffer object to read
-    * @param {number} offset integer value with bit address.
-    * @return {boolean} bit value
-    * @throws {RangeError} if offset is out of buffer's bound.
-    */
+     /**
+     * Reads a single bit (boolean value) from a buffer at the specified bit offset.
+     *
+     * This low-level utility function is used to extract the value of a single coil or discrete input
+     * from a Modbus data buffer. The buffer is treated as a sequence of bits, and the bit at the given
+     * offset is returned as a boolean.
+     *
+     * @param {Buffer} targetBuffer - Buffer object to read from.
+     * @param {number} [offset=0] - Bit address (zero-based) to read.
+     * @returns {boolean} The value of the bit at the specified offset.
+     * @throws {RangeError} If the offset is out of the buffer's bounds.
+     *
+     * @example
+     * // Read the 5th coil from a buffer
+     * const value = server.getBoolFromBuffer(server.coils, 4);
+     * // value is true or false
+     */
     getBoolFromBuffer(targetBuffer, offset = 0){
         
-        if(offset < targetBuffer.length * 8){
-
-          let targetByte = targetBuffer[Math.floor(offset/8)];         //Byte where  the bit is place inside the buffer
-          let byteOffset = offset % 8;                                      //offset of bit inside the byte
-          let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-
-          let value = (targetByte & masks[byteOffset]) > 0;
-
-          return value;
-
+        // Validate that targetBuffer is a Buffer object
+        if (!Buffer.isBuffer(targetBuffer)) {
+            throw new TypeError("targetBuffer must be a Buffer object");
         }
-        else{
-          throw new RangeError("offset is out of buffer bounds");
+        // Validate the offset against the buffer's total bits
+        const totalBits = targetBuffer.length * 8;
+        if (typeof offset !== 'number' || offset < 0 || offset >= totalBits) {
+            throw new RangeError("offset is out of buffer bounds");
         }
+
+        const targetByte = targetBuffer[Math.floor(offset/8)];                  //Byte where  the bit is place inside the buffer
+        const bitOffset = offset % 8;                                           //offset of bit inside the byte
+        const masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+
+        let value = (targetByte & masks[bitOffset]) > 0;
+
+        return value;
+        
     }
 
     /**
-    * Low level api function to set a boolean value into a buffer.
-    * @param {bool} value boolean value to write
-    * @param {Buffer} targetBuffer buffer object to read
-    * @param {number} offset integer value with bit address.    
-    * @throws {RangeError} if offset is out of buffer's bound.
-    */
+     * Sets a single bit (boolean value) in a buffer at the specified bit offset.
+     *
+     * This low-level utility function writes a boolean value to a specific bit position
+     * in a Modbus data buffer (such as coils or discrete inputs). The buffer is treated
+     * as a sequence of bits, and the bit at the given offset is set or cleared.
+     *
+     * @param {boolean} value - Boolean value to write (true for 1, false for 0).
+     * @param {Buffer} targetBuffer - Buffer object to write to.
+     * @param {number} [offset=0] - Bit address (zero-based) to write.
+     * @throws {RangeError} If the offset is out of the buffer's bounds.
+     *
+     * @example
+     * // Set the 5th coil in the buffer to ON
+     * server.setBoolToBuffer(true, server.coils, 4);
+     */
     setBoolToBuffer(value, targetBuffer, offset = 0){
 
-      if(offset < targetBuffer.length * 8){
+        // Validate that targetBuffer is a Buffer object
+        if (!Buffer.isBuffer(targetBuffer)) {
+            throw new TypeError("targetBuffer must be a Buffer object");
+        }
+        // Validate the offset against the buffer's total bits
+        const totalBits = targetBuffer.length * 8;
+        if (typeof offset !== 'number' || offset < 0 || offset >= totalBits) {
+            throw new RangeError("offset is out of buffer bounds");
+        }
 
-          let targetOffset = Math.floor(offset / 8);           //byte inside the buffer where the bit is placed
-          let byteOffset = offset % 8;                            //offset inside the byte
-          let masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
-
-          let previousValue = targetBuffer[targetOffset];
-
-          if(value){
-              targetBuffer[targetOffset] = previousValue | masks[byteOffset];
-          }
-          else{
-            targetBuffer[targetOffset] = previousValue & (~masks[byteOffset]);
-          }
-
-      }
-      else{
-        throw new RangeError("offset is out of buffer bounds");
-      }
+        const targetOffset = Math.floor(offset / 8);           //byte inside the buffer where the bit is placed
+        const bitOffset = offset % 8;                            //offset inside the byte
+        const masks = [0x01, 0x02, 0x04, 0x08, 0x010, 0x20, 0x40, 0x80];
+        
+        if(value){
+              targetBuffer[targetOffset] |= masks[bitOffset];
+        }
+        else{
+            targetBuffer[targetOffset] &= (~masks[bitOffset]);
+        }      
     }
         
 }

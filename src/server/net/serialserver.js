@@ -35,31 +35,36 @@ class SerialServer {
     * @param {object} netCfg configuration object.
     */
     constructor(netCfg = defaultCfg){
+        // Ensure path is defined for SerialPort
+        if (netCfg.port === undefined) {
+            throw new Error("Serial port path (netCfg.port) must be defined.");
+        }
 
         netCfg.autoOpen = false;
         netCfg.path = netCfg.port;
-        if(netCfg.speed == undefined){ netCfg.speed = defaultCfg.speed}
+        if(netCfg.speed === undefined){ netCfg.speed = defaultCfg.speed}
         netCfg.baudRate = allowedBaudRates[netCfg.speed];
-        if(netCfg.dataBits == undefined){ netCfg.dataBits = defaultCfg.dataBits}
-        if(netCfg.stopBits == undefined){ netCfg.stopBits = defaultCfg.stopBits}
-        if(netCfg.parity == undefined | netCfg.parity < 0 | netCfg.parity > 2){ netCfg.parity = allowedParity[defaultCfg.parity]}
-        if(netCfg.timeBetweenFrame == undefined){netCfg.timeBetweenFrame = defaultCfg.timeBetweenFrame}
+        if(netCfg.dataBits === undefined){ netCfg.dataBits = defaultCfg.dataBits}
+        if(netCfg.stopBits === undefined){ netCfg.stopBits = defaultCfg.stopBits}
+        // Correct parity assignment: use provided if valid, else default
+        netCfg.parity = (netCfg.parity !== undefined && netCfg.parity >= 0 && netCfg.parity <= 2) ? allowedParity[netCfg.parity] : allowedParity[defaultCfg.parity];
+        if(netCfg.timeBetweenFrame === undefined){netCfg.timeBetweenFrame = defaultCfg.timeBetweenFrame}
 
         let self = this;
         
         /**
-        * tcp server
+        * serial port instance
         * @type {Object}
         */
         this.coreServer = new SerialPort(netCfg);
        
-        this.parser = this.coreServer.pipe(new InterByteTimeoutParser({ interval: netCfg.timeBetweenFrame }));
+        this.parser = this.coreServer.pipe(new InterByteTimeoutParser({ interval: netCfg.timeBetweenFrame })); // Use netCfg.timeBetweenFrame directly
                
 
       
         /**
         * port
-        * @type {number}
+        * @type {string}
         */
         this.port = netCfg.port;  
                 
@@ -127,7 +132,7 @@ class SerialServer {
             }      
 
                      
-            if(self.onMbAduHook  instanceof Function & self.validateFrame(data)){                
+            if(self.onMbAduHook  instanceof Function && self.validateFrame(data)){                
                 self.onMbAduHook(self, data);
             }                 
                     
@@ -149,9 +154,9 @@ class SerialServer {
     */
     start (){       
         
-        this.coreServer.open(function (err) {
+        this.coreServer.open( (err) => { // Use arrow function to preserve 'this' context
             if (err) {
-                self.onErrorHook(e); 
+                this.onErrorHook(err); // 'this' refers to SerialServer instance
             }
         })
           

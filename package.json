@@ -1,6 +1,6 @@
 {
   "name": "nodbus-plus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A nodejs modbus library made in javascript",
   "keywords": [
     "node",
@@ -10,10 +10,17 @@
     "master",
     "slave",
     "server"
-  ],
-  "main": "src/nodbus-plus.js",
+  ],  
+  "type": "commonjs",
+  "main": "./src/nodbus-plus.js",
+  "exports": {
+    ".": { 
+      "import": "./src/nodbus-plus.mjs", 
+      "require": "./src/nodbus-plus.js" 
+    }
+  },     
   "scripts": {
-    "test": "jest --detectOpenHandles"
+    "test": "node --test  \"**/*.test.js\" \"**/*.test.mjs\""
   },
   "author": {
     "name": "Héctor E. Socarrás Cabrera",
@@ -27,11 +34,11 @@
     "url": "https://github.com/hsocarras/nodbus-plus/issues"
   },
   "engines": {
-    "node": ">= 10.0.0"
+    "node": ">= 20.0.0"
   },
   "license": "MIT",
   "devDependencies": {
-    "jest": "^29.4.3"
+    "jest": "^29.7.0"
   },
   "dependencies": {
     "serialport": "^11.0.0"

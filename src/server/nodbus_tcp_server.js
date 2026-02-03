@@ -40,7 +40,7 @@ class NodbusTcpServer extends ModbusTcpServer {
         mbTcpServerCfg.tcpCoalescingDetection = true;
         if(mbTcpServerCfg.port == undefined){ mbTcpServerCfg.port = defaultCfg.port}
         if(mbTcpServerCfg.maxConnections == undefined){ mbTcpServerCfg.maxConnections = defaultCfg.maxConnections}
-        if(mbTcpServerCfg.udpType != 'udp4' & mbTcpServerCfg.udpType != 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
+        if(mbTcpServerCfg.udpType !== 'udp4' && mbTcpServerCfg.udpType !== 'udp6'){ mbTcpServerCfg.udpType = defaultCfg.udpType}
         
         /**
         * network layer
@@ -66,34 +66,36 @@ class NodbusTcpServer extends ModbusTcpServer {
         };
 
         this.net.onMbAduHook = (sock, adu) =>{
-
-            //Checking PDU Modbus Tcp Implementation Guide Figure 16
-            let header = this.getMbapHeader(adu);
-            if(this.validateMbapHeader(header)){
-                let pdu = this.getPdu(adu);
-                let req = {};
+            try {
+                // The frame is already validated by `validateFrame`, so we can process it.
+                // We still use a try-catch because getResponseAdu can throw on malformed content.
+                const header = this.getMbapHeader(adu);
+                const pdu = this.getPdu(adu);
+                const req = {};
 
                 req.timeStamp = Date.now();
-                req.transactionId = header.readUint16BE(0);
-                req.unitId = header[6];
+                req.transactionId = header.readUInt16BE(0);
+                req.unitId = header.readUInt8(6);
                 req.functionCode = pdu[0];
                 req.data = pdu.subarray(1);
 
                 this.emit('request', sock, req);
 
-                let resAdu = this.getResponseAdu(adu)
-                let res = {};
+                const resAdu = this.getResponseAdu(adu);
+                const res = {};
 
                 res.timeStamp = Date.now();
-                res.transactionId = resAdu.readUint16BE(0);
-                res.unitId = resAdu[6];
-                res.functionCode = resAdu[7];
+                res.transactionId = resAdu.readUInt16BE(0);
+                res.unitId = resAdu.readUInt8(6);
+                res.functionCode = resAdu.readUInt8(7);
                 res.data = resAdu.subarray(8);
-                this.emit('response',sock, res)
-                this.net.write(sock, resAdu)
+                this.emit('response', sock, res);
+                this.net.write(sock, resAdu);
             }
-            else return
-            
+            catch (e) {
+                // Emit an error event if processing fails, to prevent a server crash.
+                this.emit('error', e);
+            }
         };
 
         /**
@@ -138,7 +140,7 @@ class NodbusTcpServer extends ModbusTcpServer {
              * listening event.
              * @event ModbusNetServer#listening
              * @type {number}
-             */
+             */            
             this.emit('listening',self.port);
         };
 
@@ -189,7 +191,7 @@ class NodbusTcpServer extends ModbusTcpServer {
 
                 let expectedLength = frame.readUInt16BE(4) + 6;
                 let protocolId = frame.readUInt16BE(2);
-                return frame.length == expectedLength & protocolId == 0;
+                return frame.length === expectedLength && protocolId === 0;
             }
             return false;
         }
@@ -246,4 +248,3 @@ class NodbusTcpServer extends ModbusTcpServer {
 }
 
 module.exports = NodbusTcpServer;
-

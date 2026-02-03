@@ -5,13 +5,14 @@
 * @version 1.0.0
 */
 
+const { on } = require('node:events');
 const net = require('node:net'); 
 
 //No operation default function for listeners
 const noop = () => {};
 
 //default config
-defaultCfg = {
+const defaultCfg = {
     
     ip: '127.0.0.1',
     port: 502,    
@@ -35,7 +36,7 @@ class TcpChannel {
         
         /**
         * prevent than server close de connection for idle time
-        * @type {bool}
+        * @type {boolean}
         */
         this.keepAliveConnection = true;
 
@@ -48,11 +49,10 @@ class TcpChannel {
         this.tcpCoalescingDetection = channelCfg.tcpCoalescingDetection;
 
         /**
-        *net.socket Object
-        * @type {object}
+        * net.Socket object for the channel.
+        * @type {net.Socket}
         */
         this.coreChannel = new net.Socket();
-
         //Hooks functions *****************************************************************************************************************************
 
         /**
@@ -61,7 +61,7 @@ class TcpChannel {
         */       
         this.onMbAduHook = noop;
         this.onDataHook = noop;
-        this.coreChannel.on('data', (data)=>{
+        this.coreChannel.on('data', (data) => {
 
             self.onDataHook(data);
             
@@ -72,31 +72,42 @@ class TcpChannel {
                 //each modbus tcp message have a length field
                 let messages = self.resolveTcpCoalescing(data);
               
-                messages.forEach((message, index) => {                                     
+                messages.forEach((message, index) => {   
+                                                
                     if(self.validateFrame(message)){                        
-                        self.onMbAduHook(message);
+                        if (typeof self.onMbAduHook === 'function') {                           
+                            self.onMbAduHook(message);
+                            
+                        } else {
+                            throw new Error("onMbAduHook is not a function");
+                        }
                     }
                 })
 
             }
             //Non active tcp coalesing detection for modbus serial
-            else{  
-                    
+            else{                      
                 if(self.validateFrame(data)){
-                    self.onMbAduHook(data);
+                    
+                    if (typeof self.onMbAduHook === 'function') {                       
+                        self.onMbAduHook(data);                       
+                    } else {
+                        throw new Error("onMbAduHook is not a function");
+                    }
                 }
-                                           
+                                            
             }
         });
         
         this.onConnectHook = noop;
         this.coreChannel.on('connect', ()=>{  
+            self.__connected_status = true;
             self.onConnectHook();
         })
 
         this.onErrorHook = noop;
-        this.coreChannel.on('error', (e)=>{
-            this.onErrorHook(e);
+        this.coreChannel.on('error', (e) => {
+            self.onErrorHook(e);
         })
 
         /*
@@ -109,6 +120,7 @@ class TcpChannel {
         */
         this.onCloseHook =  noop;
         this.coreChannel.on('close', (e) =>{
+            self.__connected_status = false;
             self.onCloseHook();
         })
         
@@ -116,17 +128,12 @@ class TcpChannel {
 
         this.validateFrame = noop;
 
+        this.__connected_status = false;
+
     }
 
-    isConnected(){
-        
-        if(this.coreChannel.pending == false){
-            return true;
-        }
-        else {
-            return false;
-        }
-        
+    isConnected(){      
+        return this.__connected_status;        
     }
 
     /**
@@ -136,73 +143,61 @@ class TcpChannel {
     */
     connect(){
         
-        let self = this;
-        let promise = new Promise(function(resolve, reject){
+        let self = this; 
+        return new Promise(function(resolve, reject){
 
             try{
 
-                function rejectConnection(e){
-                    
-                    reject(self.ip, self.port);
+                function onceRejectConnection(e){
+                    reject({ip:self.ip, port:self.port});
                 }
 
-                self.coreChannel.once('error', rejectConnection)
+                self.coreChannel.once('error', onceRejectConnection);
                
                 self.coreChannel.connect(self.port,self.ip, ()=>{
-                   
-                    self.coreChannel.removeListener('error', rejectConnection);                   
+                    self.coreChannel.removeListener('error', onceRejectConnection);
                     resolve(self.coreChannel);
-                });
-                     
+                });                    
                 
             }
-            catch(e){                
+            catch(e){  
                 self.onErrorHook(e);                
-                reject(self.ip, self.port);
+                reject({ip:self.ip, port:self.port});
             }
-        })
-
-        return promise;
+        })        
     }
 
     disconnect(){
         let self = this;
        
-        let promise = new Promise(function(resolve, reject){
+        return new Promise(function(resolve, reject){
             
             self.coreChannel.end(()=>{                
                 resolve()
-            });
-                
-        })
-
-        return promise;
-               
+            });                
+        })               
     }
 
     /**
     * Write data to a server 
     * @param {Buffer} frame data to send to server.
-    * @returns {bool} True if success, otherwise false
-    * be rejected with ip and por as parameters.
+    * @returns {boolean} True if the entire data was flushed successfully to the kernel buffer; false otherwise.
     */
     write(frame){
 
         let self = this;
-        if(self.isConnected() == false){
+        if(!self.isConnected()){
             return false;
         }
         else{
 
-            let isSuccesfull 
-
-            isSuccesfull = this.coreChannel.write(frame, 'utf8', function(){
+            let isSuccessfull  = this.coreChannel.write(frame, 'utf8', function(){
               
                 self.onWriteHook(frame);               
               
             });            
 
-            return isSuccesfull;
+            return isSuccessfull;
         }
     }
 
