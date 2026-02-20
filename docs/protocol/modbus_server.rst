@@ -13,7 +13,7 @@ Class: ModbusServer
 
 The `ModbusServer` class is an `EventEmitter` that provides basic functionalities to handle Modbus Protocol Data Units (PDU).
 
-.. image:: /images/modbus_pdu.png
+.. Figure:: /images/modbus_pdu.png
 
    *Modbus Protocol Data Unis*
 
@@ -113,9 +113,14 @@ Emitted when a Modbus exception occurs. The following table lists the standard e
      - GATEWAY TARGET DEVICE FAILED TO RESPOND
      - Used with gateways to indicate that no response was obtained from the target device.
 
+.. code-block:: javascript
+
+      modbusServer.on('exception', (functionCode, exceptionCode, name) => {
+            console.error(`Exception occurred. Function code: ${functionCode}, Exception code: ${exceptionCode} (${name})`);
+      });
 
 Event: 'write-coils'
---------------
+---------------------
 
 * **startCoil** <number>: The starting coil address.
 
@@ -123,9 +128,14 @@ Event: 'write-coils'
 
 Emitted after a coil's value is changed due to a client's write coil request.
 
+.. code-block:: javascript
+
+      modbusServer.on('write-coils', (startCoil, quantityOfCoils) => {
+            console.log(`Coils updated. Starting coil: ${startCoil}, Quantity of coils: ${quantityOfCoils}`);
+      });
 
 Event: 'write-registers'
---------------
+------------------------
 
 * **startRegister** <number>: The starting register address.
 
@@ -133,6 +143,11 @@ Event: 'write-registers'
 
 Emitted after a holding register's value is changed due to a client's write register request. 
 
+.. code-block:: javascript
+
+      modbusServer.on('write-registers', (startRegister, quantityOfRegisters) => {
+            console.log(`Registers updated. Starting register: ${startRegister}, Quantity of registers: ${quantityOfRegisters}`);
+      });
 
 ModbusServer's Atributes
 ========================
@@ -140,37 +155,33 @@ ModbusServer's Atributes
 Atribute: modbusServer._internalFunctionCode
 --------------------------------------------
 
-* <Map>
+* <Map<number, string>>
 
+Map that associates Modbus function codes (numeric keys) with the name of the handler method (string) on the server instance. Each map entry should follow the shape: `functionCode -> handlerMethodName`.
 
-This property stores the Modbus function codes supported by the server.
-It is a `Map` where the key is the integer function code and the value is the name of the method that will be invoked to handle that code.
+When `processReqPdu` receives a request, it looks up the request's function code in this map and calls the corresponding handler method on the `ModbusServer` instance. The handler is expected to have the signature `handler(pduReqData)` where `pduReqData` is a `Buffer` containing the request PDU data; 
+the handler must return a `Buffer` containing the response PDU (or produce an exception via the server's exception flow).
 
-This map can be extended in a child class to support custom (non-standard) function codes.
+The map is pre-populated with handlers for the standard Modbus function codes implemented by `ModbusServer`. Child classes can extend, replace, or remove entries to implement custom or overridden behavior for specific function codes.
+
+Example — add a custom handler for non-standard function code 68:
 
 .. code-block:: javascript
 
-      .. code-block:: javascript
-
-      // Example of how to add a handler for a custom Modbus function code.
       const { ModbusServer } = require('nodbus-plus');
-      // Create a new class that extends ModbusServer.
+
       class ModbusServerExtended extends ModbusServer {
-            constructor(mbServerCfg) {
-                  super(mbServerCfg);
-                  // Add the new function code and the name of the handler method.
+            constructor(cfg) {
+                  super(cfg);
+                  // Register handler name for function code 68
                   this._internalFunctionCode.set(68, 'customService68');
             }
-            
-            /**
-             * Custom service for Modbus function code 68.
-             * @param {Buffer} pduReqData - The PDU request data buffer.
-             * @returns {Buffer} - The response buffer.
-             */
+
+            // Handler receives the request PDU data Buffer and returns a response Buffer
             customService68(pduReqData) {
                   const resp = Buffer.alloc(2);
-                  resp[0] = 68; // Function code in response
-                  resp[1] = pduReqData[0]; // Echo the first byte of the request
+                  resp[0] = 68; // function code in response
+                  resp[1] = pduReqData[0] || 0; // example: echo first request byte
                   return resp;
             }
       }
@@ -248,6 +259,10 @@ Method: modbusServer.processReqPdu(reqPduBuffer)
 
 This is the server's main function. Receive a request pdu buffer, and return a response pdu that can be a normal response or exception response.
 
+.. code-block:: javascript
+
+      const responsePdu = modbusServer.processReqPdu(requestPduBuffer);
+      
 
 Method: modbusServer.makeExceptionResPdu(mbFunctionCode,  exceptionCode)
 ------------------------------------------------------------------------
@@ -258,6 +273,10 @@ Method: modbusServer.makeExceptionResPdu(mbFunctionCode,  exceptionCode)
 
 This functions create a exception response pdu by add 0x80 to function code and appending the exception code.
 
+.. code-block:: javascript
+
+      const exceptionPdu = modbusServer.makeExceptionResPdu(3, 2); //function code 3, exception code 2
+      //exceptionPdu will be Buffer:[0x83, 0x02]
 
 Method: modbusServer.readCoilsService(pduReqData)
 -------------------------------------------------
@@ -420,8 +439,8 @@ This method write a boolean value inside a buffer. The buffer's first byte store
 
 .. code-block:: javascript
 
-     modbusServer.getBoolFromBuffer(true, modbusServer.coils, 5) 
-     console.log(modbusServer.coils[1])  //now second byte is 0x75 (0111 0101)
+      modbusServer.setBoolToBuffer(1, modbusServer.inputs, 6) //set 7th bit of first byte to 1
+      modbusServer.setBoolToBuffer(0, modbusServer.coils, 5) //set 5th bit of second byte to 0
     
 Method: modbusServer.getWordFromBuffer(targetBuffer, [offset])
 --------------------------------------------------------------
@@ -462,10 +481,8 @@ This method write a 16 bits register inside a buffer. The offset is 16 bits alig
       realValue.writeFloatBE(3.14);
       let register1 = realValue.subarray(0, 2);
       let register2 = realValue.subarray(2, 4);
-
-      //writing pi value in bytes 2, 3, 4, 5
-      modbusServer.setWordToBuffer(register1, modbusServer.holdingRegisters, 1);
-      modbusServer.setWordToBuffer(register2, modbusServer.holdingRegisters, 2);
-
-      //instead this write pi value in bytes 1, 2, 3, 4
-      modbusServer.holdingRegisters.writefloatBE(3.14, 1) //alignment problem
+      modbusServer.setWordToBuffer(register1, modbusServer.holdingRegisters, 1) //set first two bytes of holding registers to register1
+      modbusServer.setWordToBuffer(register2, modbusServer.holdingRegisters, 2) //set second two bytes of holding registers to register2  
+      console.log(modbusServer.holdingRegisters.readFloatBE(2)) //returns 3.14
+      
+      

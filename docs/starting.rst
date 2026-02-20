@@ -18,14 +18,18 @@ Nodbus Plus can be easily installed using npm.
 
 Basic Usage and Tutorial
 -------------------------
+Nodbus-Plus can be used to create both Modbus clients and servers.
 
-In the "samples" folder, you will find three example programs for creating a Modbus TCP or serial server and a Modbus serial client.
 First Nodbus-Plus must be inported:
 
 .. code-block:: javascript
 
       const nodbus = require('nodbus-plus');
 
+or using ES6 modules:
+.. code-block:: javascript
+
+      import nodbus from 'nodbus-plus';
 
 * **Server**
 
@@ -183,6 +187,31 @@ Once the client is connected, and event listener configured, data can be exchang
     client.readCoils('device', 1, 0, 2);
     
 A list for all available functions can be found on Clients Documentation API. See :ref:`NodbusSerialClient <nodbus_serial_master>` or :ref:`NodbusTcpClient <nodbus_tcp_master>`.
+
+Sample Programs
+----------------
+
+In the "samples" folder of the project, you will find three example programs that demonstrate how to create a Modbus TCP server, a Modbus serial server, and a Modbus TCP client using Nodbus-Plus.
+
+To run the Modbus TCP server sample, use the following command:
+.. code-block:: console
+
+    $ node samples/mb_tcp_server.js  
+
+or 
+
+.. code-block:: console
+
+    $ node samples/mb_tcp_server.js  --help
+
+to see all available options.   
+
+To run the Modbus serial server sample, use the following command:
+
+.. code-block:: console
+
+    $ node samples/mb_serial_server.js 
+
 
 Conclusion
 ----------

@@ -46,195 +46,52 @@ Constructor for new ModbusTcpServer instance.
 ModbusTcpServer's Events
 =========================
 
+The following events are inherited from the :ref:`ModbusServer <modbus_server>` base class:
 
 Event: 'error'
 --------------
 
 * **e** <Error>: The error object.
 
-Emitted when a error occurs.
-
+Emitted when an error occurs during server operation.
 
 Event: 'exception'
----------------------
+------------------
 
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
+* **functionCode** <number>: The request's function code.
+* **exceptionCode** <number>: The exception code.
+* **name** <string>: The name of the exception.
 
-.. raw:: html
-
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
-
-Emitted when a Modbus exception occurs.
+Emitted when a Modbus exception is generated in response to a client request.
 
 Event: 'write-coils'
---------------
+--------------------
 
-* **startCoil** <number> Indicate in wich coil start the new value. 
+* **startCoil** <number>: The starting coil address.
+* **quantityOfCoils** <number>: The amount of coils modified.
 
-* **cuantityOfCoils** <number>: amound of coils modificated  
-
-Emitted after change a coil value due to a clienst write coil request.
-
+Emitted after a coil's value is changed due to a client's write coil request.
 
 Event: 'write-registers'
---------------
+------------------------
 
-* **startRegister** <number> Indicate in wich register start the new value. 
+* **startRegister** <number>: The starting register address.
+* **quantityOfRegisters** <number>: The amount of registers modified.
 
-* **cuantityOfRegister** <number>: amound of register modificated.  
-
-Emitted after change a holding register value due to a clienst write register request. 
+Emitted after a holding register's value is changed due to a client's write register request.
 
 
 ModbusTcpServer's Atributes
 ===========================
 
-Atribute: modbusTcpServer._internalFunctionCode
---------------------------------------------
+See :ref:`ModbusServer Class Attributes <modbus_server>` for detailed attributes documentation.
 
-* <Map>
-
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
-
-.. code-block:: javascript
-
-      //Example of how to add new custom modbus function code handle function
-      class ModbusTcpServerExtended extends ModbusTcpServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
-      
-
-Atribute: modbusTcpServer.supportedFunctionCode
-------------------------------------------------
-
-* <iterator>
-
-This is a getter that return an iterator object trhough modbusTcpServer._internalFunctionCode keys. It's the same that call modbusTcpServer._internalFunctionCode.keys().
-
-.. code-block:: javascript
-
-      //Example of getting all suported function code.       
-      for(const functionCode of modbusTcpServer.supportedFunctionCode){
-         console.log(functionCode)
-      }
-
-Atribute: modbusTcpServer.holdingRegisters
--------------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusTcpServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: modbusTcpServer.inputRegisters
-------------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusTcpServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: modbusTcpServer.inputs
----------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])>` 
-and :ref:`setBooltoBuffer method <Method: modbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: modbusTcpServer.coils
--------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])>` and :ref:`setBooltoBuffer method <Method: modbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
+- ``_internalFunctionCode`` <Map<number, string>> : Map associating Modbus function codes with handler method names.
+- ``supportedFunctionCode`` <iterator> : Iterator for supported function codes from `_internalFunctionCode`.
+- ``holdingRegisters`` <Buffer> : Buffer storing holding registers with big-endian 16-bit encoding.
+- ``inputRegisters`` <Buffer> : Buffer storing input registers.
+- ``inputs`` <Buffer> : Buffer storing discrete inputs (read-only booleans).
+- ``coils`` <Buffer> : Buffer storing coils (read-write booleans).
 
 ModbusTcpServer's Methods
 =========================
@@ -243,33 +100,22 @@ ModbusTcpServer's Methods
 
 See :ref:`ModbusServer Class Methods <modbus_server_methods>` for all base class inherited methods.
 
-Method: modbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to read.
-* **offset** <number>: A number with value's offset inside the buffer.
-* **Return** <boolean>: value.
-
-
-This method read a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-      modbusTcpServer.inputs[0] = 0x44  //first byte 0100 0100
-      modbusTcpServer.coils[1] =  0x55 //second byte 0101 0101
-
-      modbusTcpServer.getBoolFromBuffer(modbusTcpServer.inputs, 6) //return 1
-      modbusTcpServer.getBoolFromBuffer(modbusTcpServer.coils, 5) //return 0
-
-
-Method: modbusTcpServer.getPdu(reqAduBuffer)
-----------------------------------------------
-
-* **reqAduBuffer** <Buffer>: adu buffer containing the header and pdu.
-* **Return** <Buffer>: buffer with the pdu.
-
-This method return the pdu part of a modbus tcp adu.
-
+- ``processReqPdu(reqPduBuffer)`` : Main function that processes a request PDU and returns a response PDU.
+- ``makeExceptionResPdu(mbFunctionCode, exceptionCode)`` : Creates an exception response PDU.
+- ``readCoilsService(pduReqData)`` : Executes Function Code 01 (Read Coil Status).
+- ``readDiscreteInputsService(pduReqData)`` : Executes Function Code 02 (Read Discrete Inputs).
+- ``readHoldingRegistersService(pduReqData)`` : Executes Function Code 03 (Read Holding Registers).
+- ``readInputRegistersService(pduReqData)`` : Executes Function Code 04 (Read Input Registers).
+- ``writeSingleCoilService(pduReqData)`` : Executes Function Code 05 (Write Single Coil).
+- ``writeSingleRegisterService(pduReqData)`` : Executes Function Code 06 (Write Single Register).
+- ``writeMultipleCoilsService(pduReqData)`` : Executes Function Code 15 (Write Multiple Coils).
+- ``writeMultipleRegistersService(pduReqData)`` : Executes Function Code 16 (Write Multiple Registers).
+- ``maskWriteRegisterService(pduReqData)`` : Executes Function Code 22 (Mask Write Register).
+- ``readWriteMultipleRegistersService(pduReqData)`` : Executes Function Code 23 (Read/Write Multiple Registers).
+- ``getBoolFromBuffer(targetBuffer, [offset])`` : Reads a boolean value from a buffer at the specified offset.
+- ``setBoolToBuffer(value, targetBuffer, [offset])`` : Writes a boolean value to a buffer at the specified offset.
+- ``getWordFromBuffer(targetBuffer, [offset])`` : Reads a 16-bit word from a buffer at the specified offset.
+- ``setWordToBuffer(value, targetBuffer, [offset])`` : Writes a 16-bit word to a buffer at the specified offset.
 
 Method: modbusTcpServer.getMbapHeader(reqAduBuffer)
 ---------------------------------------------------
@@ -279,79 +125,60 @@ Method: modbusTcpServer.getMbapHeader(reqAduBuffer)
 
 This method return the header part of a modbus tcp adu.
 
+.. code-block:: javascript
+
+      let mbapHeader = modbusTcpServer.getMbapHeader(reqAduBuffer);
+      console.log(mbapHeader.length)  //returns 7
+      console.log(mbapHeader[6])      //returns the legacy address byte
+
+Method: modbusTcpServer.getPdu(reqAduBuffer)
+----------------------------------------------
+
+* **reqAduBuffer** <Buffer>: adu buffer containing the header and pdu.
+* **Return** <Buffer>: buffer with the pdu.
+
+This method return the pdu part of a modbus tcp adu.
+
+.. code-block:: javascript
+
+      let pdu = modbusTcpServer.getPdu(reqAduBuffer);
+      console.log(pdu.length)  //returns the length of the pdu
+      console.log(pdu[0])     //returns the function code byte
+
+
 Method: modbusTcpServer.getResponseAdu(reqAduBuffer)
 ----------------------------------------------------
 
 * **reqAduBuffer** <Buffer>: adu buffer containing the header and pdu.
 * **Return** <Buffer>: Response Adu in a buffer object.
 
+* **Throws**:
+
+      - **TypeError**: If `reqAduBuffer` is not a `Buffer` object.
+      - **RangeError**: If the ADU length is invalid (must be between 8 and 260 bytes), or if the MBAP header is malformed (protocol ID must be 0 or the MBAP length field does not match the PDU size).
+      
+
 
 This method is the main TCP server's method. It receives a Modbus TCP request as an argument, processes it, and returns a buffer with the response ready to be send.
 
-
-Method: modbusTcpServer.getWordFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
 .. code-block:: javascript
 
-      modbusTcpServer.holdingRegisters[0] = 0x11;
-      modbusTcpServer.holdingRegisters[1] = 0x22;
-      modbusTcpServer.holdingRegisters[2] = 0x33;
-      modbusTcpServer.holdingRegisters[3] = 0x44;
-      
-      modbusTcpServer.holdingRegisters.readUInt16BE(0)                           //returns 0x1122
-      modbusTcpServer.holdingRegisters.readUInt16BE(1)                           //returns 0x2233
-      modbusTcpServer.getWordFromBuffer(modbusTcpServer.holdingRegisters, 0)        //returns Buffer:[0x11, 0x22]
-      modbusTcpServer.getWordFromBuffer(modbusTcpServer.holdingRegisters, 1)        //returns Buffer:[0x33, 0x44]
-
-
-Method: modbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <boolean>: Value to write.
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to write.
-* **offset** <number>: A number with value's offset inside the buffer.
-
-
-This method write a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-     modbusTcpServer.getBoolFromBuffer(true, modbusTcpServer.coils, 5) 
-     console.log(modbusTcpServer.coils[1])  //now second byte is 0x75 (0111 0101)
-
-
-Method: modbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned. Example:
-
-.. code-block:: javascript
-
-      let realValue = Buffer.alloc(4);
-      realValue.writeFloatBE(3.14);
-      let register1 = realValue.subarray(0, 2);
-      let register2 = realValue.subarray(2, 4);
-
-      //writing pi value in bytes 2, 3, 4, 5
-      modbusTcpServer.setWordToBuffer(register1, modbusTcpServer.holdingRegisters, 1);
-      modbusTcpServer.setWordToBuffer(register2, modbusTcpServer.holdingRegisters, 2);
-
-      //instead this write pi value in bytes 1, 2, 3, 4
-      modbusTcpServer.holdingRegisters.writefloatBE(3.14, 1) //alignment problem
+        try {
+              let responseAduBuffer = modbusTcpServer.getResponseAdu(reqAduBuffer);
+              console.log(responseAduBuffer); // returns a buffer with the response adu
+        }
+        catch (err) {
+              if (err instanceof TypeError) {
+                    console.error('TypeError:', err.message);
+              }
+              else if (err instanceof RangeError) {
+                    console.error('RangeError:', err.message);
+              }
+              else {
+                    // Errors thrown by processReqPdu or other runtime errors
+                    console.error('Error processing request PDU:', err.message);
+              }
+        }
 
 
 Method: modbusTcpServer.validateMbapHeader(mbapBuffer)
@@ -361,5 +188,10 @@ Method: modbusTcpServer.validateMbapHeader(mbapBuffer)
 * **Return** <boolean>: True if is a valid header otherwise false.
 
 
-This method return tru if header's buffer has 7 bytes length and the protocol's field is 0.
+This method return true if header's buffer has 7 bytes length and the protocol's field is 0.
+
+.. code-block:: javascript
+
+      let isValidHeader = modbusTcpServer.validateMbapHeader(mbapBuffer);
+      console.log(isValidHeader)  //returns true if the header is valid, otherwise false
 

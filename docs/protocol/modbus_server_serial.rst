@@ -53,130 +53,24 @@ Constructor for new ModbusSerialServer instance.
 ModbusSerialServer's Events
 ============================
 
+See :ref:`ModbusServer Class Events <modbus_server>` for all base class inherited events.
 
-Event: 'error'
---------------
-
-* **e** <Error>: The error object.
-
-Emitted when a error occurs.
-
-Event: 'exception'
----------------------
-
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
-
-.. raw:: html
-
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
-
-Emitted when a Modbus exception occurs.
-
-Event: 'write-coils'
---------------
-
-* **startCoil** <number> Indicate in wich coil start the new value. 
-
-* **cuantityOfCoils** <number>: amound of coils modificated  
-
-Emitted after change a coil value due to a clienst write coil request.
-
-
-Event: 'write-registers'
---------------
-
-* **startRegister** <number> Indicate in wich register start the new value. 
-
-* **cuantityOfRegister** <number>: amound of register modificated.  
-
-Emitted after change a holding register value due to a clienst write register request.  
-
-
+- ``error`` : Emitted when an error occurs. Args: **e** <Error>.
+- ``exception`` : Emitted when a Modbus exception is generated. Args: **functionCode** <number>, **exceptionCode** <number>, **name** <string>.
+- ``write-coils`` : Emitted after coils are written. Args: **startCoil** <number>, **quantityOfCoils** <number>.
+- ``write-registers`` : Emitted after holding registers are written. Args: **startRegister** <number>, **quantityOfRegisters** <number>.
 
 ModbusSerialServer's Atributes
 ==============================
 
-Atribute: modbusSerialServer._internalFunctionCode
---------------------------------------------
+See :ref:`ModbusServer Class Attributes <modbus_server>` for detailed attributes documentation.
 
-* <Map>
-
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
-
-.. code-block:: javascript
-
-      //Example of how to add new custom modbus function code handle function
-      class ModbusSerialServerExtended extends ModbusSerialServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
-      
+- ``_internalFunctionCode`` <Map<number, string>> : Map associating Modbus function codes with handler method names.
+- ``supportedFunctionCode`` <iterator> : Iterator for supported function codes from `_internalFunctionCode`.
+- ``holdingRegisters`` <Buffer> : Buffer storing holding registers with big-endian 16-bit encoding.
+- ``inputRegisters`` <Buffer> : Buffer storing input registers.
+- ``inputs`` <Buffer> : Buffer storing discrete inputs (read-only booleans).
+- ``coils`` <Buffer> : Buffer storing coils (read-write booleans).
 
 
 Atribute: modbusSerialServer.address
@@ -211,67 +105,13 @@ Atribute: modbusSerialServer.busMessageCount
 A diagnostic counter. See Modbus spec for more details.
 
 
-Atribute: modbusSerialServer.coils
------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
-and :ref:`setBooltoBuffer method <Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
 
 Atribute: modbusSerialServer.exceptionCoils
 --------------------------------------------
 
 * <Buffer>
 
-This property is a Buffer that store the servers' 8 exception coils.
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>` 
-and :ref:`setBooltoBuffer method <Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-Atribute: modbusSerialServer.holdingRegisters
----------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusSerialServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: modbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: modbusSerialServer.inputRegisters
--------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: modbusSerialServer.getWordFromBuffer(targetBuffer, [offset])>` 
-and the :ref:`setWordtoBuffer method <Method: modbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: modbusSerialServer.inputs
-------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: modbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
-and :ref:`setBooltoBuffer method <Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
+This property is a Buffer that store the servers' 8 exception coils. 
 
 Atribute: modbusSerialServer.slaveBusyCount
 --------------------------------------------------
@@ -312,20 +152,6 @@ Atribute: modbusSerialServer.slaveNoResponseCount
 
 A diagnostic counter. See Modbus spec for more details.
 
-Atribute: modbusSerialServer.supportedFunctionCode
----------------------------------------------------
-
-* <iterator>
-
-This is a getter that return an iterator object trhough modbusSerialServer._internalFunctionCode keys. It's the same that call modbusSerialServer._internalFunctionCode.keys().
-
-.. code-block:: javascript
-
-      //Example of getting all suported function code.       
-      for(const functionCode of modbusSerialServer.supportedFunctionCode){
-         console.log(functionCode)
-      }
-
 
 Atribute: modbusSerialServer.transmitionMode
 ---------------------------------------------
@@ -342,6 +168,23 @@ ModbusSerialServer's Methods
 
 See :ref:`ModbusServer Class Methods <modbus_server_methods>` for all base class inherited methods.
 
+- ``processReqPdu(reqPduBuffer)`` : Main function that processes a request PDU and returns a response PDU.
+- ``makeExceptionResPdu(mbFunctionCode, exceptionCode)`` : Creates an exception response PDU.
+- ``readCoilsService(pduReqData)`` : Executes Function Code 01 (Read Coil Status).
+- ``readDiscreteInputsService(pduReqData)`` : Executes Function Code 02 (Read Discrete Inputs).
+- ``readHoldingRegistersService(pduReqData)`` : Executes Function Code 03 (Read Holding Registers).
+- ``readInputRegistersService(pduReqData)`` : Executes Function Code 04 (Read Input Registers).
+- ``writeSingleCoilService(pduReqData)`` : Executes Function Code 05 (Write Single Coil).
+- ``writeSingleRegisterService(pduReqData)`` : Executes Function Code 06 (Write Single Register).
+- ``writeMultipleCoilsService(pduReqData)`` : Executes Function Code 15 (Write Multiple Coils).
+- ``writeMultipleRegistersService(pduReqData)`` : Executes Function Code 16 (Write Multiple Registers).
+- ``maskWriteRegisterService(pduReqData)`` : Executes Function Code 22 (Mask Write Register).
+- ``readWriteMultipleRegistersService(pduReqData)`` : Executes Function Code 23 (Read/Write Multiple Registers).
+- ``getBoolFromBuffer(targetBuffer, [offset])`` : Reads a boolean value from a buffer at the specified offset.
+- ``setBoolToBuffer(value, targetBuffer, [offset])`` : Writes a boolean value to a buffer at the specified offset.
+- ``getWordFromBuffer(targetBuffer, [offset])`` : Reads a 16-bit word from a buffer at the specified offset.
+- ``setWordToBuffer(value, targetBuffer, [offset])`` : Writes a 16-bit word to a buffer at the specified offset.
+
 
 Method: modbusSerialServer.aduAsciiToRtu(asciiFrame)
 ----------------------------------------------------
@@ -351,6 +194,13 @@ Method: modbusSerialServer.aduAsciiToRtu(asciiFrame)
 
 This method get a ascii adu and convert it in a equivalent rtu adu, including the crc checksum.
 
+.. code-block:: javascript
+
+    let asciiFrame = Buffer.from(':010300000002FA\r\n');
+    let rtuFrame = modbusSerialServer.aduAsciiToRtu(asciiFrame);
+    console.log(rtuFrame); //Buffer:[0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]
+
+
 Method: modbusSerialServer.aduRtuToAscii(rtuFrame)
 ----------------------------------------------------
 
@@ -359,6 +209,12 @@ Method: modbusSerialServer.aduRtuToAscii(rtuFrame)
 
 This method get a rtu adu and convert it in a equivalent ascii adu, including the lrc checksum.
 
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = modbusSerialServer.aduRtuToAscii(rtuFrame);
+    console.log(asciiFrame); //:010300000002FA\r\n
+
 
 Method: modbusSerialServer.calcCRC(frame)
 --------------------------------------------------
@@ -366,7 +222,14 @@ Method: modbusSerialServer.calcCRC(frame)
 * **frame** <Buffer>: A serial rtu adu request buffer received by server.
 * **Returns** <number>: crc value for request.
 
-This method calculate the checksum for he buffer request and return it. It receives a complete rtu frame and ignore the crc field (last two bytes) when calculate the crc value.
+This method calculate the checksum for he buffer request and return it. 
+It receives a complete rtu frame and ignore the crc field (last two bytes) when calculate the crc value.
+
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let crcValue = modbusSerialServer.calcCRC(rtuFrame);
+    console.log(crcValue); //0xC40B
 
 
 Method: modbusSerialServer.calcLRC(frame)
@@ -375,15 +238,27 @@ Method: modbusSerialServer.calcLRC(frame)
 * **frame** <Buffer>: A serial ascii adu request buffer received by server.
 * **Returns** <number>: lrc value for request.
 
-This method calculate the checksum for he buffer request and return it. It receives a complete ascii frame including start character (:) and ending characters.
+This method calculate the checksum for he buffer request and return it. 
+It receives a complete ascii frame including start character (:) and ending characters.
 
+.. code-block:: javascript
+
+    let asciiFrame = Buffer.from(':010300000002FA\r\n');
+    let lrcValue = modbusSerialServer.calcLRC(asciiFrame);
+    console.log(lrcValue); //0xFA
 
 Method: modbusSerialServer.executeBroadcastReq(reqAduBuffer)
 ---------------------------------------------------------------
 
 * **reqAduBuffer** <Buffer>: A buffer containing a serial adu.
 
-This method is similar to getResponseAdu method, but is only invoqued when a broadcast request (address 0) is processed. It returns no response.
+This method is similar to getResponseAdu method, but is only invoqued when a broadcast request (address 0) is processed. 
+It returns no response.
+
+.. code-block:: javascript
+
+    let broadcastReq = Buffer.from(':000300000002FA\r\n');
+    modbusSerialServer.executeBroadcastReq(broadcastReq); //execute the request but return no response
 
 
 Method: modbusSerialServer.getAddress(reqAduBuffer)
@@ -394,25 +269,14 @@ Method: modbusSerialServer.getAddress(reqAduBuffer)
 
 This method return the address field on a modbus rtu request.
 
-
-Method: modbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to read.
-* **offset** <number>: A number with value's offset inside the buffer.
-* **Return** <boolean>: value.
-
-
-This method read a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
 .. code-block:: javascript
 
-      modbusSerialServer.inputs[0] = 0x44  //first byte 0100 0100
-      modbusSerialServer.coils[1] =  0x55 //second byte 0101 0101
-
-      modbusSerialServer.getBoolFromBuffer(modbusSerialServer.inputs, 6) //return 1
-      modbusSerialServer.getBoolFromBuffer(modbusSerialServer.coils, 5) //return 0
-
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let address = modbusSerialServer.getAddress(rtuFrame);
+    let address2 = modbusSerialServer.getAddress(asciiFrame);
+    console.log(address); //1
+    console.log(address2); //4
 
 Method: modbusSerialServer.getPdu(reqAduBuffer)
 ---------------------------------------------------
@@ -420,15 +284,33 @@ Method: modbusSerialServer.getPdu(reqAduBuffer)
 * **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
 * **Returns** <Buffer>: Modbus Rtu pdu.
 
-This method return the pdu on a modbus rtu request.
+This method return the pdu on a modbus serial request.
+
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let pdu = modbusSerialServer.getPdu(rtuFrame);
+    let pdu2 = modbusSerialServer.getPdu(asciiFrame);
+    console.log(pdu); //Buffer:[0x03, 0x00, 0x00, 0x00, 0x02]
+    console.log(pdu2); //Buffer:[0x03, 0x00, 0x00, 0x00, 0x02]
 
 Method: modbusSerialServer.getChecksum(reqAduBuffer)
----------------------------------------------------
+------------------------------------------------------
 
 * **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
 * **Returns** <number>: Modbus message checsum.
 
 This method return the checksum for the modbus's frame.
+
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let checksum = modbusSerialServer.getChecksum(rtuFrame);
+    let checksum2 = modbusSerialServer.getChecksum(asciiFrame);
+    console.log(checksum); //0xC40B
+    console.log(checksum2); //0xFA
 
 
 Method: modbusSerialServer.getResponseAdu(reqAduBuffer)
@@ -439,32 +321,20 @@ Method: modbusSerialServer.getResponseAdu(reqAduBuffer)
 
 This method make the response adu acording to transmition mode selected and return it.
 
-
-Method: modbusSerialServer.getWordFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
 .. code-block:: javascript
 
-      modbusSerialServer.holdingRegisters[0] = 0x11;
-      modbusSerialServer.holdingRegisters[1] = 0x22;
-      modbusSerialServer.holdingRegisters[2] = 0x33;
-      modbusSerialServer.holdingRegisters[3] = 0x44;
-      
-      modbusSerialServer.holdingRegisters.readUInt16BE(0)                           //returns 0x1122
-      modbusSerialServer.holdingRegisters.readUInt16BE(1)                           //returns 0x2233
-      modbusSerialServer.getWordFromBuffer(modbusSerialServer.holdingRegisters, 0)        //returns Buffer:[0x11, 0x22]
-      modbusSerialServer.getWordFromBuffer(modbusSerialServer.holdingRegisters, 1)        //returns Buffer:[0x33, 0x44]
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let responseAdu = modbusSerialServer.getResponseAdu(rtuFrame);
+    let responseAdu2 = modbusSerialServer.getResponseAdu(asciiFrame);
+    console.log(responseAdu); //Buffer:[0x01, 0x03, 0x04, 0x11, 0x22, 0x33, 0x44, 0xC5, 0xCD]
+    console.log(responseAdu2); //:04030411223344B9\r\n
+
+
 
 
 Method: modbusSerialServer.readExceptionCoilsService(pduReqData)
------------------------------------------------------------
+-----------------------------------------------------------------
 
 * **pduReqData** <Buffer>: buffer containig the pdu's data.
 * **Return** <Buffer>: buffer with response pdu.
@@ -473,55 +343,14 @@ Method: modbusSerialServer.readExceptionCoilsService(pduReqData)
 
    *Modbus Read Exception Coils Request and Response*
 
-This method execute the read exception coils indication on the server. This method is not intended to be called directly, but instead through the method processReqPdu when function code 07 is received.
+This method execute the read exception coils indication on the server. 
+This method is not intended to be called directly, but instead through the method processReqPdu when function code 07 is received.
 
 
 Method: modbusSerialServer.resetCounters()
 ------------------------------------------------
 
 This method set to 0 all diagnostic counter in the modbus serial server.
-
-
-Method: modbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <boolean>: Value to write.
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to write.
-* **offset** <number>: A number with value's offset inside the buffer.
-
-
-This method write a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-     modbusSerialServer.getBoolFromBuffer(true, modbusSerialServer.coils, 5) 
-     console.log(modbusSerialServer.coils[1])  //now second byte is 0x75 (0111 0101)
-
-
-Method: modbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned. Example:
-
-.. code-block:: javascript
-
-      let realValue = Buffer.alloc(4);
-      realValue.writeFloatBE(3.14);
-      let register1 = realValue.subarray(0, 2);
-      let register2 = realValue.subarray(2, 4);
-
-      //writing pi value in bytes 2, 3, 4, 5
-      modbusSerialServer.setWordToBuffer(register1, modbusSerialServer.holdingRegisters, 1);
-      modbusSerialServer.setWordToBuffer(register2, modbusSerialServer.holdingRegisters, 2);
-
-      //instead this write pi value in bytes 1, 2, 3, 4
-      modbusSerialServer.holdingRegisters.writefloatBE(3.14, 1) //alignment problem
 
       
 Method: modbusSerialServer.validateAddress(frame)
@@ -530,7 +359,17 @@ Method: modbusSerialServer.validateAddress(frame)
 * **frame** <Buffer>: A serial adu request buffer received by server.
 * **Returns** <bool>: true if field field is 0 or match the server's address, otherwise false.
 
-This method validate the address field of the modbus frame, if it match the server's address or if is the broadcast address it returns true.
+This method validate the address field on modbus request adu frame, if it match the server's address or if is the broadcast address it returns true.
+
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let broadcastFrame = Buffer.from(':000300000002FA\r\n');
+    modbusSerialServer.address = 4;
+    console.log(modbusSerialServer.validateAddress(rtuFrame)); //false
+    console.log(modbusSerialServer.validateAddress(asciiFrame)); //true
+    console.log(modbusSerialServer.validateAddress(broadcastFrame)); //true
 
 Method: modbusSerialServer.validateCheckSum(frame)
 --------------------------------------------------
@@ -538,6 +377,16 @@ Method: modbusSerialServer.validateCheckSum(frame)
 * **frame** <Buffer>: A serial adu request buffer received by server.
 * **Returns** <bool>: true if checksum field is correct, otherwise false.
 
-This method is similar calculate th checksum for he buffer request acording to transmitionMode property, then compare the calculated checksum with request's checksum field. If match
-return true, otherwise return false.
+This method validate the checksum field on modbus request adu frame, if it match the calculated checksum for the request it returns true.
+
+.. code-block:: javascript
+
+    let rtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]);
+    let asciiFrame = Buffer.from(':040300000002FA\r\n');
+    let wrongRtuFrame = Buffer.from([0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00]);
+    let wrongAsciiFrame = Buffer.from(':04030000000200\r\n');
+    console.log(modbusSerialServer.validateCheckSum(rtuFrame)); //true
+    console.log(modbusSerialServer.validateCheckSum(asciiFrame)); //true
+    console.log(modbusSerialServer.validateCheckSum(wrongRtuFrame)); //false
+    console.log(modbusSerialServer.validateCheckSum(wrongAsciiFrame)); //false
 

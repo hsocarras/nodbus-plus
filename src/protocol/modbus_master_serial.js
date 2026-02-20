@@ -140,6 +140,7 @@ class ModbusSerialClient extends ModbusClient {
             
             let timerId = setTimeout(()=>{
                 self.emit('req-timeout', self.activeRequest); //what to do when timeout occurs is desition for the user app
+                self.activeRequest = null;
             }, timeout);
             
             self.activeRequestTimerId = timerId;

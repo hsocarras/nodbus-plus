@@ -50,6 +50,12 @@ Method: modbusClient.readCoilStatusPdu([startCoil],[coilQuantity])
 
 This method create the read coil status request pdu. Function code 01.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let pdu = modbusClient.readCoilStatusPdu(10, 5); //read 5 coils starting at coil 10
+      console.log(pdu); //Buffer: [0x01, 0x00, 0x0A, 0x00, 0x05]
+
 Method: modbusClient.readInputStatusPdu([startInput],[inputQuantity])
 ---------------------------------------------------------------------
 
@@ -62,6 +68,13 @@ Method: modbusClient.readInputStatusPdu([startInput],[inputQuantity])
    *Modbus Read Inputs Request and Response*
 
 This method create the read input status request pdu. Function code 02.
+
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let pdu = modbusClient.readInputStatusPdu(5, 10); //read 10 inputs starting at input 5
+      console.log(pdu); //Buffer: [0x02, 0x00, 0x05, 0x00, 0x0A]
+
 
 Method: modbusClient.readHoldingRegistersPdu([startRegister],[registerQuantity])
 --------------------------------------------------------------------------------
@@ -76,6 +89,12 @@ Method: modbusClient.readHoldingRegistersPdu([startRegister],[registerQuantity])
 
 This method create the read holding register request pdu. Function code 03.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let pdu = modbusClient.readHoldingRegistersPdu(20, 5); //read 5 holding registers starting at register 20
+      console.log(pdu); //Buffer: [0x03, 0x00, 0x14, 0x00, 0x05]
+
 Method: modbusClient.readInputRegistersPdu([startRegister],[registerQuantity])
 ------------------------------------------------------------------------------
 
@@ -89,6 +108,11 @@ Method: modbusClient.readInputRegistersPdu([startRegister],[registerQuantity])
 
 This method create the read inputs register request pdu. Function code 04.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let pdu = modbusClient.readInputRegistersPdu(20, 5); //read 5 input registers starting at register 20
+      console.log(pdu); //Buffer: [0x04, 0x00, 0x14, 0x00, 0x05]
 
 Method: modbusClient.forceSingleCoilPdu(value, [startCoil])
 ------------------------------------------------------------
@@ -104,6 +128,12 @@ Method: modbusClient.forceSingleCoilPdu(value, [startCoil])
 This method create the force single coil request pdu. Function code 05. If value is not a Buffer throw a TypeError and if value's length is diferent than 2 
 throw a RangeError.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let value = modbusClient.boolToBuffer(true); //Buffer: [0xFF, 0x00]
+      let pdu = modbusClient.forceSingleCoilPdu(value, 10); //force coil 10 to true
+      console.log(pdu); //Buffer: [0x05, 0x00, 0x0A, 0xFF, 0x00]
 
 Method: modbusClient.presetSingleRegisterPdu(value, [startRegister])
 --------------------------------------------------------------------
@@ -116,9 +146,15 @@ Method: modbusClient.presetSingleRegisterPdu(value, [startRegister])
 
    *Modbus Write Single holding Register Request and Response*
 
-This method create the preset single register request pdu. Function code 06. If value is not a Buffer throw a TypeError and if value's length is diferent than 2 
-throw a RangeError.
+This method create the preset single register request pdu. Function code 06. 
+If value is not a Buffer throw a TypeError and if value's length is diferent than 2 throw a RangeError.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let value = Buffer.from([0x12, 0x34]);
+      let pdu = modbusClient.presetSingleRegisterPdu(value, 20); //preset register 20 with value 0x1234
+      console.log(pdu); //Buffer: [0x06, 0x00, 0x14, 0x12, 0x34]
 
 Method: modbusClient.forceMultipleCoilsPdu(values, startCoil, coilQuantity)
 ---------------------------------------------------------------------------
@@ -135,6 +171,13 @@ Method: modbusClient.forceMultipleCoilsPdu(values, startCoil, coilQuantity)
 This method create the force multiples coils request pdu. Function code 15. If values is not a Buffer throw a TypeError and if value's length is higher than 246
 throw a RangeError.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let values = [0, 1, 0, 0, 0, 0, 1, 1]; //at 0 index start LSB Byte
+      let valBuffer = modbusClient.boolsToBuffer(values); //Buffer: [0xC2]
+      let pdu = modbusClient.forceMultipleCoilsPdu(valBuffer, 10, values.length); //force coils starting at coil 10 with values buffer
+      console.log(pdu); //Buffer: [0x0F, 0x00, 0x0A, 0x00, 0x08, 0x01, 0xC2]
 
 Method: modbusClient.presetMultipleRegistersPdu(values, startRegister, [registerQuantity])
 -------------------------------------------------------------------------------------------
@@ -148,9 +191,15 @@ Method: modbusClient.presetMultipleRegistersPdu(values, startRegister, [register
 
    *Modbus Write Multiple Registers Request and Response*
 
-This method create the preset multiples registers request pdu. Function code 16. If values is not a Buffer throw a TypeError and if value's length is higher than 246
-throw a RangeError.
+This method create the preset multiples registers request pdu. Function code 16. 
+If values is not a Buffer throw a TypeError and if value's length is higher than 246 throw a RangeError.
 
+.. code-block:: javascript
+   
+      let modbusClient = new ModbusClient();
+      let values = Buffer.from([0x12, 0x34, 0x56, 0x78]);
+      let pdu = modbusClient.presetMultipleRegistersPdu(values, 20); //preset registers starting at register 20 with values buffer
+      console.log(pdu); //Buffer: [0x10, 0x00, 0x14, 0x00, 0x02, 0x04, 0x12, 0x34, 0x56, 0x78]
 
 Method: modbusClient.maskHoldingRegisterPdu(values, [startRegister])
 ---------------------------------------------------------------------
@@ -163,9 +212,15 @@ Method: modbusClient.maskHoldingRegisterPdu(values, [startRegister])
 
    *Modbus Mask Register Request and Response*
 
-This method create the mask holding register request pdu. Function code 22. If values is not a Buffer throw a TypeError and if value's length is diferent than 4
-throw a RangeError.
+This method create the mask holding register request pdu. Function code 22.
+If values is not a Buffer throw a TypeError and if value's length is diferent than 4 throw a RangeError.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let value = Buffer.from([0x9A, 0xFB, 0x64, 0x00]); //AND_MASK: 0x9AFB OR_MASK: 0x6400
+      let pdu = modbusClient.maskHoldingRegisterPdu(value, 20); //mask register 20 with value buffer
+      console.log(pdu); //Buffer: [0x16, 0x00, 0x14, 0x9A, 0xFB, 0x64, 0x00]
 
 Method: modbusClient.readWriteMultipleRegistersPdu(values,  readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite)
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -181,9 +236,15 @@ Method: modbusClient.readWriteMultipleRegistersPdu(values,  readStartingAddress,
 
    *Modbus Read and Write Multiple Registers Request and Response*
 
-This method create the read and write holding register request pdu. Function code 23. If values is not a Buffer throw a TypeError and if value's length is greater than 243
-throw a RangeError.
+This method create the read and write holding register request pdu. Function code 23.
+If values is not a Buffer throw a TypeError and if value's length is greater than 243 throw a RangeError.
 
+.. code-block:: javascript
+
+      let modbusClient = new ModbusClient();
+      let values = Buffer.from([0x12, 0x34, 0x56, 0x78]);
+      let pdu = modbusClient.readWriteMultipleRegistersPdu(values, 20, 5, 30, 2); //read registers starting at register 20 with quantity of 5 and write registers starting at register 30 with values buffer
+      console.log(pdu); //Buffer: [0x17, 0x00, 0x14, 0x00, 0x05, 0x00, 0x1E, 0x00, 0x02, 0x04, 0x12, 0x34, 0x56, 0x78]
 
 Method: modbusClient.boolToBuffer(value)
 ---------------------------------------------------------------------
@@ -191,7 +252,8 @@ Method: modbusClient.boolToBuffer(value)
 * **value** <boolean>
 * **Return** <Buffer>: Two bytes length Buffer. 
 
-This is a utitlity method. It returns a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. Example:
+This is a utitlitary method. It returns a buffer with a boolean value encoded for use on forceSingleCoilPdu function as value argument. 
+Example:
 
 .. code-block:: javascript
 
@@ -207,10 +269,11 @@ Method: modbusClient.getMaskRegisterBuffer(value)
 * **value** <Array>: An 16 numbers length array indicating how to mask the register.
 * **Return** <Buffer>: Four bytes length Buffer. 
 
-This is a utility method that return a four-byte length buffer with the AND_MASK and OR_MASK values encoded for use in the maskHoldingRegisterPdu function as the value argument. 
+This is a utilitary method that return a four-byte length buffer with the AND_MASK and OR_MASK values encoded for use in the maskHoldingRegisterPdu function as the value argument. 
 
-The value argument is a 16-number array, with each number representing the position of one bit inside the register. If the number is 1, then the corresponding bit will be set to 1. 
-If the number is 0, then the corresponding bit will be set to 0. If the number is different from 0 or 1, then the corresponding bit will remain unchanged. For example:
+The value argument is a 16-number array, with each number representing the position of one bit inside the register. 
+If the number is 1, then the corresponding bit will be set to 1. If the number is 0, then the corresponding bit will be set to 0. 
+If the number is different from 0 or 1, then the corresponding bit will remain unchanged. For example:
 
 .. code-block:: javascript
 
@@ -240,7 +303,7 @@ Method: modbusClient.boolsToBuffer(value)
 * **value** <Array>: A boolean array.
 * **Return** <Buffer>: a buffer with binary representation of boolean array. 
 
-This is a utility method that return a buffer from a boolean array for modbus function code 15. 
+This is a utilitary method that return a buffer from a boolean array for modbus function code 15. 
 
 The value argument is an array of boolean with values to be force to coils. For example:
 
@@ -265,6 +328,12 @@ Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
 
 This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
 
+.. code-block:: javascript
+
+    let modbusClient = new ModbusClient();
+    let targetBuffer = Buffer.from([0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04]);
+    let word1 = modbusClient.getWordFromBuffer(targetBuffer, 0); //Buffer: [0x00, 0x01]
+    let word2 = modbusClient.getWordFromBuffer(targetBuffer, 2); //Buffer: [0x00, 0x03]
 
 Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
 -------------------------------------------------------------------
@@ -274,3 +343,13 @@ Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
 * **offset** <number>: A number with register's offset inside the buffer.
 
 This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.
+
+.. code-block:: javascript
+
+   let modbusClient = new ModbusClient();
+   let targetBuffer = Buffer.alloc(4); //Buffer: [0x00, 0x00, 0x00, 0x00]
+   let value = Buffer.from([0x12, 0x34]);
+   modbusClient.setWordToBuffer(value, targetBuffer, 0); //write value buffer at offset 0
+   console.log(targetBuffer); //Buffer: [0x12, 0x34, 0x00, 0x00]
+   modbusClient.setWordToBuffer(value, targetBuffer, 1); //write value buffer at offset 2
+   console.log(targetBuffer); //Buffer: [0x12, 0x34, 0x12, 0x34]
