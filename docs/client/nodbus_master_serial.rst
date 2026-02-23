@@ -1,408 +1,402 @@
 .. _nodbus_serial_master:
 
-======================
+==========================
 Class: NodbusSerialClient
-======================
+==========================
 
 **Nodbus-Plus v1.0 Documentation**
 
 .. contents:: Table of Contents
    :depth: 3
 
-This class extends :ref:`ModbusSerialClient Class <modbus_serial_master>`. It provides ready to use Modbus RTU/Ascii Client.
+This class extends :ref:`ModbusSerialClient Class <modbus_serial_master>`. It provides a ready-to-use Modbus RTU/ASCII client.
 
 
 Creating a NodbusSerialClient Instance
-===================================
+=======================================
 
-new NodbusSerialClient(channelClass)
+new NodbusSerialClient()
 -------------------------------------
 
-* **channelClass:** <Class>: This argument define the constructor for the net layer. See :ref:`NetChannel Class <nodbus_net_channel>`.
 * **Returns:** <NodbusSerialClient>
 
-NodbusPlus expose the function createSerialClient([netConstructor]) to create new instances for NodbusSerialClient.
+Nodbus-Plus exposes the helper `createSerialClient([netType], [netConstructor])` to create new `NodbusSerialClient` instances
+with extended network channel constructors. See :ref:`nodbus_net_channel` for channel's API description.
 
-* **netConstructor** <string>: Can be 'tcp','udp' or serial. Default 'tcp'.
+* **netType** <string>: The id for custom channel. See channelType property.
+* **netConstructor** <string>: Can be 'tcp', 'udp' or 'serial'. Default: 'tcp'.
 
 .. code-block:: javascript
 
       const nodbus = require('nodbus-plus');
-      let nodbusSerialClient = nodbus.createSerialClient('tcp'); //default settings, net layer is tcp
+      let nodbusSerialClient = nodbus.createSerialClient();
 
-However new NodbusSerialClient instance can be created with customs :ref:`NetChannel <nodbus_net_channel>` importing the nodbusSerialClient Class.
+Alternatively, a `NodbusSerialClient` instance can be created with a custom :ref:`NetChannel <nodbus_net_channel>`.
 
 .. code-block:: javascript
 
       const NodbusSerialClient = require('nodbus-plus').NodbusSerialClient;
-      const NetChannel = require('custom\net\custome_channel.js'); //this is a example  file for a user channel, it do not exist on nodbus-plus library
+      const CanBusNetChannel = require('./custom/net/custom_channel.js'); // example user channel implementation
 
-      
-      let nodbusSerialClient = new NodbusSerialClient(NetChannel);     
+      let nodbusSerialClient = new NodbusSerialClient('my_own_channel_over_can',CanBusNetChannel);
 
 
 
 NodbusSerialClient's Events
 ===========================
 
+**Inherited Events**
 
-Event: 'broadcast-timeout'
------------------------------------
-
-This event indicate that the client has no pending broadcast request and is free to send another request.
-
+The following events are inherited from :ref:`ModbusSerialClient Class <modbus_serial_master>`:
+* ``broadcast-timeout`` : Indicates the client has no pending broadcast request and is free to send another request.
+* ``req-timeout`` - Emitted when a request times out before receiving a response.
+* ``transaction`` - Emitted when a complete request/response pair has been processed.
 
 Event: 'connection'
 -------------------
 
-* **id** <string>: Channel's name
+Emitted when the client successfully establishes a connection to a server on a specific channel.
 
-Emitted when the client succesfully connect to a server. 
+* **id** <string>: The channel's identifier.
+
+.. code-block:: javascript
+
+      client.on('connection', (id) => {
+         console.log(`Connected to channel: ${id}`);
+      });
 
 Event: 'connection-closed'
----------------------------
+--------------------------
 
-* **id** <string>: Channel's name
+Emitted when a channel closes its connection.
 
-Emitted when the channel close the connection.
+* **id** <string>: The channel identifier
 
+.. code-block:: javascript
+
+      client.on('connection-closed', (id) => {
+         console.log(`Channel ${id} disconnected`);
+      });
 
 Event: 'data'
----------------------
+-------------
 
-* **id** <string>: Channel's name.
+Emitted when raw data is received from the channel before protocol-level validation.
 
-* **data** <Buffer>: Data received.
+* **id** <string>: The channel identifier
+* **data** <Buffer>: Raw bytes received
 
-Emitted when the channel emit the data event.
+.. code-block:: javascript
 
-
+      client.on('data', (id, data) => {
+         console.log(`Raw data from ${id}:`, data);
+      });
 
 Event: 'error'
 --------------
 
-* **e** <Error>: The error object.
+Emitted when the transport reports an error.
 
-Emitted when a error occurs.
+* **err** <Error>: Error object
 
+.. code-block:: javascript
 
-Event: 'req-timeout'
---------------------
-
-* **transactionId** <number>: Indicate wich request fires the timeout event. 
-* **vreq** <Buffer>: Modbus request adu buffer.
-
-  .. code-block:: javascript
-
-      nodbusSerialClient.on('req-timeout', (id, req) ->{
-         console.log('Timeout error from request: ' + id + '\n');
-      })
-
-This event is emmited when the number of milliseconds pass to :ref:`Method: modbusTcpClient.setReqTimer(transactionId, [timeout])` ends without call 
-:ref:`Method: modbusTcpClient.clearReqTimer(transactionId)`
+      client.on('error', (err) => {
+         console.error('Client error:', err);
+      });
 
 
 Event: 'request'
 ----------------
 
-* **id** <string>: Channel's name.
+Emitted after the client sends a request to the server.
 
-* **request** <object>: A with following properties:
+* **id** <string>: The channel identifier
+* **request** <object>: Request object with properties: `timeStamp`, `unitId`, `functionCode`, `data`
 
-  * *timeStamp* <number>: A timestamp for the request.
-  
-  * *transactionId* <number>: The header's transaction id field value.
+.. code-block:: javascript
 
-  * *unitId* <number>: The header's unit id field value.
-
-  * *functionCode* <number>: The modbus request's function code.
-
-  * *data* <Buffer>: The pdu's data.
-
-  Emited after the client send data to the server.
-
+      client.on('request', (id, request) => {
+         console.log(`Request sent on ${id}:`, request);
+      });
 
 Event: 'response'
-----------------
+-----------------
 
-* **id** <string>: Channel's name.
+Emitted when a received response has been validated as a valid Modbus ADU.
 
-* **response** <object>: A with following properties:
+* **id** <string>: The channel identifier
+* **response** <object>: Response object with properties: `timeStamp`, `unitId`, `functionCode`, `data`
 
-  * *timeStamp* <number>: A timestamp for the request.
-  
-  * *transactionId* <number>: The header's transaction id field value.
+.. code-block:: javascript
 
-  * *unitId* <number>: The header's unit id field value.
+      client.on('response', (id, response) => {
+         console.log(`Response received on ${id}:`, response);
+      });
 
-  * *functionCode* <number>: The modbus request's function code.
-
-  * *data* <Buffer>: The pdu's data.
-
-  Emited when data received fron server has been validated.
-
-
-Event: 'transaction'
---------------------
-
-* **req** <Buffer>: Modbus Tcp request adu. 
-* **res** <Buffer>: Modbus Tcp request adu.  
-
-This event is emmited when the :ref:`Method: modbusTcpClient.processResAdu(bufferAdu)` is called to manage a server response.
 
 
 Event: 'write'
----------------------
+--------------
 
-* **id** <string>: Channel's name.
+Emitted after the client sends raw ADU bytes to the server.
 
-* **reqAdu** <Buffer>: Client request,  a modbus tcp adu.
+* **id** <string>: The channel identifier
+* **reqAdu** <Buffer>: The ADU bytes that were written
 
-Emited after the client send data to the server.
+.. code-block:: javascript
+
+      client.on('write', (id, reqAdu) => {
+         console.log(`Data written to ${id}`);
+      });
 
 
-NodbusSerialClient's Atributes
+NodbusSerialClient's Attributes
 ===============================
 
+**Inherited Attributes**
 
-Atribute: nodbusSerialClient.activeRequest
+The following attributes are inherited from :ref:`ModbusSerialClient Class <modbus_serial_master>`:
+
+* ``activeRequest`` - The current active request ADU buffer; `null` if no request is pending
+* ``activeRequestTimerId`` - Timer ID for the active request timeout
+* ``turnAroundDelay`` - Timer ID for the turnaround delay after a broadcast request
+
+**Own Attributes**
+
+Attribute: nodbusSerialClient.channelType
 ------------------------------------------
 
-* <Buffer>    
+* <Map> Map of available channel constructors.
+      * *key* <string>: Channel type id.
+      * *value* <Class>: Channel constructor (see :ref:`NetChannel Class <nodbus_net_channel>`).
 
-This property store the current active request, if no request is pending then is null.
+This property stores the client's channel constructors. Built-in channel types for Nodbus-Plus are `tcp1`, `udp1`, and `serial1`.
 
-Atribute: nodbusSerialClient.channelType
---------------------------------------
+Attribute: nodbusSerialClient.channels
+---------------------------------------
 
-* <Map> Map with types of channels.
-    * *key* <string> type id.
-    * *value* <object>: A channel class. See :ref:`NetChannel Class <nodbus_net_channel>` to be used as constructor.
-
-This property store the client's channel constructor. Built in channel for Nodbus-Plus tcp client are 'tcp1', 'udp1' and 'serial1'.
-
-
-Atribute: nodbusSerialClient.channels
--------------------------------------
-
-* <Map> Map with client's channel list.
-    * *key* <string> Channel's id.
-    * *value* <object>: A channel object. See :ref:`NetChannel Class <nodbus_net_channel>`
+* <Map> Map with the client's channel instances.
+      * *key* <string>: Channel id.
+      * *value* <object>: Channel instance (see :ref:`NetChannel Class <nodbus_net_channel>`).
 
 
+Attribute: nodbusSerialClient.isIdle
+----------------------------------------
 
+* <boolean> `true` if the client has no active request and is not waiting for a turnaround delay after a broadcast request; otherwise `false`.
 
 NodbusSerialClient's Methods
 ==============================
 
+The following methods are inherited from the base classes and are available on `NodbusSerialClient`:
 
-See :ref:`ModbusSerialClient Class Methods <modbus_serial_client_methods>` for all base class inherited methods.
+**Inherited Methods from ModbusSerialClient**
 
 
+- ``makeRequest(address, pdu, asciiMode)`` : Creates a complete Modbus serial ADU request buffer with slave address and checksum.
+- ``storeRequest(bufferReq, asciiMode)`` : Stores a request as the currently active request (only one active request allowed on serial).
+- ``setReqTimer(timeout)`` : Sets a timeout timer for the active request.
+- ``clearReqTimer()`` : Clears the timeout timer for the active request.
+- ``setTurnAroundDelay(timeout)`` : Sets the turnaround delay after a broadcast request.
+- ``clearTurnAroundDelay()`` : Clears the turnaround delay timer.
+- ``processResAdu(bufferRes)`` : Validates and processes a received response ADU.
+- ``aduAsciiToRtu(asciiFrame)`` : Converts an ASCII ADU to RTU format with CRC checksum.
+- ``aduRtuToAscii(rtuFrame)`` : Converts an RTU ADU to ASCII format with LRC checksum.
+- ``calcCRC(frame)`` : Calculates the CRC-16 checksum for RTU frames.
+- ``calcLRC(frame)`` : Calculates the LRC checksum for ASCII frames.
+
+**Inherited Methods from ModbusClient (PDU builders & utilities)**
+
+- ``readCoilStatusPdu(startCoil, coilQuantity)`` : Creates PDU for reading coil status (Function Code 01).
+- ``readInputStatusPdu(startInput, inputQuantity)`` : Creates PDU for reading discrete inputs (Function Code 02).
+- ``readHoldingRegistersPdu(startRegister, registerQuantity)`` : Creates PDU for reading holding registers (Function Code 03).
+- ``readInputRegistersPdu(startRegister, registerQuantity)`` : Creates PDU for reading input registers (Function Code 04).
+- ``forceSingleCoilPdu(value, startCoil)`` : Creates PDU for writing a single coil (Function Code 05).
+- ``presetSingleRegisterPdu(value, startRegister)`` : Creates PDU for writing a single register (Function Code 06).
+- ``forceMultipleCoilsPdu(values, startCoil, coilQuantity)`` : Creates PDU for writing multiple coils (Function Code 15).
+- ``presetMultipleRegistersPdu(values, startRegister, registerQuantity)`` : Creates PDU for writing multiple registers (Function Code 16).
+- ``maskHoldingRegisterPdu(values, startRegister)`` : Creates PDU for Mask Write Register (Function Code 22).
+- ``readWriteMultipleRegistersPdu(values, readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite)`` : Creates PDU for Read/Write Multiple Registers (Function Code 23).
+
+**Own Methods**
 
 Method: nodbusSerialClient.addChannel(id, type, channelCfg)
 ------------------------------------------------------------
 
-* **id** <String>: Channels's name. Must be unique for each channel.
+* **id** <string>: Channel name. Must be unique for each channel.
 
 * **type** <string>: Channel's constructor id stored on channelType property. Default value is 'tcp1'.
 
 * **channelCfg** <object>: Configuration object for the channel with following properties for tcp and udp:
 
-  * *ip* <String>: Modbus server's ip address. Defaul 'localhost'.
-  * *port* <number> Port where the modbus server's is listening.
-  * udpType <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
-  * *timeout* <number> Number of milliseconds to await for a response on the channel.
+      * *ip* <String>: Modbus server's IP address. Default: 'localhost'.
+      * *port* <number>: Port where the Modbus server is listening.
+      * *udpType* <string>: Used in UDP channels to set `udp4` or `udp6`. Default: `udp6`.
+      * *timeout* <number>: Number of milliseconds to await for a response on the channel.
 
 * **channelCfg** <object>: Configuration object with the following properties for serial network:
 
-   * port <string> : The path to the serial port. Example 'COM1.
-   * speed <number>: Enum with following baudrates in bps : 
+      * *port* <string>: Serial port path, e.g. `COM1`.
+      * *baudRate* <number>: Baud rate (e.g. 110, 300, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200).
+      * *dataBits* <number>: 7 or 8 (default: 8).
+      * *stopBits* <number>: 1 or 2 (default: 1).
+      * *parity* <string>: `none`, `even`, or `odd` (default: `none`).
+      * *timeBetweenFrame* <number>: Milliseconds to await without receiving data to consider the end of a Modbus frame.
+      * *timeout* <number>: Milliseconds to await for a response on the channel.
 
-     * 0-110
-     * 1-300
-     * 2-1200
-     * 3-2400
-     * 4-4800
-     * 5-9600
-     * 6-14400
-     * 7-19200 Default
-     * 8-38400
-     * 9-57600
-     * 10-115200
-
-   * dataBits <number>: 7 or 8. Default 8.
-   * stopBits <number>: 0 or 1.
-   * parity <number>: Enum with following value. 
-   
-     * 0-'none'
-     * 1-'even' Default
-     * 2-'odd'
-
-   * timeBetweenFrame <number>: Number of millisends to await without receiving data to consider end of modbus frame.
-   * *timeout* <number> Number of milliseconds to await for a response on the channel.
-   
-  This method create a channel from the channel's constructor and add to the channels list :ref:`Atribute: nodbusSerialClient.channels`.
+This method creates a channel instance from the channel constructor and adds it to the channels list (:ref:`Attribute: nodbusSerialClient.channels`).
 
 .. code-block:: javascript
       
-      let device1 = {
-      ip: '127.0.0.1',  //server's ip address
-      port: 502,        //tcp port
-      timeout: 500}     // miliseconds for timeout event
+                  let device1 = {
+                        ip: '127.0.0.1',  // server's IP address
+                        port: 502,        // TCP port
+                        timeout: 500      // milliseconds for timeout event
+                  };
 
-      nodbusSerialClient.addChannel('device1', 'tcp1' device1);
+                  nodbusSerialClient.addChannel('device1', 'tcp1', device1);
       
 
 Method: nodbusSerialClient.connect(id)
 ----------------------------------------
 
-* **id** <String>: Channels's name.
+* **id** <string>: Channel name.
 
-  This method try to connect to the remote server configured on the channel or open the serial port given.
+Connects the client to the remote server configured for the given channel, or opens the configured serial port.
 
+.. code-block:: javascript
+
+      nodbusSerialClient.connect('device1'); // connects to the server configured on channel 'device1'
 
 
 Method: nodbusSerialClient.delChannel(id)
-------------------------------------------
+-------------------------------------------
 
-* **id** <String>: Channels's name.
+* **id** <string>: Channel name.
 
-  This method remove a channel from the channels list :ref:`Atribute: nodbusSerialClient.channels`.
+Removes the channel from the channels list (:ref:`Attribute: nodbusSerialClient.channels`).
 
+.. code-block:: javascript
 
+      nodbusSerialClient.delChannel('device1'); // removes channel 'device1' from the client
 
 Method: nodbusSerialClient.disconnect(id)
-------------------------------------------
+-----------------------------------------
 
-* **id** <String>: Channels's name.
+* **id** <string>: Channel name.
 
-This method send the FIN package to the remote server to close the connection or close the serial port guiven.
+Closes the connection for the given channel (sends TCP FIN for network channels or closes the serial port for serial channels).
 
+.. code-block:: javascript
+
+      nodbusSerialClient.disconnect('device1'); // disconnects channel 'device1' from the server      
 
 
 Method: nodbusSerialClient.isChannelReady(id)
-----------------------------------------------
+---------------------------------------------
 
-* **id** <String>: Channels's name.
-* **return** <boolean>: true if channel is connected and ready to send data to the server, otherwise false.
+* **id** <string>: Channel name.
+* **returns** <boolean>: `true` if the channel is connected and ready to send data, otherwise `false`.
 
-  This method return true if channel is connected and ready to send data to the server.
+Returns whether the channel is connected and ready to transmit data to the server.
 
+.. code-block:: javascript
 
-
-
-Method: nodbusSerialClient.makeRequest(unitId, pdu, asciiMode)
----------------------------------------------------------------
-
-* **unitId** <number>: modbus address.
-* **pdu** <Buffer>: The pdu's buffer.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
-* **Returns** <Buffer>: return a tcp adu request's buffer
-
-This functions first increment the transaction counter and create a modbus tcp request ready to be send to the client.
-
+      let isReady = nodbusSerialClient.isChannelReady('device1');
+      console.log(`Channel 'device1' ready: ${isReady}`);
 
 Method: nodbusSerialClient.forceSingleCoil(value, channelId, unitId, startCoil, asciiMode)
 --------------------------------------------------------------------------------------------
 
-* **value** <boolean>: Value to force.
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
-* **startCoil** <number>: Coil to force at 0 address.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
-* **Returns** <boolean>: true if success
+* **value** <boolean>: Value to write to the coil.
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. (Spec recommends 255 for local device.)
+* **startCoil** <number>: Coil address (0-based).
+* **asciiMode** <boolean>: If `true`, send request in ASCII mode. Default: `false` (RTU).
+* **returns** <boolean>: `true` on success.
 
-This functions create the force coil (function 05) request and sended to server.
+This function creates a Force Single Coil (function 05) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //forcing coil to 1 on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //coils 10.      
-      successStatus = nodbusSerialClient.forceSingleCoil(1, 'device1', 255, 10);
+
+      // Force coil at address 10 to ON (1) on channel 'device1'
+      let successStatus = nodbusSerialClient.forceSingleCoil(true, 'device1', 255, 10);
 
 
 Method: nodbusSerialClient.forceMultipleCoils(values, channelId, unitId, startCoil, asciiMode)
 -----------------------------------------------------------------------------------------------
 
 * **value** <Array>: Array of booleans with values to force.
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startCoil** <number>: First coil to force starting at 0 address.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
+* **asciiMode** <boolean>: If `true`, use ASCII mode; otherwise RTU. Default: `false` (RTU).
 * **Returns** <boolean>: true if success
 
-This functions create the force multiples coils (function 15) request and sended to server.
+This function creates the Force Multiple Coils (function 15) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //forcing 6 coils to desire values on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //starting at coil 10.  
-      vals = [1, 0, 1, 1, 0, 1]    
-      successStatus = nodbusSerialClient.forceMultipleCoils(val, 'device1', 255, 10);
+
+      // Force 6 coils to desired values on channel 'device1'.
+      // If the device is a Modbus gateway then unitId specifies the target station.
+      // Starting at coil 10.
+      let vals = [true, false, true, true, false, true];
+      let successStatus = nodbusSerialClient.forceMultipleCoils(vals, 'device1', 255, 10);
 
 
 Method: nodbusSerialClient.maskHoldingRegister(values, channelId, unitId, startRegister, asciiMode)
 ----------------------------------------------------------------------------------------------------
 
-* **values** <Array> An array of 16 numbers with values to force. Index 0 is de less significant bit.
-                A value off 1 force to 1 the corresponding bit, 0 force to 0, other values don't change the bit value.
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **values** <Array>: An array of 16 numeric codes describing the mask/write operation. Index 0 is the least significant bit.
+                A value of `1` forces the corresponding bit to 1, `0` forces it to 0; other values leave the bit unchanged.
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startRegister** <number>: Register to write at 0 address.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
+* **asciiMode** <boolean>: If `true`, use ASCII mode; otherwise RTU. Default: `false` (RTU).
 * **Returns** <boolean>: true if success
 
-This functions create the mask holding register (function 22) request and sended to server.
+This function creates a Mask Write Register (function 22) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //forcing register on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //register 99 startint at 0.
-      
-      let vals = [1, 0, 1, 0, 2, 2, 1, 1, 2, 2, 0, 0, 0, 1, 2, 2]
-      successStatus = nodbusSerialClient.maskHoldingRegister(vals, 'device1', 255, 99);
+
+      // Mask/write register on channel 'device1' (unitId 255), starting at register 99.
+      let vals = [1, 0, 1, 0, 2, 2, 1, 1, 2, 2, 0, 0, 0, 1, 2, 2];
+      let successStatus = nodbusSerialClient.maskHoldingRegister(vals, 'device1', 255, 99);
 
 
 
 Method: nodbusSerialClient.presetSingleRegister(value, channelId, unitId, startRegister, asciiMode)
 ----------------------------------------------------------------------------------------------------
 
-* **value** <Buffer> a two Bytes length buffer.
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **value** <Buffer>: A two-byte buffer containing the register value.
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startRegister** <number>: Register to write at 0 address.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
+* **asciiMode** <boolean>: If `true`, use ASCII mode; otherwise RTU. Default: `false` (RTU).
 * **Returns** <boolean>: true if success
 
-This functions create the preset single register (function 06) request and sended to server.
+This function creates a Preset Single Register (function 06) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //forcing register on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //register 99 startint at 0.
-      
+
+      // Write register 99 on channel 'device1' (unitId 255).
       let val = Buffer.alloc(2);
       val.writeInt16BE(4567);
-      successStatus = nodbusSerialClient.presetSingleRegister(val, 'device1', 255, 99);
+      let successStatus = nodbusSerialClient.presetSingleRegister(val, 'device1', 255, 99);
 
     
-Method: nodbusSerialClient.presetMultiplesRegisters(values, channelId, unitId, startRegister, asciiMode)
+Method: nodbusSerialClient.presetMultipleRegisters(values, channelId, unitId, startRegister, asciiMode)
 ---------------------------------------------------------------------------------------------------------
 
-* **values** <Buffer> a two Bytes length buffer.
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **values** <Buffer>: Buffer with register values (2 bytes per register).
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startRegister** <number>: Register to write at 0 address.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
+* **asciiMode** <boolean>: If `true`, use ASCII mode; otherwise RTU. Default: `false` (RTU).
 * **Returns** <boolean>: true if success
 
-This functions create the preset multiple registers (function 16) request and sended to server. The amount ofregister to write is the
-values's buffer half length.
+This function creates a Preset Multiple Registers (function 16) request and sends it to the server. The number of registers is half the length of the `values` buffer (2 bytes per register).
 
 .. code-block:: javascript
       
@@ -418,50 +412,44 @@ values's buffer half length.
       nodbusSerialClient.setWordToBuffer(tempRegister, vals, 1);
       tempRegister.writeUInt16BE(1045);
       nodbusSerialClient.setWordToBuffer(tempRegister, vals, 2);
-      successStatus = nodbusSerialClient.presetMultipleRegisters(vals, 'device1', 255, 99);
+      let successStatus = nodbusSerialClient.presetMultipleRegisters(vals, 'device1', 255, 99);
 
 
 
 Method: nodbusSerialClient.readCoils(channelId, unitId, startCoil, coilsCuantity, asciiMode)
 ---------------------------------------------------------------------------------------------
 
-* **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **channelId** <string>: Channel name.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startCoil** <number>: Starting coil to read at 0 address.
 * **coilsCuantity** <number>: Number of coils to read.
-* **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
+* **asciiMode** <boolean>: If `true`, use ASCII mode; otherwise RTU. Default: `false` (RTU).
 * **Returns** <boolean>: true if success
 
-This functions create the read coil  (function 01) request and sended to server.
+This function creates a Read Coil (function 01) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //Reading coil on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //coils 10 startint at 0.
-      //Read 14 coils
-      successStatus = nodbusSerialClient.readCoils('device1', 255, 10, 14);
+
+      // Read 14 coils starting at address 10 on channel 'device1'.
+      let successStatus = nodbusSerialClient.readCoils('device1', 255, 10, 14);
 
 
 Method: nodbusSerialClient.readHoldingRegisters(channelId, unitId, startRegister, registersCuantity,  asciiMode)
 ------------------------------------------------------------------------------------------------------------------
 
 * **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startRegister** <number>: Starting input to read at 0 address.
 * **registerCuantity** <number>: Number of registers to read.
 * **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
 * **Returns** <boolean>: true if success
 
-This functions create the read holding register (function 03) request and sended to server.
+This function creates a Read Holding Registers (function 03) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //Reading input on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //register 10 .
-      //Read 4 register
-      successStatus = nodbusSerialClient.readHoldingRegisters('device1', 255, 10, 4);
+
+      // Read 4 holding registers starting at register 10 on channel 'device1'.
+      let successStatus = nodbusSerialClient.readHoldingRegisters('device1', 255, 10, 4);
 
 
 
@@ -469,42 +457,36 @@ Method: nodbusSerialClient.readInputs(channelId, unitId, startInput, inputsCuant
 --------------------------------------------------------------------------------------------------
 
 * **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startInput** <number>: Starting input to read at 0 address.
 * **inputsCuantity** <number>: Number of inputs to read.
 * **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
 * **Returns** <boolean>: true if success
 
-This functions create the read inputs  (function 02) request and sended to server.
+This function creates a Read Discrete Inputs (function 02) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //Reading input on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //input 0 .
-      //Read 6 inputs
-      successStatus = nodbusSerialClient.readInputs('device1', 255, 0, 6);
+
+      // Read 6 discrete inputs starting at address 0 on channel 'device1'.
+      let successStatus = nodbusSerialClient.readInputs('device1', 255, 0, 6);
 
 
 Method: nodbusSerialClient.readInputRegisters(channelId, unitId, startRegister, registersCuantity, asciiMode)
 --------------------------------------------------------------------------------------------------------------
 
 * **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **startRegister** <number>: Starting input to read at 0 address.
 * **registerCuantity** <number>: Number of inputs to read.
 * **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
 * **Returns** <boolean>: true if success
 
-This functions create the read input register (function 04) request and sended to server.
+This function creates a Read Input Registers (function 04) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //Reading input on channel device1, unitId 255  define device itself.
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //register 10 .
-      //Read 4 register
-      successStatus = nodbusSerialClient.readInputRegisters('device1', 255, 10, 4);
+
+      // Read 4 input registers starting at register 10 on channel 'device1'.
+      let successStatus = nodbusSerialClient.readInputRegisters('device1', 255, 10, 4);
 
 
 
@@ -513,21 +495,18 @@ Method: nodbusSerialClient.readWriteMultiplesRegisters(values, channelId, unitId
 
 * **values** <Buffer> a two Bytes length buffer.
 * **channelId** <string>: Channels's name.
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
+* **unitId** <number>: Legacy Modbus unit id used by some gateways. The Modbus specification recommends using 255 for local devices.
 * **readStartingRegister** <number>: Starting input to read at 0 address.
 * **readRegisterCuantity** <number>: Number of registers to read.
 * **writeStartingRegister** <number>: Register to write at 0 address.
 * **asciiMode** <boolean> A flag to indicate if the request must be in ascii format. Default value is false, rtu mode.
 * **Returns** <boolean>: true if success
 
-This functions create the read and write holding registers (function 23) request and sended to server.
+This function creates a Read/Write Multiple Registers (function 23) request and sends it to the server.
 
 .. code-block:: javascript
-      
-      //writing 3 registers on channel device1, unitId 255  define device itself and reading five registers from register 10
-      //If device is a modbus gateway then unitId define the modbus address for desire station.
-      //register 99 startint at 0.
-      
+
+      // Write 3 registers starting at 99 and read 5 registers starting at 10 on channel 'device1'.
       let vals = Buffer.alloc(6);
       let tempRegister = Buffer.alloc(2);
       tempRegister.writeUInt16BE(245);
@@ -536,24 +515,7 @@ This functions create the read and write holding registers (function 23) request
       nodbusSerialClient.setWordToBuffer(tempRegister, vals, 1);
       tempRegister.writeUInt16BE(1045);
       nodbusSerialClient.setWordToBuffer(tempRegister, vals, 2);
-      successStatus = nodbusSerialClient.readWriteMultiplesRegisters(vals, 'device1', 255, 10, 5, 99);
+      let successStatus = nodbusSerialClient.readWriteMultiplesRegisters(vals, 'device1', 255, 10, 5, 99);
 
 
-Method: nodbusSerialClient.getWordFromBuffer(targetBuffer, [offset])
------------------------------------------------------------------------
 
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
-
-Method: nodbusSerialClient.setWordToBuffer(value, targetBuffer, [offset])
----------------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.

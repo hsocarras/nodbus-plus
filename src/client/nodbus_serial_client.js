@@ -43,9 +43,11 @@ class NodbusSerialClient extends  ModbusSerialMaster {
     /**
      * Function to add a channel object to master
      * @param {string} id: channel's id. Unique per channel
-     * @param {string} ip: channel's ip address. Default 'localhost'
-     * @param {number} port: channel's port. Default 502
-     * @param {number} timeout time in miliseconds to emit timeout for a request.     
+     * @param {string} type: channel's type. Default 'tcp1'. Available types are 'tcp1', 'udp1' and 'serial1'.
+     * @param {number} channelCfg: channel's configuration object. For tcp1 and udp1 built-in types, the configuration object has the following properties:
+     * - ip: server's ip address. Default 'localhost'.
+     * - port: server's port. Default 502.
+     * - timeout: number of milliseconds to await for response before fire timeout event. Default 250ms.
      */
     addChannel(id, type = 'tcp1', channelCfg = {ip: 'localhost', port: 502, timeout:250}){
 

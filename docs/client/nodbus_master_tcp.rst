@@ -15,36 +15,39 @@ This class extends :ref:`ModbusTcpClient Class <modbus_tcp_master>`. It provides
 Creating a NodbusTcpClient Instance
 ===================================
 
-new NodbusTcpClient(channelClass)
--------------------------------------
+new NodbusTcpClient()
+-------------------------------
 
-* **channelClass:** <Class>: This argument define the constructor for the net layer. See :ref:`NetChannel Class <nodbus_net_channel>`.
 * **Returns:** <NodbusTcpClient>
 
-NodbusPlus expose the function createTcpClient([netConstructor]) to create new instances for NodbusTcpClient.
+NodbusPlus expose the function createTcpClient([channelName], [channelConstructor]) to create new instances for NodbusTcpClient.
 
-* **netConstructor** <string>: Can be 'tcp' or'udp'. Default 'tcp'.
+* **channelName** <string>: The name of the channel to be created.
+* **channelConstructor** <Class>: The constructor for the net layer. See :ref:`NetChannel Class <nodbus_net_channel>`.
 
 .. code-block:: javascript
 
       const nodbus = require('nodbus-plus');
-      let nodbusTcpClient = nodbus.createTcpClient('tcp'); //default settings, net layer is tcp
+      let nodbusTcpClient = nodbus.createTcpClient(); //default settings, net layer is tcp
 
 However new NodbusTcpClient instance can be created with customs :ref:`NetChannel <nodbus_net_channel>` importing the NodbusTcpClient Class.
 
 .. code-block:: javascript
 
-      const NodbusTcpClient = require('nodbus-plus').NodbusTcpClient;
-      const NetChannel = require('custom\net\custome_channel.js'); //this is a example  file for a user channel, it do not exist on nodbus-plus library
-
-      
-      let nodbusTcpClient = new NodbusTcpClient(NetChannel);     
+      const nodbus = require('nodbus-plus');
+      const NetChannel = require('custom\net\custome_channel.js'); //this is a example  file for a user channel, it do not exist on nodbus-plus library    
+      let nodbusTcpClient = nodbus.createTcpClient('my_custom_channel', NetChannel);     
 
 
 
 NodbusTcpClient's Events
 ========================
 
+**Inherited Events**
+
+The following events are inherited from :ref:`ModbusTcpClient Class <modbus_tcp_master>`:
+* ``req-timeout`` - Emitted when a request times out before receiving a response.
+* ``transaction`` - Emitted when a complete request/response pair has been processed.
 
 Event: 'connection'
 -------------------
@@ -53,6 +56,12 @@ Event: 'connection'
 
 Emitted when the client succesfully connect to a server. 
 
+.. code-block:: javascript
+
+      nodbusTcpClient.on('connection', (id) ->{
+         console.log('Connected to server on channel: ' + id + '\n');
+      })
+
 Event: 'connection-closed'
 ---------------------------
 
@@ -60,6 +69,11 @@ Event: 'connection-closed'
 
 Emitted when the channel close the connection.
 
+.. code-block:: javascript
+
+      nodbusTcpClient.on('connection-closed', (id) ->{
+         console.log('Connection closed on channel: ' + id + '\n');
+      })
 
 Event: 'data'
 ---------------------
@@ -70,31 +84,25 @@ Event: 'data'
 
 Emitted when the channel emit the data event.
 
+.. code-block:: javascript
+
+      client.on('data', (id, data) => {
+         console.log(`Raw data from ${id}:`, data);
+      });
 
 
 Event: 'error'
 --------------
 
-* **e** <Error>: The error object.
+Emitted when the transport reports an error.
 
-Emitted when a error occurs.
+* **err** <Error>: Error object
 
+.. code-block:: javascript
 
-Event: 'req-timeout'
---------------------
-
-* **transactionId** <number>: Indicate wich request fires the timeout event. 
-* **vreq** <Buffer>: Modbus request adu buffer.
-
-  .. code-block:: javascript
-
-      nodbusTcpClient.on('req-timeout', (id, req) ->{
-         console.log('Timeout error from request: ' + id + '\n');
-      })
-
-This event is emmited when the number of milliseconds pass to :ref:`Method: modbusTcpClient.setReqTimer(transactionId, [timeout])` ends without call 
-:ref:`Method: modbusTcpClient.clearReqTimer(transactionId)`
-
+      client.on('error', (err) => {
+         console.error('Client error:', err);
+      });
 
 Event: 'request'
 ----------------
@@ -117,7 +125,7 @@ Event: 'request'
 
 
 Event: 'response'
-----------------
+-----------------
 
 * **id** <string>: Channel's name.
 
@@ -136,15 +144,6 @@ Event: 'response'
   Emited when data received fron server has been validated.
 
 
-Event: 'transaction'
---------------------
-
-* **req** <Buffer>: Modbus Tcp request adu. 
-* **res** <Buffer>: Modbus Tcp request adu.  
-
-This event is emmited when the :ref:`Method: modbusTcpClient.processResAdu(bufferAdu)` is called to manage a server response.
-
-
 Event: 'write'
 ---------------------
 
@@ -154,25 +153,26 @@ Event: 'write'
 
 Emited after the client send data to the server.
 
+.. code-block:: javascript
+
+      client.on('write', (id, reqAdu) => {
+         console.log(`Data written to ${id}:`, reqAdu);
+      });
+
 
 NodbusTcpClient's Atributes
 ===========================
 
+**Inherited Attributes**
 
-Atribute: nodbusTcpClient._transactionCount
---------------------------------------------
+The following attributes are inherited from :ref:`ModbusTcpClient Class <modbus_tcp_master>`:
 
-* <number>
+- ``_transactionCount`` — Internal 16-bit transaction counter (use the accessor ``transactionCount``).
+- ``transactionCount`` — Accessor property for the transaction counter (getter/setter with wrap-around).
+- ``maxNumberOfTransaction`` — Maximum number of concurrent transactions (default: 64).
+- ``reqPool`` — Map of pending requests keyed by transaction ID (Map<number, Buffer>).
+- ``reqTimersPool`` — Map of active timeout timers keyed by transaction ID (Map<number, Timeout>).
 
-This property stores the tcp client's transactions counter. It should be not us directly instead through the accessor property transactionCount. 
-
-
-Atribute: nodbusTcpClient.maxNumberOfTransaction
--------------------------------------------------
-
-* <number>
-
-This property stores the maximum value of simultaneously open transactions allowed for the client. Default value is 64.
 
 Atribute: nodbusTcpClient.channelType
 --------------------------------------
@@ -190,42 +190,40 @@ Atribute: nodbusTcpClient.channels
     * *key* <string> Channel's id.
     * *value* <object>: A channel object. See :ref:`NetChannel Class <nodbus_net_channel>`
 
-
-Atribute: nodbusTcpClient.reqPool
------------------------------------------
-
-* <Map>
-    * *key* <number>: Transaction ID
-    * *value* <Buffer>: Modbus Tcp Adu.
-
-A map to store active request. Each request is stored with his transaction's id as key.
-
-
-Atribute: nodbusTcpClient.reqTimersPool
-----------------------------------------------
-
-* <Map>
-    * *key* <number>: Transaction ID
-    * *value* <Buffer>: timer's id.
-
-A map to store active request's timer. Each request start a timeout timer when is sended to server. This map store the timers is for each request using her transaction's id as key.
-
-
-Atribute: nodbusTcpClient.transactionCount
--------------------------------------------
-
-* <number>
-   
-Accesor property to get and set the transaction counter.
-
-
 NodbusTcpClient's Methods
 =========================
 
 
-See :ref:`ModbusTcpClient Class Methods <modbus_tcp_client_methods>` for all base class inherited methods.
+The following methods are inherited from the base classes and are available on `NodbusTcpClient`:
 
+**Inherited Methods from ModbusTcpClient**
 
+- ``transactionCount`` (getter/setter) — Accessor for the internal transaction counter (wrap-around at 65536).
+- ``makeHeader(unitId, pduLength)`` — Creates the 7-byte MBAP header for Modbus TCP.
+- ``parseHeader(bufferHeader)`` — Parses a 7-byte MBAP header and returns its fields.
+- ``makeRequest(unitId, pdu)`` — Builds a complete Modbus TCP ADU (MBAP header + PDU).
+- ``storeRequest(bufferReq)`` — Adds a pending request to the request pool keyed by transaction ID.
+- ``setReqTimer(transactionId, timeout)`` — Sets a timeout timer for a pending request.
+- ``clearReqTimer(transactionId)`` — Clears the timeout timer for a pending request.
+- ``processResAdu(bufferAdu)`` — Matches a received response ADU to a stored request and emits a transaction.
+
+**Inherited Methods from ModbusClient (PDU builders & utilities)**
+
+- ``readCoilStatusPdu(startCoil, coilQuantity)``
+- ``readInputStatusPdu(startInput, inputQuantity)``
+- ``readHoldingRegistersPdu(startRegister, registerQuantity)``
+- ``readInputRegistersPdu(startRegister, registerQuantity)``
+- ``forceSingleCoilPdu(value, startCoil)``
+- ``presetSingleRegisterPdu(value, startRegister)``
+- ``forceMultipleCoilsPdu(values, startCoil, coilQuantity)``
+- ``presetMultipleRegistersPdu(values, startRegister, registerQuantity)``
+- ``maskHoldingRegisterPdu(values, startRegister)``
+- ``readWriteMultipleRegistersPdu(values, readStartingAddress, quantitytoRead, writeStartingAddress, quantityToWrite)``
+- ``boolToBuffer(value)`` — Helper to convert a boolean to a 2-byte coil value buffer.
+- ``getMaskRegisterBuffer(...)`` — Utility provided via prototype from utils.
+- ``boolsToBuffer(...)`` — Utility provided via prototype from utils.
+
+**Own Methods**
 
 Method: nodbusTcpClient.addChannel(id, type, channelCfg)
 ---------------------------------------------------------
@@ -252,6 +250,7 @@ Method: nodbusTcpClient.addChannel(id, type, channelCfg)
       timeout: 500}     // miliseconds for timeout event
 
       nodbusTcpClient.addChannel('device1', 'tcp1', device1);
+      nodbusTcpClient.addChannel('device2', 'udp1', {ip: '192.168.1.100', port: 503, timeout: 500});
       
 
 Method: nodbusTcpClient.connect(id)
@@ -261,7 +260,9 @@ Method: nodbusTcpClient.connect(id)
 
   This method try to connect to the remote server configured on the channel.
 
-
+.. code-block:: javascript
+      
+      nodbusTcpClient.connect('device1'); // connects to the server configured on channel 'device1'
 
 Method: nodbusTcpClient.delChannel(id)
 ----------------------------------------
@@ -270,7 +271,9 @@ Method: nodbusTcpClient.delChannel(id)
 
   This method remove a channel from the channels list :ref:`Atribute: nodbusTcpClient.channels`.
 
-
+.. code-block:: javascript
+      
+      nodbusTcpClient.delChannel('device1'); // removes channel 'device1' from the client     
 
 Method: nodbusTcpClient.disconnect(id)
 ----------------------------------------
@@ -279,52 +282,23 @@ Method: nodbusTcpClient.disconnect(id)
 
 This method send the FIN package to the remote server to close the connection.
 
-
+.. code-block:: javascript
+      
+      nodbusTcpClient.disconnect('device1'); // disconnects channel 'device1' from the server
 
 Method: nodbusTcpClient.isChannelReady(id)
-----------------------------------------
+-------------------------------------------
 
 * **id** <String>: Channels's name.
 * **return** <boolean>: true if channel is connected and ready to send data to the server, otherwise false.
 
   This method return true if channel is connected and ready to send data to the server.
 
-
-Method: nodbusTcpClient.parseHeader(bufferHeader)
----------------------------------------------------------
-
-* **bufferHeader** <Buffer>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
-* **Returns** <object>: return a object with header's fields as properties:
-    * *transactionId* <number>: the transaction id.
-    * *protocolId* <number>: Must be 0 for modbus tcp protocol.
-    * *length* <number>: the number a bytes following the header including the unit id byte.
-    * *unitId* <number>: The unit id field, using by gateways to transalte modbus tcp adu to modbus serial adu.
-
-This functions create a modbus tcp header's object. It throws a TypeError if argument is not a buffer instance and throw a RangeError if his length is diferent than 7. Example:
-
 .. code-block:: javascript
       
-      let rawHeader = Buffer.from([0x00, 0x10, 0x00, 0x00, 0x00, 0x07, 0x05]);
-      let header = nodbusTcpClient.parseHeader(rawHeader);
-      console.log(header.transactionId);
-      console.log(header.protocolId);
-      console.log(header.length);
-      console.log(header.unitId);
-      //Output
-      //16
-      //0
-      //7
-      //5
+      let isReady = nodbusTcpClient.isChannelReady('device1');
+      console.log(`Channel 'device1' ready: ${isReady}`);
 
-
-Method: nodbusTcpClient.makeRequest(unitId, pdu)
----------------------------------------------------------
-
-* **unitId** <number>: Legacy modbus address for being using for a gateway. Modbus spec recomend using 255.
-* **pdu** <Buffer>: The pdu's buffer.
-* **Returns** <Buffer>: return a tcp adu request's buffer
-
-This functions first increment the transaction counter and create a modbus tcp request ready to be send to the client.
 
 
 Method: nodbusTcpClient.forceSingleCoil(value, channelId, unitId, startCoil)
@@ -553,21 +527,3 @@ This functions create the read and write holding registers (function 23) request
       successStatus = nodbusTcpClient.readWriteMultiplesRegisters(vals, 'device1', 255, 10, 5, 99);
 
 
-Method: modbusClient.getWordFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
-
-Method: modbusClient.setWordToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned.

@@ -136,8 +136,7 @@ class SerialChannel {
 
     /**
     * Init a connection with a server 
-    * @returns {Promise} A promise that will be resolve once the connection is stablished with the socket as argument, or will 
-    * be rejected with ip and port as parameters.
+    * @returns {Promise} A promise that will be resolve once the port is open.
     */
     connect(){
         
@@ -178,7 +177,6 @@ class SerialChannel {
     * Write data to a server 
     * @param {Buffer} frame data to send to server.
     * @returns {bool} True if success, otherwise false
-    * be rejected with ip and por as parameters.
     */
     write(frame){
 

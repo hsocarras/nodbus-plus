@@ -68,7 +68,7 @@ After emit this event the client is free to send new request because the activeR
 Event: 'transaction'
 --------------------
 
-This event is emmited when the :ref:`Method: modbusSerialClient.processResAdu(bufferAdu, [ascii])` is called to manage a server response.
+This event is emmited when the method :ref:`modbusSerialClient.processResAdu` is called to manage a server response.
 
 * **req** <Buffer>: Modbus serial request adu. 
 * **res** <Buffer>: Modbus serial response adu.
@@ -203,7 +203,7 @@ This functions call the build in clearTimeout function to avoid emit the'req-tim
     modbusSerialClient.clearReqTimer();
 
 Method: modbusSerialClient.makeRequest(address, pdu, asciiMode)
----------------------------------------------------------
+------------------------------------------------------------------
 
 * **address** <number>: Modbus address value between 0 and 247.
 * **pdu** <Buffer>: The pdu's buffer.
@@ -218,6 +218,8 @@ This functions create a modbus serial request ready to be send to the client.
     let pdu = modbusSerialClient.readHoldingRegistersPdu(0, 2);
     let requestAdu = modbusSerialClient.makeRequest(address, pdu, false);
     console.log(requestAdu); //Buffer:[0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B]
+
+.. _modbusSerialClient.processResAdu:
 
 Method: modbusSerialClient.processResAdu(bufferAdu)
 -------------------------------------------------------------
@@ -246,7 +248,7 @@ This functions store a timerId in the :ref:`request timers pool <Atribute: modbu
     
 
 Method: modbusSerialClient.setTurnAroundDelay([timeout])
----------------------------------------------------
+----------------------------------------------------------
 
 * **timeout** <number>: Number of milliseconds to await for fire broadcast-timeout event.
 * **Returns** <number>: Timer's id to be use on clearTimeout.
@@ -260,7 +262,7 @@ Is used when a broadcast request is sended.
     let timerId = modbusSerialClient.setTurnAroundDelay(timeout);
 
 Method: modbusSerialClient.storeRequest(bufferReq, asciiMode)
-------------------------------------------------------------
+---------------------------------------------------------------
 
 * **bufferRequest** <Buffer>: A buffer with the modbus request.
 * **asciiMode** <boolean>: A flag that indicate that request stored is ascii.

@@ -1,3 +1,4 @@
+
 .. _nodbus_net_channel:
 
 ===========================
@@ -9,201 +10,195 @@ API: Net Channel
 .. contents:: Table of Contents
    :depth: 3
 
-Nodbus implementation for a  modbus TCP or serial client use a netChanner object to implement the network layer. This object can be one of the following types:
+NetChannel (network channel) is the abstraction used by Nodbus-Plus to implement the network layer for Modbus clients.
+Nodbus-plus come with built-in NetChannel implementations for TCP, UDP, and serial transports. These are:
 
-* **TcpChannel**: A wrapper around node `net.Socket <https://nodejs.org/api/net.html#class-netserver>`_.
+- ``TcpChannel`` — a thin wrapper around Node's ``net.Socket``.
+- ``UdpChannel`` — a thin wrapper around Node's ``dgram.Socket``.
+- ``SerialChannel`` — a wrapper around `serialport <https://serialport.io/>`_.
 
-* **UdpChannel**: A wrapper around node `dgram.Socket <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
+A custom NetChannel implementation can be used by implementing the same interface.
 
-* **SerialChannel**: A wrapper around node `serialport <https://serialport.io/>`_ .
-
-
-Creating a Nodbus NetChannel Instance
-====================================
+Creating a NetChannel instance
+===============================
 
 new NetChannel([options])
 -------------------------
 
-* **options** <object>: Configuration object with the following properties (for tcp and udp channel) :
+``options`` is an object whose supported properties depend on the transport type:
 
-   * port <number> : The tcp or udp port to listen. Default 502.
-   * ip <string>: Ip address
+TCP / UDP options
 
-* **options** <object>: Configuration object with the following properties (for serial channel):
+  * *port* <number>: TCP/UDP port to connect to (default: ``502``).
+  * *ip* <string>: IP address or hostname (default: ``localhost``).
+  * *timeout* <number>: Milliseconds to await for a response on the channel.
+  * *udpType* <string>: For UDP channels, either ``udp4`` or ``udp6`` (default: ``udp6``).
 
-   * port <string> : The path to the serial port. Example 'COM1.
-   * speed <number>: Enum with following baudrates in bps : 0-110, 1-300, 2-1200, 3-2400, 4-4800, 5-9600, 6-14400, 7-19200, 8-38400, 9-57600, 10-115200. Default 7.
-   * dataBits <number>: 7 or 8. Default 8.
-   * stopBits <number>: 0 or 1.
-   * parity <number>: Enum with following value. 0-'none', 1-'even', 2-'odd'. Default 1.
-   * timeBetweenFrame <number>: Number of millisends to await without receiving data to consider end of modbus frame.
+Serial options
 
-Constructor for new NetChannel instance.
+  * *port* <string>: Serial port path, e.g. ``COM1`` or ``/dev/ttyUSB0``.
+  * *baudRate* <number>: Baud rate (for example: 9600, 19200, 38400, 57600, 115200).
+  * *dataBits* <number>: 7 or 8 (default: 8).
+  * *stopBits* <number>: 1 or 2 (default: 1).
+  * *parity* <string>: ``none``, ``even``, or ``odd`` (default: ``none``).
+  * *timeBetweenFrame* <number>: Milliseconds to consider the end of a Modbus RTU frame.
 
-
-NetChannel Event's Hooks
-========================
-
-The net channel object is not a event emitter, instead it uses the core channel's events to call hooks functions.
-
-onConnectHook
--------------------------
-
-This function is called when the core channel object emits the 'connect' event.
-
-onDataHook
------------
+Constructor returns a configured NetChannel instance for the chosen transport.
 
 
-* **data** <Buffer>: Data received.
+Event hooks
+===========
 
-This function is called when the core channel emits the data event.
+NetChannel is not itself an EventEmitter. Instead, it exposes hook properties that the calling code (for example the Nodbus client/server) assigns to handle transport events.
+Hook signatures are documented below.
 
-onErrorHook
------------
+.. _channel_onConnectHook:
 
-* **e** <object>: error object.
+onConnectHook()
+-----------------
 
-This function is called when the core channel emits the 'error' event.
+Called when the underlying transport establishes a connection. For build in TCP this is when the TCP socket connects.
+For UDP and serial channels this is called when the channel is ready to send/receive data. No arguments are passed.
 
+.. _channel_onDataHook:
 
-onMbAduHook
--------------
+onDataHook(data)
+-----------------
 
+Called when raw data is received from the transport. The argument is a Buffer containing the received bytes. 
+This is called before any protocol-level validation, so the data may not be a valid Modbus frame.
 
-* **data** <Buffer>: Data received.
+* **data** <Buffer>: Raw bytes received.
 
-This hook function is similar to onDataHook, but is only called when the buffer received has been validated.
+.. _channel_onErrorHook:
 
+onErrorHook(err)
+-----------------
 
-onCloseHook
+Called when the transport reports an error.
+
+* **err** <Error>: Error object.
+
+.. _channel_onMbAduHook:
+
+onMbAduHook(data)
 ------------------
 
-This hook function is called when core channel emits the 'close' event. It is called with no arguments.
+Called when received data has been validated as a Modbus ADU (after protocol-level validation).
 
-onWriteHook
------------
+* **data** <Buffer>: Validated Modbus ADU.
 
-* **data** <Buffer>: Data sended.
+.. _channel_onCloseHook:
 
-This hook function is called when data has been sennded to a server. It is called when connection socket write some data.
+onCloseHook()
+-------------
+
+Called when the underlying transport closes. No arguments are passed.
+
+.. _channel_onWriteHook:
+
+onWriteHook(data)
+------------------
+
+Called after data has been written to the transport.
+
+* **data** <Buffer>: Bytes that were written.
 
 
-NetChannel's Atributes
-=======================
+Attributes
+==========
 
-Atribute: netChannel.coreChannel
+Attribute: netChannel.coreChannel
 ---------------------------------
 
 * <object>
 
-   * **net.Socket**: For tcp `node <https://nodejs.org/api/net.html#class-netsocket>`_. 
-   * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
-   * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
+References the underlying transport object:
 
-This property is a node net.Socket or  udp.Socket in nodbus tcpClient class or serialport from serialport library in nodbus serial client. 
-The netChannel class in Nodbus-Plus library is a wrapper around one of this main class.
+  * ``net.Socket`` for TCP channels.
+  * ``dgram.Socket`` for UDP channels.
+  * ``SerialPort`` for serial channels (from the serialport package).
 
-Atribute: netChannel.ip
---------------------------------------------
+Attribute: netChannel.ip (TCP/UDP channels)
+-------------------------------------------
 
-* <string>: server's ip address.
+* <string>
 
+Remote IP address or hostname used by the channel.
 
-Atribute: netChannel.onConnectHook
-----------------------------------------------
+Attribute: netChannel.port
+--------------------------
 
-* <function>
+* <number> (TCP/UDP channels) port number used by the channel. Default: ``502``.
+* <string> (serial channels) Serial port path used by the channel. Example: ``COM1`` or ``/dev/ttyUSB0``.
 
-This property is a reference for a hook function. See :ref:`onConnectHook`
+Remote port to connect with or serial port path to open.
 
+Attribute: netChannel.onConnectHook
+------------------------------------
 
-Atribute: netChannel.onDataHook
-----------------------------------
+* <function> — Hook assigned by the caller. See :ref:`channel_onConnectHook`.
 
-* <function>
+Attribute: netChannel.onDataHook
+--------------------------------
 
-This property is a reference for a hook function. See :ref:`onDataHook`
+* <function> — Hook assigned by the caller. See :ref:`channel_onDataHook`.
 
+Attribute: netChannel.onErrorHook
+---------------------------------
 
-Atribute: netChannel.onErrorHook
-----------------------------------
+* <function> — Hook assigned by the caller. See :ref:`channel_onErrorHook`.
 
-* <function>
+Attribute: netChannel.onMbAduHook
+---------------------------------
 
-This property is a reference for a hook function. See :ref:`onErrorHook`
+* <function> — Hook assigned by the caller. See :ref:`channel_onMbAduHook`.
 
+Attribute: netChannel.onWriteHook
+---------------------------------
 
+* <function> — Hook assigned by the caller. See :ref:`channel_onWriteHook`.
 
-Atribute: netChannel.onMbAduHook
-----------------------------------
+Attribute: netChannel.tcpCoalescingDetection (TCP/UDP channels)
+------------------------------------------------------------------
 
-* <function>
+* <boolean> — Enable or disable TCP coalescing detection for Modbus TCP. Default: ``false``.
 
-This property is a reference for a hook function. See :ref:`onMbAduHook`
+Attribute: netChannel.validateFrame
+-----------------------------------
 
-
-
-Atribute: netChannel.onWriteHook
-----------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onWriteHook`
-
-Atribute: netChannel.port
------------------------------
-
-* <number>
-
-Port where the server is listening.
-
-Atribute: netChannel.tcpCoalescingDetection
---------------------------------------------
-
-* <boolean>
-
-Activate o deactivate the tcp coalscing detection function for modbus tcp protocol. Default false.
+* <function> — Optional validator function used to verify received frames. Must have the following signature:
+* **frame** <Buffer>: Buffer containing the received bytes.
+* **returns** <boolean>: Should return ``true`` if the frame is valid for the protocol in use, or ``false`` otherwise.
 
 
-Atribute: netChannel.validateFrame
-----------------------------------
+Methods
+=======
 
-* <function>
+netChannel.connect()
+---------------------
 
-This property is a reference to a function that performs validation.
- It defines how the nodbus server executes certain protocols for validating data at the network layer level.
+* **returns** <Promise>: Resolves when the transport connection is established. The resolved value is transport-specific (for TCP it is the socket), or the promise is rejected on connection error.
 
- It is called with a Buffer as argument with the modbus frame received.
+Establishes the transport connection (open serial port, connect TCP socket, etc.).
 
+netChannel.disconnect()
+------------------------
 
-netChannel's Methods
-====================
+* **returns** <Promise>: Resolves when the transport connection is closed.
 
+Closes the transport (close serial port or TCP socket).
 
-Method: netChannel.connect()
+netChannel.isConnected()
+-------------------------
+
+* **returns** <boolean>: ``true`` if the transport is currently connected/open.
+
+netChannel.write(frame)
 -------------------------------
 
-* **Return** <Promise>: Promise that will be resolve when the connection is stabished whit  a socket as argument, or rejected with ip and port as parameter.
+* **frame** <Buffer>: Buffer containing bytes to send.
+* **returns** <boolean>: ``true`` if the write operation was successfully initiated, or ``false`` if there was an error (for example, if the transport is not connected).
 
-This method try to connect to channels ip and port, return a promise that resolve if the connectios is stablished successfully, otherwhise is rejected.
+Writes bytes to the transport. After the write completes the channel should call ``onWriteHook`` (if assigned) with the written data.
 
-
-Method: netChannel.disconnect()
--------------------------------
-
-* **Return** <Promise>: Promise that will be resolve when the connection is closed.
-
-Method: netChannel.isConnected()
--------------------------------
-
-* **Return** <bool>: Return true is the socket is connected.
-
-
-Method: netChannel.write(socket, frame)
--------------------------------------------------
-
-* **socket** <object>: buffer containig the pdu's data.
-* **frame** <Buffer>: buffer with response pdu.
-
-function to write data to a server. It takes a srteam object and a buffer to write to. When data has been send, the function calls onWriteHook funtion.
