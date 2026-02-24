@@ -76,7 +76,7 @@ NodbusTcpServer's Events
 
 **Inherited Events**
 
-The following events are inherited from :ref:`ModbusSerialServer Class <modbus_serial_server>`:
+The following events are inherited from :ref:`ModbusTcpServer Class <modbus_tcp_server>`:
 
 - ``error`` : Emitted when an error occurs. Args: **e** <Error>.
 - ``exception`` : Emitted when a Modbus exception is generated. Args: **functionCode** <number>, **exceptionCode** <number>, **name** <string>.

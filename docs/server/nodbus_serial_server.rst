@@ -94,6 +94,7 @@ NodbusSerialServer's Events
 **Inherited Events**
 
 The following events are inherited from :ref:`ModbusSerialServer Class <modbus_serial_server>`:
+
 - ``error`` : Emitted when an error occurs. Args: **e** <Error>.
 - ``exception`` : Emitted when a Modbus exception is generated. Args: **functionCode** <number>, **exceptionCode** <number>, **name** <string>.
 - ``write-coils`` : Emitted after coils are written. Args: **startCoil** <number>, **quantityOfCoils** <number>.
