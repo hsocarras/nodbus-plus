@@ -1,3 +1,4 @@
+
 .. _nodbus_net_server:
 
 ===========================
@@ -9,234 +10,217 @@ API: Net Server
 .. contents:: Table of Contents
    :depth: 3
 
-Nodbus implementation for a  modbus TCP or serial servers use a netServer object to implement the network layer. This object can be one of the following types:
+The Nodbus library uses a NetServer abstraction to implement the network layer for Modbus servers (TCP, UDP, or serial).
+A  build-in NetServer instance may wrap one of the following transport implementations:
 
-* **tcpServer**: A wrapper around node `net.Server <https://nodejs.org/api/net.html#class-netserver>`_.
-
-* **udpserver**: A wrapper around node `dgram.Socket <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
-
-* **serialServer**: A wrapper around node `serialport <https://serialport.io/>`_ .
+- ``tcpServer`` — wrapper around Node's ``net.Server`` (`node.net.Server <https://nodejs.org/api/net.html#class-netserver>`_).
+- ``udpServer`` — wrapper around Node's ``dgram.Socket`` (`node.dgram.Socket <https://nodejs.org/api/dgram.html#class-dgramsocket>`_).
+- ``serialServer`` — wrapper around the ``serialport`` package (`serialport <https://serialport.io/>`_).
 
 
-Creating a Nodbus NetServer Instance
-====================================
+Creating a NetServer instance
+=============================
 
 new NetServer([options])
--------------------------
+------------------------
 
-* **options** <object>: Configuration object with the following properties (for tcp and udp net layer):
+``options`` is an object whose supported properties depend on the transport type.
 
-   * port <number> : The tcp or udp port to listen. Default 502.
-   * maxConnections <number>: Max number of simultaneous connection supported. (Only tcp net server). Default 32.
-   * udpType <string>: Used in udp server to set 'udp4' or 'udp6'. Default 'udp6'.
+TCP / UDP options
 
+  * *port* <number>: TCP/UDP port to listen on (default: ``502``).
+  * *maxConnections* <number>: Maximum simultaneous TCP connections (TCP only). Default: ``32``.
+  * *udpType* <string>: For UDP channels, either ``udp4`` or ``udp6`` (default: ``udp6``).
 
-* **options** <object>: Configuration object with the following properties (for serial net layer):
+Serial options
 
-   * port <string> : The path to the serial port. Example 'COM1.
-   * speed <number>: Enum with following baudrates in bps : 0-110, 1-300, 2-1200, 3-2400, 4-4800, 5-9600, 6-14400, 7-19200, 8-38400, 9-57600, 10-115200. Default 7.
-   * dataBits <number>: 7 or 8. Default 8.
-   * stopBits <number>: 0 or 1.
-   * parity <number>: Enum with following value. 0-'none', 1-'even', 2-'odd'. Default 1.
-   * timeBetweenFrame <number>: Number of millisends to await without receiving data to consider end of modbus frame.
+  * *port* <string>: Serial port path (example: ``COM1``).
+  * *baudRate* <number>: Baud rate in bps (for example: 110, 300, 1200, 2400, 4800, 9600, 14400, 19200, 38400, 57600, 115200). Default: ``19200``.
+  * *dataBits* <number>: 7 or 8 (default: ``8``).
+  * *stopBits* <number>: 1 or 2 (default: ``1``).
+  * *parity* <string>: ``none``, ``even``, or ``odd`` (default: ``none``).
+  * *timeBetweenFrame* <number>: Milliseconds to consider the end of a Modbus RTU frame.
 
-
-Constructor for new NetServer instance.
-
-
-NetServer Event's Hooks
-========================
-
-The net server object is not a event emitter, instead it uses the core server events to call hooks functions.
-
-onConnectionAcceptedHook
--------------------------
-
-* **socket** <object>: socket created
-
-This function is called when the core server emits the 'connection' event and the connection is accepted by the server.
-
-onDataHook
------------
-
-* **socket** <object>: socket that emit the data event
-* **data** <Buffer>: Data received.
-
-This function is called when the core server emits the data event.
-
-onErrorHook
------------
-
-* **e** <object>: error object.
-
-This function is called when the core server emits the 'error' event.
-
-onListeningHook
-----------------
-
-This function is called when the core server emit the 'listening' event. It is called with no arguments.
-
-onMbAduHook
--------------
-
-* **socket** <object>: socket that emit the data event
-* **data** <Buffer>: Data received.
-
-This hook function is similar to onDataHook, but is only called when the buffer received has been validated and has correct length for modbus tcp or correct checksum
-for modbus serial.
+Constructor returns a configured NetServer instance for the chosen transport.
 
 
-onServerCloseHook
+Event hooks
+===========
+
+`NetServer` is not an EventEmitter. Instead, it exposes hook properties that the caller assigns to handle transport events. Hook signatures are documented below.
+
+onConnectionAcceptedHook()
+---------------------------
+
+Called when the underlying transport accepts a new connection (TCP).
+
+* **socket** <object>: The connection/socket object created by the transport.
+  
+.. code-block:: javascript
+
+      netServer.onConnectionAcceptedHook = (socket) => {
+        console.log('New connection accepted:', socket.remoteAddress);
+      };
+
+onDataHook(data)
+-----------------
+
+Called when raw data arrives from the transport. This is invoked before any protocol-level validation.
+
+* **source** <object>: The source of the data (socket in tcp, rinfo in udp or serial port in serial).
+* **data** <Buffer>: Raw bytes received.
+
+.. code-block:: javascript
+
+      netServer.onDataHook = (source, data) => {
+        console.log('Data received from', source, ':', data);
+      };
+
+onErrorHook(err)
+-----------------
+
+Called when the transport reports an error.
+
+* **err** <Error>: Error object.
+
+.. code-block:: javascript
+
+      netServer.onErrorHook = (err) => {
+        console.error('Transport error:', err);
+      };
+
+
+onListeningHook()
 ------------------
 
-This hook function is called when core server emits the 'close' event. It is called with no arguments.
+Called when the underlying server starts listening. No arguments are passed.
 
-onWriteHook
------------
+.. code-block:: javascript
 
-* **socket** <object>: socket that emit the data event
-* **data** <Buffer>: Data sended to client.
+      netServer.onListeningHook = () => {
+        console.log('Server is now listening on port', netServer.port);
+      };
 
-This hook function is called when data has been sennded by server to a client. It is called when connection socket write some data.
+onMbAduHook(source,data)
+-------------------------
 
+Called when received data has been validated as a Modbus ADU (after protocol-level validation).
 
-NetServer's Atributes
-=====================
+* **source** <object>: The source of the data (socket in tcp, rinfo in udp or serial port in serial).
+* **data** <Buffer>: Validated Modbus ADU.
 
-Atribute: netServer.activeConnections
---------------------------------------------
+onServerCloseHook()
+--------------------
 
-* <array>: An array with active connections.
+Called when the underlying transport closes. No arguments are passed.
 
+.. code-block:: javascript
 
-Atribute: netServer.coreServer
+      netServer.onServerCloseHook = () => {
+        console.log('Server has closed');
+      };
+
+onWriteHook(source, data)
+--------------------------
+
+Called after data has been written to the transport.
+
+* **source** <object>: The source of the data (socket in tcp, rinfo in udp or serial port in serial).
+* **data** <Buffer>: Bytes that were written.
+
+.. code-block:: javascript
+
+      netServer.onWriteHook = (source, data) => {
+        console.log('Data written to', source, ':', data);
+      };
+
+Attributes
+==========
+
+Attribute: netServer.activeConnections (TCP only)
+--------------------------------------------------
+
+* <Array>: List of active connections/sockets.
+
+Attribute: netServer.coreServer
 -------------------------------
 
-* <object>
+* <object> — Underlying transport instance:
 
-   * **net.Server**: For tcp `node <https://nodejs.org/api/net.html#class-netserver>`_. 
-   * **dgram.Socket**: For udp `node <https://nodejs.org/api/dgram.html#class-dgramsocket>`_.
-   * **SerialPort**: A wrapper around node `serialport <https://serialport.io/docs/api-serialport>`_ .
+  * ``net.Server`` for TCP
+  * ``dgram.Socket`` for UDP
+  * ``SerialPort`` for serial transport (from the ``serialport`` package)
 
-This property is a node net.Server in nodbus tcpServer class or node udp.Socket in nodbus udpServer or serialport from serialport library in nodbus serialServer. 
-The netServer class in Nodbus-Plus library is a wrapper around one of this main class.
+This property stores the actual transport object used by the NetServer wrapper.
 
-Atribute: netServer.isListening
--------------------------------------
+Attribute: netServer.isListening
+--------------------------------
 
-* <bool> 
+* <boolean>: ``true`` when the underlying transport is listening/open, otherwise ``false``.
 
-True if the coreServer is listening.
+Attribute: netServer.maxConnections
+-----------------------------------
 
+* <number>: Maximum number of TCP connections (TCP only).
 
-Atribute: netServer.maxConnections
--------------------------------------
+Attribute: netServer.port
+-------------------------
 
-* <number>
+* <number|string>: TCP/UDP port number or serial port path.
 
-The max number of connection accepted in the tcpServer type of netServer. In udpServer has no efect.
+Attribute: netServer.tcpCoalescingDetection
+-------------------------------------------
 
-Atribute: netServer.onConnectionAcceptedHook
-----------------------------------------------
+* <boolean>: Enable or disable TCP coalescing detection for Modbus TCP frames (default: ``false``).
 
-* <function>
-
-This property is a reference for a hook function. See :ref:`onConnectionAcceptedHook`
-
-
-Atribute: netServer.onDataHook
+Attribute: netServer.validateFrame
 ----------------------------------
 
-* <function>
+* <function>: Function used to validate incoming frames at the network layer. 
+It receives a ``Buffer`` containing the frame and should return ``true`` when the frame is complete and valid for the chosen protocol.
 
-This property is a reference for a hook function. See :ref:`onDataHook`
+Attributes: hook properties
+----------------------------
 
+The following hook properties reference functions described in the "Event hooks" section above:
 
-Atribute: netServer.onErrorHook
-----------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onErrorHook`
-
-
-Atribute: netServer.onListeningHook
-------------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onListeningHook`
+- ``onConnectionAcceptedHook``
+- ``onDataHook``
+- ``onErrorHook``
+- ``onListeningHook``
+- ``onMbAduHook``
+- ``onServerCloseHook``
+- ``onWriteHook``
 
 
-Atribute: netServer.onMbAduHook
-----------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onMbAduHook`
-
-
-Atribute: netServer.onServerCloseHook
---------------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onServerCloseHook`
-
-
-Atribute: netServer.onWriteHook
-----------------------------------
-
-* <function>
-
-This property is a reference for a hook function. See :ref:`onWriteHook`
-
-Atribute: netServer.port
------------------------------
-
-* <number>
-
-Port to listen to.
-
-Atribute: netServer.tcpCoalescingDetection
---------------------------------------------
-
-* <boolean>
-
-Activate o deactivate the tcp coalscing detection function for modbus tcp protocol. Default false.
-
-
-Atribute: netServer.validateFrame
-----------------------------------
-
-* <function>
-
-This property is a reference to a function that performs validation.
- It defines how the nodbus server executes certain protocols for validating data at the network layer level.
-
- It is called with a Buffer as argument with the modbus frame received.
-
-
-NetServer's Methods
-====================
-
+Methods
+=======
 
 Method: netServer.start()
--------------------------------
+-------------------------
 
-This method start the server.
+Start the server and begin accepting connections or listening on the configured transport.
 
+.. code-block:: javascript
+
+      netServer.start();
 
 Method: netServer.stop()
------------------------------
+------------------------
 
-This functions stop the server. No further connection are accepted.
+Stop the server. Existing connections may be closed and no new connections will be accepted.
+
+.. code-block:: javascript
+
+      netServer.stop();
 
 Method: netServer.write(socket, frame)
--------------------------------------------------
+--------------------------------------
 
-* **socket** <object>: buffer containig the pdu's data.
-* **frame** <Buffer>: buffer with response pdu.
+Write a frame to a client socket.
 
-function to write data to a client. It takes a srteam object and a buffer to wrie to. When data has been send, the function calls onWriteHook funtion.
+* **socket** <object>: The destination socket/connection.
+* **frame** <Buffer>: Buffer containing the ADU or PDU to send.
+
+After writing, the implementation should call the ``onWriteHook`` hook.
 

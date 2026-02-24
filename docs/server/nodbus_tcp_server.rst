@@ -9,65 +9,78 @@ Class: NodbusTcpServer
 .. contents:: Table of Contents
    :depth: 3
 
-       
 
-The NodbusTcpServer class extends the :ref:`ModbusTcpServer Class <modbus_tcp_server>`. This class implements a fully funcional modbus tcp server.
+The `NodbusTcpServer` class extends the :ref:`ModbusTcpServer Class <modbus_tcp_server>` and implements a fully functional Modbus TCP server.
 
 Creating a NodbusTcpServer Instance
-====================================
+===================================
 
-new nodbusTcpServer([netType], [options])
+new NodbusTcpServer([netType], [options])
 ------------------------------------------
 
-* **netType** <Class>: This argument define the constructor for the net layer. See :ref:`NetServer Class <nodbus_net_server>`
+* **netType** <Class>: Constructor for the transport layer. See :ref:`NetServer Class <nodbus_net_server>`.
+* **options** <object>: Configuration object with the following properties:
 
-* **options** <object>: Configuration object with following properties:
-
-  * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
-
-  * coils <number>: The cuantity of coils that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered, then the coils will share the same Buffer as holding registers. Default value is 2048.
-
-  * holdingRegisters <number>: The cuantity of holding registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
-  
-  * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
-
-  * port <number>: TCP port on which the server will listen. Default 502
-
-  * maxConnections <number>: Simultaneous conextions allowed by the server. Default 32.  
-
-  * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
+  * ``inputs`` <number>: Number of discrete inputs (0–65535). If set to ``0``, inputs share the same buffer as input registers. Default: ``2048``.
+  * ``coils`` <number>: Number of coils (0–65535). If set to ``0``, coils share the same buffer as holding registers. Default: ``2048``.
+  * ``holdingRegisters`` <number>: Number of holding registers (1–65535). Default: ``2048``.  
+  * ``inputRegisters`` <number>: Number of input registers (1–65535). Default: ``2048``.
+  * ``port`` <number|string>: TCP port on which the server will listen (example: ``502``). Default: ``502``.
+  * ``maxConnections`` <number>: Maximum simultaneous connections allowed by the server. Default: ``32``.
+  * ``udpType`` <string>: UDP socket type when UDP transport is used; either ``udp4`` or ``udp6``. Default: ``udp4``.
 
 * **Returns:** <NodbusTcpServer>
+  
+Nodbus-plus come with built-in NetServer implementations for TCP and UDP transports, that con be imported to construct a NodbusTcpServer. 
+See :ref:`NetServer Class <nodbus_net_server>` for more details.
 
-NodbusPlus expose the function createTcpServer([netConstructor], [options]) to create new instances for NodbusTcpClass.
+.. code-block:: javascript
+
+      const Tcp = require('nodbus-plus').NetTcpServer;
+      const Udp = require('nodbus-plus').NetUdpServer;
+      // Modbus TCP server using TCP transport
+      let nodbusTcpServer = new NodbusTcpServer(Tcp, {port: 1502});
+
+NodbusPlus also expose the function createTcpServer([netConstructor], [options]) to create new instances for NodbusTcpServer with built in NetServer implementations. 
+netConstructor is a string that can be 'tcp', 'udp4' or 'udp6' to create a NodbusTcpServer with the corresponding NetServer implementation. 
+If netConstructor is not provided or diferent that allowed values, the created NodbusTcpServer will use the built in TCP NetServer.
 
 .. code-block:: javascript
 
       const nodbus = require('nodbus-plus');
-      let nodbusTcpServer = nodbus.createTcpServer('tcp'); //default settings, net layer is tcp
 
-      let config = {
-         port:1502
-      }
-      // modbus tcp server listen to port 1502 and udp6
-      let nodbusTcpServer2 = nodbus.createTcpServer('udp6', config); 
-      //or udp version 4
-      let nodbusTcpServer3 = nodbus.createTcpServer('udp4', config); 
+      // Default TCP server (uses TCP transport)
+      let nodbusTcpServer = nodbus.createTcpServer('tcp');
 
-However new NodbusTcpServer instance can be created with customs :ref:`NetServer <nodbus_net_server>` importing the NodbusTcpServer Class.
+      let config = { port: 1502 };
+
+      // Modbus TCP server listening on port 1502 using UDP6 transport
+      let nodbusTcpServer2 = nodbus.createTcpServer('udp6', config);
+
+      // Modbus TCP server using UDP4 transport
+      let nodbusTcpServer3 = nodbus.createTcpServer('udp4', config);
+
+Alternatively, create a `NodbusTcpServer` with a custom :ref:`NetServer <nodbus_net_server>`.
 
 .. code-block:: javascript
 
       const NodbusTcpServer = require('nodbus-plus').NodbusTcpServer;
-      const NetServer = require('custom\net\custome_server.js');  //this is a example file for a user net server, it do not exist on nodbus-plus library
+      const NetServer = require('custom/net/custom_server.js');  // Example custom NetServer (not included in nodbus-plus)
 
       let config = {};
       let nodbusTcpServer = new NodbusTcpServer(NetServer, config);
 
-     
 
 NodbusTcpServer's Events
 =========================
+
+**Inherited Events**
+
+The following events are inherited from :ref:`ModbusSerialServer Class <modbus_serial_server>`:
+- ``error`` : Emitted when an error occurs. Args: **e** <Error>.
+- ``exception`` : Emitted when a Modbus exception is generated. Args: **functionCode** <number>, **exceptionCode** <number>, **name** <string>.
+- ``write-coils`` : Emitted after coils are written. Args: **startCoil** <number>, **quantityOfCoils** <number>.
+- ``write-registers`` : Emitted after holding registers are written. Args: **startRegister** <number>, **quantityOfRegisters** <number>.
 
 
 Event: 'closed'
@@ -75,431 +88,220 @@ Event: 'closed'
 
 Emitted when the server is closed.
 
+.. code-block:: javascript
+
+      nodbusTcpServer.on('closed', () => {
+          console.log('Server closed');
+      });
+
 
 Event: 'connection'
 -------------------
 
-* **socket** <Object>: A node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_
+* **socket** <Object>: A node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_.
 
-Emitted when a client connect. Only emmited when 'tcp' type layer is used.
+Emitted when a client connects. Only emitted when the TCP transport is used.
+
+.. code-block:: javascript
+
+      nodbusTcpServer.on('connection', (socket) => {
+          console.log('New client connected');
+      });
 
 
 Event: 'connection-closed'
 ---------------------------
 
-Emitted when the client's socket is closed and destroyed.
+Emitted when a client's socket is closed and destroyed.
 
+.. code-block:: javascript
 
-Event: 'error'
---------------
-
-* **e** <Error>: The error object.
-
-Emitted when a error occurs.
+      nodbusTcpServer.on('connection-closed', (socket) => {
+          console.log('Client connection closed');
+      });
 
 
 Event: 'data'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
-if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
-* **data** <Buffer>: Data received.
+* **source** <object>: A `net.Socket` if TCP is used, or a datagram ``rinfo`` object for UDP.
+* **data** <Buffer>: Raw bytes received.
 
-Emitted when the underlaying net server emit the data event.
+Emitted when the underlying net server emits a ``data`` event.
+
+.. code-block:: javascript
+
+      nodbusTcpServer.on('data', (source, data) => {
+          console.log('Data received from', source, ':', data);
+      });
 
 
 Event: 'listening'
 ------------------
 
-* **port** <number>: TCP port on which the server is listening.
+* **port** <number|string>: TCP port on which the server is listening.
 
-Emitted when the server is listening.
+Emitted when the server starts listening or the underlying transport is ready.
 
+.. code-block:: javascript
 
-Event: 'exception'
----------------------
-
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
-
-.. raw:: html
-
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
-
-Emitted when a Modbus exception occurs.
+      nodbusTcpServer.on('listening', (port) => {
+          console.log('Server is now listening on port', port);
+      });
 
 
 Event: 'request'
 ----------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  
-    if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
-* **request** <object>: A with following properties:
+* **source** <object>: A `net.Socket` if TCP is used, or a datagram ``rinfo`` object for UDP.
+* **request** <object>: An object with the following properties:
 
-  * *timeStamp* <number>: A timestamp for the request. 
+  * *timeStamp* <number>: Request timestamp.
+  * *transactionId* <number>: MBAP header transaction id.
+  * *unitId* <number>: MBAP header unit id.
+  * *functionCode* <number>: Modbus function code.
+  * *data* <Buffer>: PDU data.
 
-  * *transactionId* <number>: The header's transaction id field value.
+Emitted after the data event and only if the data validates at the network layer. This means that the received data has been validated as a complete and valid Modbus ADU frame,
+but before any protocol-level validation is performed on the PDU. Header fields are validated, but function code and data validation are not.
+This allows you to inspect all incoming requests, including those with unsupported function codes or invalid data, before the server generates an exception response.
 
-  * *unitId* <number>: The header's unit id field value.
+.. code-block:: javascript
 
-  * *functionCode* <number>: The modbus request's function code.
-
-  * *data* <Buffer>: The pdu's data.
-
-  Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
-
+      nodbusTcpServer.on('request', (socket, request) => {
+          console.log('Received request:', request);
+      });
 
 Event: 'response'
-----------------
+------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+* **source** <object>: A `net.Socket` (TCP) or datagram ``rinfo`` (UDP).
+* **response** <object>: An object with the following properties:
 
-* **response** <object>: A with following properties:
+  * *timeStamp* <number>: Response timestamp.
+  * *transactionId* <number>: MBAP header transaction id.
+  * *unitId* <number>: MBAP header unit id.
+  * *functionCode* <number>: Modbus function code.
+  * *data* <Buffer>: PDU data.
 
-  * *timeStamp* <number>: A timestamp for the request.
-  
-  * *transactionId* <number>: The header's transaction id field value.
+Emitted before sending the response ADU buffer to the socket.
 
-  * *unitId* <number>: The header's unit id field value.
+.. code-block:: javascript
 
-  * *functionCode* <number>: The modbus request's function code.
-
-  * *data* <Buffer>: The pdu's data.
-
-  Emited before to send the response adu's buffer to the socket to be sended.
-
+      nodbusTcpServer.on('response', (source, response) => {
+          console.log('Sending response:', response);
+      });
 
 Event: 'write'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
-* **res** <Buffer>: Server's response.
+* **source** <object>: A `net.Socket` (TCP) or datagram ``rinfo`` (UDP).
+* **res** <Buffer>: Server's response buffer.
 
-Emitted when the underlaying net server write data to the socket.
-
-
-Event: 'write-coils'
---------------
-
-* **startCoil** <number> Indicate in wich coil start the new value. 
-* **cuantityOfCoils** <number>: amound of coils modificated  
-
-Emitted after change a coil value due to a clienst write coil request.
-
-
-Event: 'write-registers'
---------------
-
-* **startRegister** <number> Indicate in wich register start the new value. 
-* **cuantityOfRegister** <number>: amound of register modificated.  
-
-Emitted after change a holding register value due to a clienst write register request. 
-
-
-NodbusTcpServer's Atributes
-===========================
-
-
-Atribute: nodbusTcpServer._internalFunctionCode
---------------------------------------------
-
-* <Map>
-
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
+Emitted when the underlying transport writes data to the socket.
 
 .. code-block:: javascript
 
-      //Example of how to add new custom modbus function code handle function
-      class NodbusTcpServerExtended extends NodbusTcpServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
-      
+      nodbusTcpServer.on('write', (source, res) => {
+          console.log('Data written to', source, ':', res);
+      });
 
 
-Atribute: nodbusTcpServer.coils
--------------------------------
+NodbusTcpServer's Attributes
+============================
 
-* <Buffer>
+**Inherited Attributes**
 
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
+The following attributes are inherited from :ref:`ModbusServer Class <modbus_server>`:
 
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])>` 
-and :ref:`setBooltoBuffer method <Method: nodbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
+- ``_internalFunctionCode`` — Map of supported Modbus function codes (Map<number, string>).
+- ``supportedFunctionCode`` — Getter that returns an iterator over supported function codes.
+- ``holdingRegisters`` — Buffer containing holding registers (4x reference).
+- ``inputRegisters`` — Buffer containing input registers (3x reference).
+- ``inputs`` — Buffer containing discrete inputs (1x reference).
+- ``coils`` — Buffer containing coils (0x reference).
 
 
 
-Atribute: nodbusTcpServer.holdingRegisters
--------------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: nodbusTcpServer.getWordFromBuffer(targetBuffer, [offset])>` and 
-the :ref:`setWordtoBuffer method <Method: nodbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusTcpServer.inputRegisters
-------------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: nodbusTcpServer.getWordFromBuffer(targetBuffer, [offset])>` and 
-the :ref:`setWordtoBuffer method <Method: nodbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusTcpServer.inputs
----------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])>`
-and :ref:`setBooltoBuffer method <Method: nodbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-
-
-Atribute: nodbusServer.isListening
---------------------------------------------
+Attribute: nodbusTcpServer.isListening
+--------------------------------------
 
 * <boolean>
 
-A getter that return the listening status.
-      
+Getter that returns the server listening status.
 
-Atribute: nodbusTcpServer.net
---------------------------------------------
+
+Attribute: nodbusTcpServer.net
+------------------------------
 
 * <Object>
 
-A instance of a NetServer Class. See :ref:`NetServer Class <nodbus_net_server>`.
+Instance of a NetServer class. See :ref:`NetServer Class <nodbus_net_server>`.
 
 
-Atribute: nodbusTcpServer.maxConnections
---------------------------------------------
-
-* <number>
-
-Max number of simultaneous connections allowed by the server.
-
-
-Atribute: nodbusTcpServer.port
---------------------------------------------
+Attribute: nodbusTcpServer.maxConnections
+-----------------------------------------
 
 * <number>
 
-TCP port on which the server will listen.
+Maximum number of simultaneous connections allowed by the server.
 
-Atribute: nodbusTcpServer.supportedFunctionCode
-------------------------------------------------
 
-* <iterator>
+Attribute: nodbusTcpServer.port
+-------------------------------
 
-This is a getter that return an iterator object trhough nodbusTcpServer._internalFunctionCode keys. It's the same that call nodbusTcpServer._internalFunctionCode.keys().
+* <number>
 
-.. code-block:: javascript
-
-      //Example of getting all suported function code.       
-      for(const functionCode of nodbusTcpServer.supportedFunctionCode){
-         console.log(functionCode)
-      }
-
+TCP port on which the server listens.
 
 
 NodbusTcpServer's Methods
 =========================
 
-See :ref:`ModbusTcpServer Class Methods <modbus_tcp_server_methods>` for all base class inherited methods.
+**Inherited Methods**
 
-Method: nodbusTcpServer.getBoolFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
+The following methods are inherited from :ref:`ModbusServer Class <modbus_server>`:
 
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to read.
-* **offset** <number>: A number with value's offset inside the buffer.
-* **Return** <boolean>: value.
+- ``processReqPdu(reqPduBuffer)`` : Main function that processes a request PDU and returns a response PDU.
+- ``makeExceptionResPdu(mbFunctionCode, exceptionCode)`` : Creates an exception response PDU.
+- ``readCoilsService(pduReqData)`` : Executes Function Code 01 (Read Coil Status).
+- ``readDiscreteInputsService(pduReqData)`` : Executes Function Code 02 (Read Discrete Inputs).
+- ``readHoldingRegistersService(pduReqData)`` : Executes Function Code 03 (Read Holding Registers).
+- ``readInputRegistersService(pduReqData)`` : Executes Function Code 04 (Read Input Registers).
+- ``writeSingleCoilService(pduReqData)`` : Executes Function Code 05 (Write Single Coil).
+- ``writeSingleRegisterService(pduReqData)`` : Executes Function Code 06 (Write Single Register).
+- ``writeMultipleCoilsService(pduReqData)`` : Executes Function Code 15 (Write Multiple Coils).
+- ``writeMultipleRegistersService(pduReqData)`` : Executes Function Code 16 (Write Multiple Registers).
+- ``maskWriteRegisterService(pduReqData)`` : Executes Function Code 22 (Mask Write Register).
+- ``readWriteMultipleRegistersService(pduReqData)`` : Executes Function Code 23 (Read/Write Multiple Registers).
+- ``getBoolFromBuffer(targetBuffer, [offset])`` : Reads a boolean value from a buffer at the specified offset.
+- ``setBoolToBuffer(value, targetBuffer, [offset])`` : Writes a boolean value to a buffer at the specified offset.
+- ``getWordFromBuffer(targetBuffer, [offset])`` : Reads a 16-bit word from a buffer at the specified offset.
+- ``setWordToBuffer(value, targetBuffer, [offset])`` : Writes a 16-bit word to a buffer at the specified offset.
+  
+ For :ref:`ModbusTcpServer Class Methods <modbus_tcp_server_methods>`:
 
-
-This method read a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-      nodbusTcpServer.inputs[0] = 0x44  //first byte 0100 0100
-      nodbusTcpServer.coils[1] =  0x55 //second byte 0101 0101
-
-      nodbusTcpServer.getBoolFromBuffer(nodbusTcpServer.inputs, 6) //return 1
-      nodbusTcpServer.getBoolFromBuffer(nodbusTcpServer.coils, 5) //return 0
-
-
-Method: nodbusTcpServer.getPdu(reqAduBuffer)
-----------------------------------------------
-
-* **reqAduBuffer** <Buffer>: adu buffer containing the header and pdu.
-* **Return** <Buffer>: buffer with the pdu.
-
-This method return the pdu part of a modbus tcp adu.
-
-
-Method: nodbusTcpServer.getMbapHeader(reqAduBuffer)
----------------------------------------------------
-
-* **reqAduBuffer** <Buffer>: adu buffer containing the header and pdu.
-* **Return** <Buffer>: buffer with the header.
-
-This method return the header part of a modbus tcp adu.
-
-
-Method: nodbusTcpServer.getWordFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
-.. code-block:: javascript
-
-      nodbusTcpServer.holdingRegisters[0] = 0x11;
-      nodbusTcpServer.holdingRegisters[1] = 0x22;
-      nodbusTcpServer.holdingRegisters[2] = 0x33;
-      nodbusTcpServer.holdingRegisters[3] = 0x44;
-      
-      nodbusTcpServer.holdingRegisters.readUInt16BE(0)                           //returns 0x1122
-      nodbusTcpServer.holdingRegisters.readUInt16BE(1)                           //returns 0x2233
-      nodbusTcpServer.getWordFromBuffer(nodbusTcpServer.holdingRegisters, 0)        //returns Buffer:[0x11, 0x22]
-      nodbusTcpServer.getWordFromBuffer(nodbusTcpServer.holdingRegisters, 1)        //returns Buffer:[0x33, 0x44]
-
-
-Method: nodbusTcpServer.setBoolToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <boolean>: Value to write.
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to write.
-* **offset** <number>: A number with value's offset inside the buffer.
-
-
-This method write a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-     nodbusTcpServer.getBoolFromBuffer(true, nodbusTcpServer.coils, 5) 
-     console.log(nodbusTcpServer.coils[1])  //now second byte is 0x75 (0111 0101)
+- ``getMbapHeader(reqAduBuffer)`` : Get the MBAP header from a Modbus TCP ADU buffer.
+- ``getPdu(reqAduBuffer)`` : Get the PDU from a Modbus TCP ADU buffer.
+- ``getResponseAdu(reqAduBuffer)`` : Get the response ADU buffer for a given request adu buffer.
+- ``validateMbapHeader(reqAduBuffer)`` : Validate the MBAP header of a Modbus TCP ADU buffer. 
 
 
 Method: nodbusTcpServer.start()
 ------------------------------------------------
 
-Start the server. The server will emit the event 'listening' whhen is ready for accept connections.
-
-
-Method: nodbusTcpServer.setWordToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned. Example:
+Start the server. Emits the event ``listening`` when ready to accept connections.
 
 .. code-block:: javascript
 
-      let realValue = Buffer.alloc(4);
-      realValue.writeFloatBE(3.14);
-      let register1 = realValue.subarray(0, 2);
-      let register2 = realValue.subarray(2, 4);
-
-      //writing pi value in bytes 2, 3, 4, 5
-      nodbusTcpServer.setWordToBuffer(register1, nodbusTcpServer.holdingRegisters, 1);
-      nodbusTcpServer.setWordToBuffer(register2, nodbusTcpServer.holdingRegisters, 2);
-
-      //instead this write pi value in bytes 1, 2, 3, 4
-      nodbusTcpServer.holdingRegisters.writefloatBE(3.14, 1) //alignment problem
-
+      nodbusTcpServer.start();
 
 
 Method: nodbusTcpServer.stop()
 ------------------------------------------------
 
-Stop the server. The server will emit the event 'closed' when all connection are destroyed.
+Stop the server. Emits the event ``closed`` when all connections have been closed.
+
+.. code-block:: javascript
+
+      nodbusTcpServer.stop();

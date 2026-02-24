@@ -7,7 +7,7 @@ Nodbus Plus has been designed as a stack for the Modbus protocol.
 It can be used to create both your own Modbus client and server using its API,
 or you can use its build in client or server and have an application with Modbus communication in just minutes.
 
-Instalation
+Installation
 ------------
 
 Nodbus Plus can be easily installed using npm.
@@ -32,7 +32,6 @@ or using ES6 modules:
       import nodbus from 'nodbus-plus';
 
 * **Server**
-
 
 Then the configuration object mus be created for server constructor and the function createTcpServer must be called.
 

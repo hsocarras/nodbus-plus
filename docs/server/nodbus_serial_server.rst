@@ -11,56 +11,53 @@ Class: NodbusSerialServer
 
        
 
-The NodbusSerialServer class extends the :ref:`ModbusSerialServer Class <modbus_serial_server>`. This class implements a fully funcional modbus serial server.
+The `NodbusSerialServer` class extends :ref:`ModbusSerialServer <modbus_serial_server>` to provide a fully functional Modbus serial server implementation.
 
 Creating a NodbusSerialServer Instance
-====================================
+========================================
 
 new nodbusSerialServer([netType], [options])
-------------------------------------------
+---------------------------------------------
 
 * **netType** <Class>: This argument define the constructor for the net layer. See :ref:`NetServer Class <nodbus_net_server>`
-
 * **options** <object>: Configuration object with following properties:
 
-  * transmitionMode <boolean>: 0- RTU transmition mode, 1 - Ascii mode. Default 0.
-  * address <number>: Modbus address, a value between 1 -247. Default 1, any invalid value with set to default.
-  * inputs <number>: The cuantity of inputs that the server will have. It's an integer between 0 and 65535. 
-    If a value of 0 is entered, then the inputs will share the same Buffer as the inputs registers. Default value is 2048.
-  * coils <number>: The cuantity of coils that the server will have. It's an integer between 0 and 65535. If a value of 0 is entered,
-    then the coils will share the same Buffer as holding registers. Default value is 2048.
-  * holdingRegisters <number>: The cuantity of holding registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.  
-  * inputRegisters <number>: The cuantity of input registers that the server will have. It's an integer between 1 and 65535. Default value is 2048.
-  * port <number|string>: TCP port on which the server will listen or serial port like 'COM1'.   
-  * udpType <string>: Define the type of udp socket id udp net type is configured. Can take two values 'ud4' and 'usp6'. Default 'udp4'.
-  * speed <number>: Define the serial port baudrate. It's a enum with following values in bits per secconds.
-   
-    *  0: 110
-    *  1: 300
-    *  2: 1200
-    *  3: 2400
-    *  4: 4800
-    *  5: 9600
-    *  6: 14400
-    *  7: 19200 (Default)
-    *  8: 38400
-    *  9: 57600
-    *  10: 115200
+  * transmissionMode <boolean>: 0 for RTU mode, 1 for ASCII mode (default: ``0``).
+  * address <number>: Modbus slave address; must be between 1–247 (default: ``1``).
+  * inputs <number>: Quantity of discrete inputs (0–65535). If set to 0, inputs share the same buffer as input registers (default: ``2048``).
+  * coils <number>: Quantity of coils (0–65535). If set to 0, coils share the same buffer as holding registers (default: ``2048``).
+  * holdingRegisters <number>: Quantity of holding registers (1–65535, default: ``2048``).
+  * inputRegisters <number>: Quantity of input registers (1–65535, default: ``2048``).
+  * port <number|string>: TCP/UDP port or serial port path (example: ``COM1``).
+  * udpType <string>: UDP socket type; either ``udp4`` or ``udp6`` (default: ``udp4``).
+  * baudRate <number>: Baud rate in bits per second (example: 9600, 19200, 38400, 57600, 115200, default: ``19200``).
 
-  * dataBits <number> 7 or 8.
-  * stopBits <number> Default 1.
-  * parity <number> Enum with following values:
-
-    *  0: 'none'
-    *  1: 'even' (default)
-    *  2: 'odd'
+  * dataBits <number>: 7 or 8 (default: ``8``).
+  * stopBits <number>: 1 or 2 (default: ``1``).
+  * parity <string>: ``none``, ``even``, or ``odd`` (default: ``none``).
 
   * timeBetweenFrame <number>: The number of milliseconds elapsed without receiving data on the serial port to consider that the RTU frame has finished.
 
 
 * **Returns:** <NodbusSerialServer>
+  
+Nodbus-plus come with built-in NetServer implementations for TCP, UDP, and serial transports, that con be imported to construct a NodbusSerialServer. See :ref:`NetServer Class <nodbus_net_server>` for more details.
 
-NodbusPlus expose the function createSerialServer([netConstructor], [options]) to create new instances for NodbusSerialClass
+.. code-block:: javascript
+
+      const Tcp = require('nodbus-plus').NetTcpServer;
+      const Udp = require('nodbus-plus').NetUdpServer;
+      const Serial = require('nodbus-plus').NetSerialServer;
+
+      let config = {
+         port: 'COM1', //mandatory to define port
+      }
+      let nodbusSerialServer = new nodbus.NodbusSerialServer(Serial, config);
+
+
+NodbusPlus also expose the function createSerialServer([netConstructor], [options]) to create new instances for NodbusSerialClass with built in NetServer implementations. 
+netConstructor is a string that can be 'tcp', 'udp4' or 'udp6' or 'serial' to create a NodbusSerialServer with the corresponding NetServer implementation. 
+If netConstructor is not provided or diferent that allowed values, the created NodbusSerialServer will use the built in serial NetServer.
 
 .. code-block:: javascript
 
@@ -71,36 +68,48 @@ NodbusPlus expose the function createSerialServer([netConstructor], [options]) t
       }
 
       let config2 = {
-         port: 'COM1', //mandatory to define port
+         port: 'COM1',
       }
 
-      let nodbusSerialServer = nodbus.createSerialServer('tcp', config1); //default settings, net layer is serial
-
-      
-      // modbus serial server 
-      let nodbusTcpServer2 = nodbus.createTcpServer('serial', config2); 
+      let nodbusSerialServer = nodbus.createSerialServer('serial', config1);
+      let nodbusSerialServer2 = nodbus.createSerialServer('serial', config2); 
        
 
 
-However new NodbusSerialServer instance can be created with customs :ref:`NetServer <nodbus_net_server>` importing the NodbusTcpServer Class.
+Alternatively, create a `NodbusSerialServer` with a custom :ref:`NetServer <nodbus_net_server>`.
 
 .. code-block:: javascript
 
-      const NodbusTcpServer = require('nodbus-plus').NodbusTcpServer;
-      const NetServer = require('custom\net\custome_server.js');
+      const NodbusSerialServer = require('nodbus-plus').NodbusSerialServer;
+      const NetServer = require('custom/net/custom_server.js');
 
-      let config = {port: 502};
-      let nodbusTcpServer = new NodbusTcpServer(NetServer, config);
+      let config = {port: 'COM1'};
+      let nodbusSerialServer = new NodbusSerialServer(NetServer, config);
 
      
 
 NodbusSerialServer's Events
-=========================
+===========================
+
+**Inherited Events**
+
+The following events are inherited from :ref:`ModbusSerialServer Class <modbus_serial_server>`:
+- ``error`` : Emitted when an error occurs. Args: **e** <Error>.
+- ``exception`` : Emitted when a Modbus exception is generated. Args: **functionCode** <number>, **exceptionCode** <number>, **name** <string>.
+- ``write-coils`` : Emitted after coils are written. Args: **startCoil** <number>, **quantityOfCoils** <number>.
+- ``write-registers`` : Emitted after holding registers are written. Args: **startRegister** <number>, **quantityOfRegisters** <number>.
+
 
 Event: 'closed'
 ----------------
 
 Emitted when the server is closed.
+
+.. code-block:: javascript
+
+      nodbusSerialServer.on('closed', () => {
+        console.log('Server has closed');
+      });
 
 
 Event: 'error'
@@ -110,132 +119,92 @@ Event: 'error'
 
 Emitted when a error occurs.
 
+.. code-block:: javascript
+
+      nodbusSerialServer.on('error', (e) => {
+        console.error('Server error:', e);
+      });
+
 
 Event: 'data'
 ---------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
+* **source** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_.
                         or a node serial port object.
 
-* **data** <Buffer>: Data received.
+* **data** <Buffer>: Raw bytes received.
 
-Emitted when the underlaying net server emit the data event.
+Emitted when the underlying transport layer receives data.
+
+.. code-block:: javascript
+
+      nodbusSerialServer.on('data', (source, data) => {
+        console.log('Data received from', source, ':', data);
+      });
 
 
 Event: 'listening'
 ------------------
 
-* **port** <number| string>: TCP port on which the server is listening or serial port.
+* **port** <number|string>: TCP/UDP port or serial port path.
 
-Emitted when the server is listening or the serial port is opened.
+Emitted when the server starts listening or the serial port opens.
 
-Event: 'exception'
----------------------
+.. code-block:: javascript
 
-* **functionCode** <number>: request function code.
-* **exceptionCode** <number>: the code of exception
-* **name** <string>: Name of exception.
-
-.. raw:: html
-
-  <table>
-      <tr>
-         <th>Code</th>
-         <th>Name</th>
-         <th>Meaning</th>
-      </tr>
-   <tr>
-         <td>01</td>
-         <td>ILLEGAL FUNCTION</td>
-         <td>The function code received in the query is not an allowable action for the server.</td>
-   </tr>
-   <tr>
-         <td>02</td>
-         <td>ILLEGAL DATA ADDRESS</td>
-         <td>The data address received in the query is not an allowable address for the server.</td>
-   </tr>
-   <tr>
-         <td>03</td>
-         <td>ILLEGAL DATA VALUE</td>
-         <td>A value contained in the query data field is not an allowable value for server</td>
-   </tr>
-   <tr>
-         <td>04</td>
-         <td>SLAVE DEVICE FAILURE</td>
-         <td>An unrecoverable error occurred while the server was attempting to perform the requested action.</td>
-   </tr>
-    <tr>
-         <td>05</td>
-         <td>ACKNOWLEDGE</td>
-         <td>The server (or slave) has accepted the request and is processing it, but a long duration of time will be required to do so.
-               This response is returned to prevent a timeout error from occurringin the client (or master).</td>
-   </tr>
-   <tr>
-         <td>06</td>
-         <td>SLAVE DEVICE BUSY</td>
-         <td>Specialized use in conjunction with programming commands. The server (or slave) is engaged in processing a long–duration program command.</td>
-   </tr>
-   <tr>
-         <td>08</td>
-         <td>MEMORY PARITY ERROR</td>
-         <td>Specialized use in conjunction with function codes 20 and 21 and reference type 6, to indicate that the extended file area failed to pass a consistency check.</td>
-   </tr>
-   <tr>
-         <td>0A</td>
-         <td>GATEWAY PATH UNAVAILABLE</td>
-         <td>Specialized use in conjunction with gateways, indicates that the gateway was unable to allocate an internal communication path from the input port to the output port for processing the request.
-            Usually means that the gateway is misconfigured or overloaded.</td>
-   </tr>
-   <tr>
-         <td>0B</td>
-         <td>GATEWAY TARGET DEVICE FAILED TO RESPOND</td>
-         <td>Specialized use in conjunction with gateways, indicates that no response was obtained from the target device. Usually means that the device is not present on the network.</td>
-   </tr>
-   </table> 
-
-Emitted when a Modbus exception occurs.
-
+      nodbusSerialServer.on('listening', (port) => {
+        console.log('Server is now listening on port', port);
+      });
 
 Event: 'request'
 ----------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+* **source** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
         or node serial port object.
 
 * **request** <object>: A with following properties:
 
   * *timeStamp* <number>: A timestamp for the request.
-  
-  * *transactionId* <number>: The header's transaction id field value.
 
-  * *unitId* <number>: The header's unit id field value.
+  * *address* <number>: The modbus address.
 
   * *functionCode* <number>: The modbus request's function code.
 
   * *data* <Buffer>: The pdu's data.
 
-  Emited after the data event and only if the data had been validate at net layer level (data's length greater than 7 and equal to header's length field plus 6).
+  Emitted after the data event and only if the data validates at the network layer. This means that the received data has been validated as a complete and valid Modbus ADU frame,
+  but before any protocol-level validation is performed on the PDU. Address matching and CRC/LRC checks are included in the network layer validation, but function code and data validation are not.
+  This allows you to inspect all incoming requests, including those with unsupported function codes or invalid data, before the server generates an exception response.
 
+.. code-block:: javascript
+
+      nodbusSerialServer.on('request', (source, request) => {
+        console.log('Modbus request received from', source, ':', request);
+      });
 
 Event: 'response'
-----------------
+------------------
 
-* **socket** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
+* **source** <object>: Can be a node `net.Socket <https://nodejs.org/api/net.html#class-netsocket>`_  if tcp is used or datagram `message rinfo <https://nodejs.org/api/dgram.html#event-message>`_. 
                 or node serial port object.
 
 * **response** <object>: A with following properties:
 
   * *timeStamp* <number>: A timestamp for the request.
-  
-  * *transactionId* <number>: The header's transaction id field value.
-
-  * *unitId* <number>: The header's unit id field value.
+  * 
+  * *address* <number>: The modbus address.
 
   * *functionCode* <number>: The modbus request's function code.
 
   * *data* <Buffer>: The pdu's data.
 
-  Emited before to send the response adu's buffer to the socket to be sended.
+  Emitted before sending the response ADU buffer to the socket.
+
+.. code-block:: javascript
+
+      nodbusSerialServer.on('response', (source, response) => {
+        console.log('Modbus response being sent to', source, ':', response);
+      });
 
 
 Event: 'write'
@@ -246,156 +215,48 @@ Event: 'write'
 
 * **res** <Buffer>: Server's response.
 
-Emitted when the underlaying net server write data to the socket.
+Emitted when the underlying transport writes data to the socket.
 
+.. code-block:: javascript
 
-Event: 'write-coils'
---------------
-
-* **startCoil** <number> Indicate in wich coil start the new value. 
-
-* **cuantityOfCoils** <number>: amound of coils modificated  
-
-Emitted after change a coil value due to a clienst write coil request.
-
-
-Event: 'write-registers'
---------------
-
-* **startRegister** <number> Indicate in wich register start the new value. 
-
-* **cuantityOfRegister** <number>: amound of register modificated.  
-
-Emitted after change a holding register value due to a clienst write register request. 
+      nodbusSerialServer.on('write', (source, res) => {
+        console.log('Data written to', source, ':', res);
+      });
 
 
 
 NodbusSerialServer's Atributes
 ===============================
 
-Atribute: nodbusSerialServer._internalFunctionCode
---------------------------------------------
 
-* <Map>
+**Inherited Attributes**
 
-This property stores the Modbus functions codes supported by the server. 
-It's a map composed of an integer number with the Modbus function code as the key and the name of the method that will be invoked to resolve that code as the value.
+The following attributes are inherited from :ref:`ModbusServer Class <modbus_server>`:
 
-.. code-block:: javascript
+- ``_internalFunctionCode`` — Map of supported Modbus function codes (Map<number, string>).
+- ``supportedFunctionCode`` — Getter that returns an iterator over supported function codes.
+- ``holdingRegisters`` — Buffer containing holding registers (4x reference).
+- ``inputRegisters`` — Buffer containing input registers (3x reference).
+- ``inputs`` — Buffer containing discrete inputs (1x reference).
+- ``coils`` — Buffer containing coils (0x reference).
 
-      //Example of how to add new custom modbus function code handle function
-      class NodbusSerialServerExtended extends NodbusSerialServer{
-            constructor(mbServerCfg){
-                  super(mbServerCfg)
-                  //adding the new function code and the name of handler
-                  this._internalFunctionCode.set(68, 'customService68');
-            }
-            //New method to handle function code 68. receive a buffer with pdu data as argument.
-            customService68(pduReqData){
-                  let resp = Buffer.alloc(2);
-                  resp[0] = 68;
-                  resp[1] = pduReqData[0];
-                  return resp
-            }
-      }
-      
+From :ref:`ModbusSerialServer Class <modbus_serial_server>`:
 
-
-Atribute: nodbusSerialServer.address
-------------------------------------
-
-* <number>
-
-Accessor property to get and set the modbus's address. Allowed values are any number between 1-247.
-
-Atribute: nodbusSerialServer.busCharacterOverrunCount
--------------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
+- ``address`` — Modbus slave address (1–247).
+- ``transmissionMode`` — 0 for RTU mode, 1 for ASCII mode (default: 0).
+- ``busMessageCount`` — Diagnostic counter for total messages received.
+- ``busCommunicationErrorCount`` — Diagnostic counter for communication errors.
+- ``busCharacterOverrunCount`` — Diagnostic counter for character overruns.
+- ``slaveMessageCount`` — Diagnostic counter for messages processed by the slave.
+- ``slaveNoResponseCount`` — Diagnostic counter for requests that did not receive a response.
+- ``slaveNAKCount`` — Diagnostic counter for requests that received a NAK response.
+- ``slaveBusyCount`` — Diagnostic counter for requests that received a "slave busy" response.
+- ``slaveExceptionErrorCount`` — Diagnostic counter for requests that received an exception response.
+-  ``exceptionCoils`` — Buffer containing 8 exception coils.
 
 
-Atribute: nodbusSerialServer.busCommunicationErrorCount
--------------------------------------------------------
 
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.busMessageCount
---------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.coils
------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital coils. The byte 0 store the coils 0 to 7, byte 1 store coils 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
-and :ref:`setBooltoBuffer method <Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusSerialServer.exceptionCoils
---------------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' 8 exception coils.
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>` 
-and :ref:`setBooltoBuffer method <Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusSerialServer.holdingRegisters
----------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' holding registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: nodbusSerialServer.getWordFromBuffer(targetBuffer, [offset])>` and the :ref:`setWordtoBuffer method <Method: nodbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusSerialServer.inputRegisters
--------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' input registers.
-The Modbus protocol specifies the order in which bytes are sent and receive. Modbus Plus uses a big-endian encoding to send the content of 16-bit registers.
-This means that byte[0] of the register will be considered the MSB and byte[1] the LSB. 
-
-Each register starts at the even byte of the buffer.Therefore, register 0 starts at byte 0 and occupies bytes 0 and 1, register 1 starts at byte 2 and occupies bytes 2 and 3, and so on.
-
-To read or write values in the registers, you can use the buffer's methods (see Node.js documentation), but it is recommended to use the 
-:ref:`getWordFromBuffer method <Method: nodbusSerialServer.getWordFromBuffer(targetBuffer, [offset])>` 
-and the :ref:`setWordtoBuffer method <Method: nodbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusSerialServer.inputs
-------------------------------------
-
-* <Buffer>
-
-This property is a Buffer that store the servers' digital inputs. The byte 0 store the inputs 0 to 7, byte 1 store inputs 8-15 and so on.
-
-To read and write digital values to the buffer, the modbus server provides the methods :ref:`getBoolFromBuffer <Method: nodbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])>`
-and :ref:`setBooltoBuffer method <Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])>`.
-
-
-Atribute: nodbusSerialServer.isListening
+Attribute: nodbusSerialServer.isListening
 --------------------------------------------
 
 * <boolean>
@@ -403,7 +264,7 @@ Atribute: nodbusSerialServer.isListening
 A getter that return the listening status.
       
 
-Atribute: nodbusSerialServer.net
+Attribute: nodbusSerialServer.net
 --------------------------------------------
 
 * <Object>
@@ -411,242 +272,68 @@ Atribute: nodbusSerialServer.net
 A instance of a NetServer Class. See :ref:`NetServer Class <nodbus_net_server>`.
 
 
-Atribute: nodbusSerialServer.port
+Attribute: nodbusSerialServer.port
 --------------------------------------------
 
-* <number | sring>
-
-TCP port on which the server will listen or path to serial port like 'COM1'.
-
-
-Atribute: nodbusSerialServer.slaveBusyCount
---------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.slaveExceptionErrorCount
------------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.slaveMessageCount
---------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.slaveNAKCount
---------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.slaveNoResponseCount
---------------------------------------------------
-
-* <number>
-
-A diagnostic counter. See Modbus spec for more details.
-
-
-Atribute: nodbusSerialServer.supportedFunctionCode
----------------------------------------------------
-
-* <iterator>
-
-This is a getter that return an iterator object trhough nodbusSerialServer._internalFunctionCode keys. It's the same that call nodbusSerialServer._internalFunctionCode.keys().
-
-.. code-block:: javascript
-
-      //Example of getting all suported function code.       
-      for(const functionCode of nodbusSerialServer.supportedFunctionCode){
-         console.log(functionCode)
-      }
-
-
-Atribute: nodbusSerialServer.transmitionMode
----------------------------------------------
-
-* <boolean>
-
-Property to define the modbus serial transmition mode. Allowed values are 0, 1 rtu and ascii mode. Default 0, 'rtu'.
+* <number|string>: TCP/UDP port or serial port path (example: ``COM1``).
 
 
 
 NodbusSerialServer's Methods
 =============================
 
+**Inherited Methods**
 
-See :ref:`ModbusSerialServer Class Methods <modbus_serial_server_methods>` for all base class inherited methods.
+The following methods are inherited from :ref:`ModbusServer Class <modbus_server>`:
 
+- ``processReqPdu(reqPduBuffer)`` : Main function that processes a request PDU and returns a response PDU.
+- ``makeExceptionResPdu(mbFunctionCode, exceptionCode)`` : Creates an exception response PDU.
+- ``readCoilsService(pduReqData)`` : Executes Function Code 01 (Read Coil Status).
+- ``readDiscreteInputsService(pduReqData)`` : Executes Function Code 02 (Read Discrete Inputs).
+- ``readHoldingRegistersService(pduReqData)`` : Executes Function Code 03 (Read Holding Registers).
+- ``readInputRegistersService(pduReqData)`` : Executes Function Code 04 (Read Input Registers).
+- ``writeSingleCoilService(pduReqData)`` : Executes Function Code 05 (Write Single Coil).
+- ``writeSingleRegisterService(pduReqData)`` : Executes Function Code 06 (Write Single Register).
+- ``writeMultipleCoilsService(pduReqData)`` : Executes Function Code 15 (Write Multiple Coils).
+- ``writeMultipleRegistersService(pduReqData)`` : Executes Function Code 16 (Write Multiple Registers).
+- ``maskWriteRegisterService(pduReqData)`` : Executes Function Code 22 (Mask Write Register).
+- ``readWriteMultipleRegistersService(pduReqData)`` : Executes Function Code 23 (Read/Write Multiple Registers).
+- ``getBoolFromBuffer(targetBuffer, [offset])`` : Reads a boolean value from a buffer at the specified offset.
+- ``setBoolToBuffer(value, targetBuffer, [offset])`` : Writes a boolean value to a buffer at the specified offset.
+- ``getWordFromBuffer(targetBuffer, [offset])`` : Reads a 16-bit word from a buffer at the specified offset.
+- ``setWordToBuffer(value, targetBuffer, [offset])`` : Writes a 16-bit word to a buffer at the specified offset.
+  
+For :ref:`ModbusSerialServer Class Methods <modbus_serial_server_methods>`:
 
-Method: nodbusSerialServer.aduAsciiToRtu(asciiFrame)
-----------------------------------------------------
+- ``aduAsciiToRtu(asciiFrame)`` — Convert an ASCII ADU to RTU format with CRC checksum.
+- ``aduRtuToAscii(rtuFrame)`` — Convert an RTU ADU to ASCII format with LRC checksum.
+- ``calcCRC(frame)`` — Calculate the CRC-16 checksum for an RTU frame.
+- ``calcLRC(frame)`` — Calculate the LRC checksum for an ASCII frame.
+- ``executeBroadcastRequest(reqPduBuffer)`` — Execute a broadcast request without generating a response.
+- ``getAddress(reqAduBuffer)`` — Get the address field from a Modbus RTU request.
+- ``getPdu(reqAduBuffer)`` — Get the PDU from a Modbus RTU request.
+- ``getChecksum(reqAduBuffer)`` — Get the checksum from a Modbus frame.
+- ``getResponseAdu(reqPduBuffer)`` — Get the response ADU buffer for a given request adu buffer.
+- ``readExceptionCoilsService(pduData)`` — This method execute the read exception coils indication on the server.
+- ``resetCounters()`` — Reset all diagnostic counters to 0.
+- ``validateAddress(reqAduBuffer)`` — Validate the address field of a Modbus RTU request against the server's configured address.
+- ``validateChecksum(reqAduBuffer)`` — Validate the checksum of a Modbus RTU request.
 
-* **asciiFrame** <Buffer>: A serial ascii adu.
-* **Returns** <Buffer>: A serial rtu adu.
-
-This method get a ascii adu and convert it in a equivalent rtu adu, including the crc checksum.
-
-
-Method: nodbusSerialServer.aduRtuToAscii(rtuFrame)
-----------------------------------------------------
-
-* **rtuFrame** <Buffer>: A serial rtu adu.
-* **Returns** <Buffer>: A serial ascii adu.
-
-This method get a rtu adu and convert it in a equivalent ascii adu, including the lrc checksum.
-
-
-Method: nodbusSerialServer.calcCRC(frame)
---------------------------------------------------
-
-* **frame** <Buffer>: A serial rtu adu request buffer received by server.
-* **Returns** <number>: crc value for request.
-
-This method calculate the checksum for he buffer request and return it. It receives a complete rtu frame and ignore the crc field (last two bytes) when calculate the crc value.
-
-
-Method: nodbusSerialServer.calcLRC(frame)
---------------------------------------------------
-
-* **frame** <Buffer>: A serial ascii adu request buffer received by server.
-* **Returns** <number>: lrc value for request.
-
-This method calculate the checksum for he buffer request and return it. It receives a complete ascii frame including start character (:) and ending characters.
-
-
-Method: nodbusSerialServer.getAddress(reqAduBuffer)
----------------------------------------------------
-
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
-* **Returns** <number>: Modbus Rtu address field.
-
-This method return the address field on a modbus rtu request.
-
-
-Method: nodbusSerialServer.getBoolFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to read.
-* **offset** <number>: A number with value's offset inside the buffer.
-* **Return** <boolean>: value.
-
-
-This method read a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-      nodbusSerialServer.inputs[0] = 0x44  //first byte 0100 0100
-      nodbusSerialServer.coils[1] =  0x55 //second byte 0101 0101
-
-      nodbusSerialServer.getBoolFromBuffer(nodbusSerialServer.inputs, 6) //return 1
-      nodbusSerialServer.getBoolFromBuffer(nodbusSerialServer.coils, 5) //return 0
-
-
-Method: nodbusSerialServer.getPdu(reqAduBuffer)
----------------------------------------------------
-
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
-* **Returns** <Buffer>: Modbus Rtu pdu.
-
-This method return the pdu on a modbus rtu request.
-
-Method: nodbusSerialServer.getChecksum(reqAduBuffer)
----------------------------------------------------
-
-* **reqAduBuffer** <Buffer>: A buffer containing a rtu or ascii serial adu.
-* **Returns** <number>: Modbus message checsum.
-
-This method return the checksum for the modbus's frame.
-
-
-Method: nodbusSerialServer.getWordFromBuffer(targetBuffer, [offset])
---------------------------------------------------------------
-
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to read.
-* **offset** <number>: A number with register's offset inside the buffer.
-* **Return** <Buffer>: A two bytes length buffer.
-
-
-This method read two bytes from target buffer with 16 bits align. Offset 0 get bytes 0 and 1, offset 4 gets bytes 8 and 9
-
-.. code-block:: javascript
-
-      nodbusSerialServer.holdingRegisters[0] = 0x11;
-      nodbusSerialServer.holdingRegisters[1] = 0x22;
-      nodbusSerialServer.holdingRegisters[2] = 0x33;
-      nodbusSerialServer.holdingRegisters[3] = 0x44;
-      
-      nodbusSerialServer.holdingRegisters.readUInt16BE(0)                           //returns 0x1122
-      nodbusSerialServer.holdingRegisters.readUInt16BE(1)                           //returns 0x2233
-      nodbusSerialServer.getWordFromBuffer(nodbusSerialServer.holdingRegisters, 0)        //returns Buffer:[0x11, 0x22]
-      nodbusSerialServer.getWordFromBuffer(nodbusSerialServer.holdingRegisters, 1)        //returns Buffer:[0x33, 0x44]
-
-
-Method: nodbusSerialServer.resetCounters()
-------------------------------------------------
-
-This method set to 0 all diagnostic counter in the modbus serial server.
-
-
-Method: nodbusSerialServer.setBoolToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <boolean>: Value to write.
-* **targetBuffer** <Buffer>: Buffer with the objetive boolean value to write.
-* **offset** <number>: A number with value's offset inside the buffer.
-
-
-This method write a boolean value inside a buffer. The buffer's first byte store the 0-7 boolean values's offset. Example:
-
-.. code-block:: javascript
-
-     nodbusSerialServer.getBoolFromBuffer(true, nodbusSerialServer.coils, 5) 
-     console.log(nodbusSerialServer.coils[1])  //now second byte is 0x75 (0111 0101)
-
-
-Method: nodbusSerialServer.setWordToBuffer(value, targetBuffer, [offset])
--------------------------------------------------------------------
-
-* **value** <Buffer>: two bytes length buffer.
-* **targetBuffer** <Buffer>: Buffer with the objetive 16 bits register to write.
-* **offset** <number>: A number with register's offset inside the buffer.
-
-
-
-This method write a 16 bits register inside a buffer. The offset is 16 bits aligned. Example:
-
-.. code-block:: javascript
-
-      let realValue = Buffer.alloc(4);
-      realValue.writeFloatBE(3.14);
-      let register1 = realValue.subarray(0, 2);
-      let register2 = realValue.subarray(2, 4);
-
-      //writing pi value in bytes 2, 3, 4, 5
-      nodbusSerialServer.setWordToBuffer(register1, nodbusSerialServer.holdingRegisters, 1);
-      nodbusSerialServer.setWordToBuffer(register2, nodbusSerialServer.holdingRegisters, 2);
-
-      //instead this write pi value in bytes 1, 2, 3, 4
-      nodbusSerialServer.holdingRegisters.writefloatBE(3.14, 1) //alignment problem
 
 Method: nodbusSerialServer.start()
 ------------------------------------------------
 
-Start the server. The server will emit the event 'listening' whhen is ready for accept connections or data.
+Start the server. The server emits a ``listening`` event when ready to accept connections.
+
+.. code-block:: javascript
+
+      nodbusSerialServer.start();
 
 Method: nodbusSerialServer.stop()
 ------------------------------------------------
 
-Stop the server. The server will emit the event 'closed' when all connection are destroyed or the serial port is closed.
+Stop the server. The server emits a ``closed`` event when all connections are closed and resources are released.
+
+.. code-block:: javascript
+
+      nodbusSerialServer.stop();

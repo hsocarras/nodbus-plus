@@ -12,69 +12,64 @@ Nodbus-Plus is a Modbus protocol stack for Node.js. You can use its API to creat
 npm install nodbus-plus
 ```
 
-## Basic Usage
+## Quick Start
 
 ### Creating a Modbus Server
 
 ```javascript
 const nodbus = require('nodbus-plus');
 
-// Basic config for TCP server. Default values.
+// TCP server configuration (uses default values if not specified)
 const cfg = {
-    inputs: 2048,            // total inputs
-    coils: 2048,             // total coils
-    holdingRegisters: 2048,  // total holding registers
-    inputRegisters: 2048,    // total input registers
-    port: 502,               // port to listen on
+    inputs: 2048,            // Number of discrete inputs
+    coils: 2048,             // Number of coils
+    holdingRegisters: 2048,  // Number of holding registers
+    inputRegisters: 2048,    // Number of input registers
+    port: 502                // Port on which to listen
 };
 
 let server = nodbus.createTcpServer('tcp', cfg);
 ```
 
-The first argument for `createTcpServer` is the transport layer type. The Nodbus-Plus TCP server supports `'tcp'`, `'udp4'`, and `'udp6'`.  
-To create a serial server, use `createSerialServer` instead:
+The first argument specifies the transport layer type. Supported options are `'tcp'`, `'udp4'`, and `'udp6'`.  
+To create a serial server instead, use `createSerialServer`:
 
 
 ```javascript
-// Basic config for serial server.
+// Serial server configuration
 const cfg = {
-    address: 1,
-    transmitionMode: 0, // 0 - RTU, 1 - ASCII
-    inputs: 2048,
-    coils: 2048,
-    holdingRegisters: 2048,
-    inputRegisters: 2048,
-    port: 'COM1', // Serial port path (e.g., 'COM1' on Windows or '/dev/ttyUSB0' on Linux)
-    // Additional serial port configuration may be required
+    address: 1,                    // Modbus slave address (1–247)
+    transmissionMode: 0,           // 0 = RTU, 1 = ASCII
+    inputs: 2048,                  // Number of discrete inputs
+    coils: 2048,                   // Number of coils
+    holdingRegisters: 2048,        // Number of holding registers
+    inputRegisters: 2048,          // Number of input registers
+    port: 'COM1'                   // Serial port path (e.g., 'COM1' on Windows, '/dev/ttyUSB0' on Linux)
 };
 
 let server = nodbus.createSerialServer('serial', cfg);
 ```
-> **Note:** The `port` property for serial servers must be a string with the path to the serial port.  
-> See the Nodbus-Plus API for more details on serial configuration.
-
-#### Add Listeners for Server Events
+#### Listen for Server Events
 
 ```javascript
-//listenning event
-server.on('listening', function(port){
-    console.log('Server listening on: ' + port);        
+// Emitted when server starts listening
+server.on('listening', (port) => {
+    console.log('Server listening on port:', port);
 });
 
-//event emited when a request are received
-server.on('request', function(sock, req){
-    console.log('Request received')
-    console.log(req)
+// Emitted when a request is received from a client
+server.on('request', (socket, req) => {
+    console.log('Request received:', req);
 });
 
-//Event emited when server send a response to client
-server.on('response', function(sock, res){
-    console.log('Responding')
-    console.log(res)
+// Emitted before sending a response to client
+server.on('response', (socket, res) => {
+    console.log('Response:', res);
 });
 
-server.on('error', function(err){
-    console.log(err)
+// Emitted when an error occurs
+server.on('error', (err) => {
+    console.error('Error:', err);
 });
 ```
 
@@ -83,7 +78,6 @@ Finally, start the server:
 ```javascript
 server.start();
 ```
----
 
 ### Creating a Modbus Client
 
@@ -91,81 +85,83 @@ To create a Modbus client, use `createTcpClient` or `createSerialClient`:
 
 ```javascript
 const nodbus = require('nodbus-plus');
+
 let client = nodbus.createSerialClient();
 
-//emitted when the client stablish connection with the server
-client.on('connection', (id)=>{
-    console.log('connection stablish')    
-})
+// Emitted when client establishes connection with the server
+client.on('connection', (id) => {
+    console.log('Connection established:', id);
+});
 
-//emited when error occurs
-client.on('error', (e)=>{    
-    console.log(e)    
-})
+// Emitted when an error occurs
+client.on('error', (err) => {
+    console.error('Error:', err);
+});
 
-//emitted when a request is sended to server
-client.on('request', (id, req)=>{
-    console.log('request sended to device: ' + id);        
-})
+// Emitted when a request is sent to server
+client.on('request', (id, req) => {
+    console.log('Request sent to device:', id);
+});
 
-//emited when no response is received
-client.on('req-timeout', (id, adu)=>{
-    console.log('timeout')        
-})
+// Emitted when a response timeout occurs
+client.on('req-timeout', (id, adu) => {
+    console.error('Request timeout for device:', id);
+});
 
-//emited when a response is received
-client.on('response', (id, res)=>{
-    console.log(res)        
-})
+// Emitted when a response is received
+client.on('response', (id, res) => {
+    console.log('Response from device:', id, res);
+});
 ```
 
-Add channels to the client. The client creates a connection per channel.  
-The following example adds a Modbus TCP server and connects to it:
-
+Add channels to the client. Each channel represents a connection to a Modbus device:
 
 ```javascript
+// Channel configuration
+const channelCfg = {
+    ip: '127.0.0.1',      // Target device IP address
+    port: 502,            // Target device port
+    timeout: 250          // Request timeout in milliseconds
+};
 
-//channel
-channelCfg = {        
-    ip:'127.0.0.1',
-    port:502,
-    timeout:250,
-}
-
-client.addChannel('device', 'tcp1', channelCfg);
-client.connect('device')
-
+client.addChannel('device1', 'tcp1', channelCfg);
+client.connect('device1');
 ```
 
-Once the client is connected and event listeners are configured, you can exchange data using available Modbus functions:
-
+Once connected, use available Modbus functions to exchange data:
 
 ```javascript
-// Read two coils starting at address 0 from channel 'device', Modbus address 1
-client.readCoils('device', 1, 0, 2);
+// Read 2 coils starting at address 0 from device at Modbus address 1
+client.readCoils('device1', 1, 0, 2);
 ```
----
 
-### Documentation
+## Documentation
 
-For comprehensive information, refer to the [official documentation](https://nodbus-plus.readthedocs.io/en/latest/).
+For comprehensive API documentation, visit the [official documentation](https://nodbus-plus.readthedocs.io/en/latest/).
 
+## Getting Started
 
-### Getting Started
+New to Nodbus-Plus? The [Getting Started Guide](https://nodbus-plus.readthedocs.io/en/latest/starting.html) provides installation instructions and basic usage examples.
 
-If you're new to Nodbus-Plus, the [Getting Started Guide](https://nodbus-plus.readthedocs.io/en/latest/starting.html) will walk you through installation and provide basic usage examples.
+## Examples
 
-
-### Examples
-
-The `./samples` directory in the root folder contains example programs demonstrating how to use the library.
+See the `./samples` directory for example programs demonstrating library usage.
 
 
+
+## Features
+
+- **Full Modbus Protocol Support**: Read/write coils, discrete inputs, holding registers, and input registers.
+- **Modbus Serial (RTU/ASCII)**: Serial communication with RTU and ASCII transmission modes.
+- **Modbus TCP**: TCP/IP network communication with standard Modbus TCP protocol.
+- **Pure JavaScript**: No native dependencies; works on any Node.js environment.
+- **Client & Server**: Create both Modbus clients and servers with the same library.
+- **Event-Driven**: Asynchronous event-based API for responsive applications.
 
 ## Contributing
 
-If you have suggestions or find an issue, please [create an issue](https://github.com/hsocarras/nodbus-plus/issues).
+Contributions are welcome! If you find a bug or have a feature suggestion, please [open an issue](https://github.com/hsocarras/nodbus-plus/issues).
 
 ## License
 
-This project is licensed under the MIT License. See the `LICENSE.md` file for details.
+MIT License. See `LICENSE.md` for details.
